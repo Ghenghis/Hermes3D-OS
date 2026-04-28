@@ -10,8 +10,9 @@ The goal is to replace every guessed or mocked value with user-confirmed data be
 | --- | --- | --- |
 | FLSUN T1-A | `http://192.168.0.10` | yes |
 | FLSUN T1-B | `http://192.168.0.11` | yes |
-| FLSUN V400 | `http://192.168.0.34` | yes |
-| FLSUN V400 alternate | `http://192.168.0.36` | yes |
+| FLSUN V400 Speeder Pad | `http://192.168.1.146` | yes |
+| FLSUN V400 old candidate | `http://192.168.0.34` | maybe |
+| FLSUN V400 old alternate | `http://192.168.0.36` | maybe |
 
 ## Where To Find The Needed Data
 
@@ -51,6 +52,7 @@ Try these URLs in a browser:
 ```text
 http://192.168.0.10
 http://192.168.0.11
+http://192.168.1.146
 http://192.168.0.34
 http://192.168.0.36
 ```
@@ -64,6 +66,7 @@ Try:
 ```text
 http://192.168.0.10/server/info
 http://192.168.0.11/server/info
+http://192.168.1.146/server/info
 http://192.168.0.34/server/info
 http://192.168.0.36/server/info
 ```
@@ -73,6 +76,7 @@ If port `80` does not respond, also try Moonraker's common direct port:
 ```text
 http://192.168.0.10:7125/server/info
 http://192.168.0.11:7125/server/info
+http://192.168.1.146:7125/server/info
 http://192.168.0.34:7125/server/info
 http://192.168.0.36:7125/server/info
 ```
@@ -93,6 +97,12 @@ By default this checks the known candidates:
 192.168.0.12
 192.168.0.34
 192.168.0.36
+```
+
+To check the V400 Speeder Pad:
+
+```powershell
+.\scripts\find-moonraker-printers.ps1 -Subnet 192.168.1 -Hosts 146
 ```
 
 To scan another subnet:
@@ -139,7 +149,8 @@ Before real printer dispatch is enabled, confirm:
 
 - Is T1-A definitely `192.168.0.10`?
 - Is T1-B definitely `192.168.0.11`?
-- Is V400 `192.168.0.34` or `192.168.0.36`?
+- Is V400 Speeder Pad definitely `192.168.1.146`?
+- Does V400 Moonraker answer on port `80` or `7125`?
 - Does Moonraker answer on port `80` or `7125`?
 - Does Moonraker require an API key?
 - What slicer profile should each printer use?
@@ -158,4 +169,10 @@ http://192.168.0.11
 http://192.168.0.11:7125
 ```
 
-The V400 still needs confirmation.
+The V400 Speeder Pad is now expected at:
+
+```text
+http://192.168.1.146
+```
+
+It still needs a live Moonraker reachability test.

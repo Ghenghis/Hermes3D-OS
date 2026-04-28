@@ -10,7 +10,8 @@ Printer onboarding should be slow and evidence-based. Start with the two pilot F
 ## Next Known Addresses
 
 - FLSUN S1: `http://192.168.0.12`
-- FLSUN V400: `http://192.168.0.34` or `http://192.168.0.36`
+- FLSUN V400 Speeder Pad: `http://192.168.1.146`
+- FLSUN V400 old candidates: `http://192.168.0.34` or `http://192.168.0.36`
 
 ## Later Fleet
 

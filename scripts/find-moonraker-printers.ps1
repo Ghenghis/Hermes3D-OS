@@ -53,7 +53,7 @@ Write-Host ""
 
 if ($results.Count -eq 0) {
     Write-Host "No Moonraker endpoints found."
-    Write-Host "Confirm the printers are powered on, joined to Wi-Fi/Ethernet, and on the 192.168.0.x network."
+    Write-Host "Confirm the printers are powered on, joined to Wi-Fi/Ethernet, and on the $Subnet.x network."
     Write-Host "Use -FullScan to scan $Subnet.1-254."
     exit 1
 }
