@@ -113,7 +113,7 @@ class Database:
                     id, name, vendor, model, role, connector, base_url, api_key_env,
                     slicer_profile, capabilities_json, enabled, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     name=excluded.name,
                     vendor=excluded.vendor,
@@ -124,6 +124,7 @@ class Database:
                     api_key_env=excluded.api_key_env,
                     slicer_profile=excluded.slicer_profile,
                     capabilities_json=excluded.capabilities_json,
+                    enabled=excluded.enabled,
                     updated_at=excluded.updated_at
                 """,
                 (
@@ -137,6 +138,7 @@ class Database:
                     moonraker.get("api_key_env"),
                     printer.get("slicer_profile"),
                     json.dumps(printer.get("capabilities", {}), sort_keys=True),
+                    int(bool(printer.get("enabled", True))),
                     now,
                     now,
                 ),

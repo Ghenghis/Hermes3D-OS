@@ -1,6 +1,6 @@
 param(
     [string]$Subnet = "192.168.0",
-    [int[]]$Hosts = @(10, 11, 12, 34, 36),
+    [int[]]$Hosts = @(10, 11, 34, 36),
     [int[]]$Ports = @(80, 7125),
     [int]$TimeoutSeconds = 2,
     [switch]$FullScan

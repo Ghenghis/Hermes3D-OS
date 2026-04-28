@@ -96,6 +96,7 @@ async def printer_status(printer_id: str) -> dict[str, Any]:
     printer = _get_printer(printer_id)
     if not printer:
         raise HTTPException(status_code=404, detail="Printer not found")
+    _require_printer_probe_allowed(printer)
 
     try:
         result = await moonraker.status(printer, real_probe=True)
@@ -379,6 +380,13 @@ def _first_printer_id() -> str | None:
     with db.connect() as conn:
         row = conn.execute("SELECT id FROM printers WHERE enabled = 1 ORDER BY name LIMIT 1").fetchone()
     return row["id"] if row else None
+
+
+def _require_printer_probe_allowed(printer: dict[str, Any]) -> None:
+    capabilities = printer.get("capabilities", {})
+    reason = capabilities.get("lock_reason") or f"{printer['name']} is safety locked."
+    if not printer.get("enabled") or capabilities.get("maintenance_lock") or capabilities.get("do_not_probe"):
+        raise HTTPException(status_code=423, detail=reason)
 
 
 def _get_printer(printer_id: str | None) -> dict[str, Any] | None:

@@ -62,8 +62,11 @@ function renderPrinters() {
             <p class="muted">${escapeHtml(printer.vendor || "Unknown vendor")} ${escapeHtml(printer.model || "")}</p>
             <p class="muted">${escapeHtml(printer.base_url || "No Moonraker URL configured")}</p>
             <div class="printer-actions">
-              <button type="button" data-test-printer="${escapeAttr(printer.id)}">Test</button>
+              <button type="button" data-test-printer="${escapeAttr(printer.id)}" ${printerLocked(printer) ? "disabled" : ""}>
+                ${printerLocked(printer) ? "Locked" : "Test"}
+              </button>
             </div>
+            ${renderPrinterLock(printer)}
             ${renderPrinterStatus(printer.id)}
           </article>
         `,
@@ -205,6 +208,23 @@ function renderPrinterStatus(printerId) {
     <div class="printer-status ${cls}">
       <strong>${status.ok ? "Reachable" : status.ok === null ? "Testing" : "Needs attention"}</strong>
       <span>${escapeHtml(detail || "No detail returned")}</span>
+    </div>
+  `;
+}
+
+function printerLocked(printer) {
+  return !printer.enabled || printer.capabilities?.maintenance_lock || printer.capabilities?.do_not_probe;
+}
+
+function renderPrinterLock(printer) {
+  if (!printerLocked(printer)) {
+    return "";
+  }
+  const reason = printer.capabilities?.lock_reason || "Disabled or safety locked.";
+  return `
+    <div class="printer-status status-bad">
+      <strong>Safety locked</strong>
+      <span>${escapeHtml(reason)}</span>
     </div>
   `;
 }

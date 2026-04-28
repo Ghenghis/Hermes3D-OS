@@ -33,6 +33,7 @@ Still needs user-confirmed data:
 - real slicer profiles
 - bed/nozzle dimensions
 - whether each printer should use port `80` or `7125`
+- S1 maintenance clearance before any tests or movement
 
 ## Daily Startup Checklist
 
@@ -52,7 +53,7 @@ http://127.0.0.1:8080
 4. Click `Load Printers`.
 5. Click `Test` on each printer card.
 6. Confirm the two T1 printers are reachable.
-7. Confirm S1 responds at `192.168.0.12`.
+7. Do not test S1 while maintenance locked.
 8. Confirm V400 responds at `192.168.0.34`.
 
 Command-line version:
@@ -70,6 +71,10 @@ Printers:
 - FLSUN T1-A
 - FLSUN T1-B
 - FLSUN V400
+
+Excluded until maintenance is cleared:
+
+- FLSUN S1
 
 Collect:
 

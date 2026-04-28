@@ -10,7 +10,7 @@ The goal is to replace every guessed or mocked value with user-confirmed data be
 | --- | --- | --- |
 | FLSUN T1-A | `http://192.168.0.10` | yes |
 | FLSUN T1-B | `http://192.168.0.11` | yes |
-| FLSUN S1 | `http://192.168.0.12` | confirmed reachable |
+| FLSUN S1 | `http://192.168.0.12` | maintenance locked, do not test |
 | FLSUN V400 | `http://192.168.0.34` | confirmed reachable |
 | FLSUN V400 alternate | `http://192.168.0.36` | maybe |
 | FLSUN V400 Speeder Pad history | `http://192.168.1.146` | old network |
@@ -53,7 +53,6 @@ Try these URLs in a browser:
 ```text
 http://192.168.0.10
 http://192.168.0.11
-http://192.168.0.12
 http://192.168.0.34
 http://192.168.0.36
 http://192.168.1.146
@@ -68,7 +67,6 @@ Try:
 ```text
 http://192.168.0.10/server/info
 http://192.168.0.11/server/info
-http://192.168.0.12/server/info
 http://192.168.0.34/server/info
 http://192.168.0.36/server/info
 http://192.168.1.146/server/info
@@ -79,7 +77,6 @@ If port `80` does not respond, also try Moonraker's common direct port:
 ```text
 http://192.168.0.10:7125/server/info
 http://192.168.0.11:7125/server/info
-http://192.168.0.12:7125/server/info
 http://192.168.0.34:7125/server/info
 http://192.168.0.36:7125/server/info
 http://192.168.1.146:7125/server/info
@@ -98,7 +95,6 @@ By default this checks the known candidates:
 ```text
 192.168.0.10
 192.168.0.11
-192.168.0.12
 192.168.0.34
 192.168.0.36
 ```
@@ -153,7 +149,6 @@ Before real printer dispatch is enabled, confirm:
 
 - Is T1-A definitely `192.168.0.10`?
 - Is T1-B definitely `192.168.0.11`?
-- Is S1 Moonraker available at `192.168.0.12` on port `80` or `7125`? Yes, latest scan found both.
 - Is V400 definitely `192.168.0.34`? Yes.
 - Does V400 Moonraker answer on port `80` or `7125`? Yes, latest scan found both.
 - Does Moonraker answer on port `80` or `7125`?
@@ -174,13 +169,23 @@ http://192.168.0.11
 http://192.168.0.11:7125
 ```
 
-The latest scan found:
+Do not scan or test S1 while it is in maintenance:
 
 ```text
 http://192.168.0.12
-http://192.168.0.12:7125
+```
+
+Reason:
+
+```text
+Movement may damage the hotend.
+```
+
+The latest safe scan found:
+
+```text
 http://192.168.0.34
 http://192.168.0.34:7125
 ```
 
-Hermes also read status successfully for T1-A, T1-B, S1, and V400 through `scripts\test-configured-printers.ps1`.
+Hermes should only test T1-A, T1-B, and V400 until S1 maintenance is cleared.

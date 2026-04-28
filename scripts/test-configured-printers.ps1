@@ -11,6 +11,21 @@ $printers = Invoke-RestMethod "$BaseUrl/api/printers"
 $results = @()
 
 foreach ($printer in $printers) {
+    if (($printer.enabled -eq 0) -or $printer.capabilities.maintenance_lock -or $printer.capabilities.do_not_probe) {
+        $message = $printer.capabilities.lock_reason
+        if (-not $message) {
+            $message = "Disabled or safety locked."
+        }
+        $results += [pscustomobject]@{
+            Printer = $printer.name
+            Url = $printer.base_url
+            Ok = "SKIP"
+            State = "locked"
+            Message = $message
+        }
+        continue
+    }
+
     try {
         $status = Invoke-RestMethod "$BaseUrl/api/printers/$($printer.id)/status"
         $printerState = $status.payload.printer.state

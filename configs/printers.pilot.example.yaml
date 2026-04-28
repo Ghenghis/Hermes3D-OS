@@ -38,6 +38,7 @@ printers:
     vendor: FLSUN
     model: S1
     role: next-onboarding
+    enabled: false
     connector: moonraker
     moonraker:
       base_url: http://192.168.0.12
@@ -49,6 +50,9 @@ printers:
       camera: unknown
       heated_bed: true
       enclosure: unknown
+      maintenance_lock: true
+      do_not_probe: true
+      lock_reason: "Maintenance lock: do not test or move. Movement may damage the hotend."
 
   - id: flsun-v400
     name: FLSUN V400

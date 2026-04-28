@@ -9,7 +9,7 @@ Printer onboarding should be slow and evidence-based. Start with the two pilot F
 
 ## Next Known Addresses
 
-- FLSUN S1 confirmed and reachable: `http://192.168.0.12`
+- FLSUN S1 maintenance locked, do not test or move: `http://192.168.0.12`
 - FLSUN V400 confirmed and reachable: `http://192.168.0.34`
 - FLSUN V400 alternates/history: `http://192.168.0.36` or `http://192.168.1.146`
 
@@ -63,7 +63,13 @@ If they do not know, collect it from the printer screen, the router connected-de
 
 Keep guessed values in `configs\printers.local.yaml` and update them as soon as the real values are known.
 
-Current note: S1 and V400 are reachable through Moonraker on both port `80` and direct port `7125`.
+Current note: S1 is in maintenance and must not be tested or moved because movement may damage the hotend. V400 is reachable through Moonraker on both port `80` and direct port `7125`.
+
+## Safety Locks
+
+The FLSUN S1 is disabled in `configs/printers.local.yaml` and `configs/printers.pilot.example.yaml`.
+
+Do not run status tests, movement tests, upload tests, print tests, pause/resume tests, or cancel tests against S1 until the maintenance lock is removed.
 
 ## Safety Validation
 
