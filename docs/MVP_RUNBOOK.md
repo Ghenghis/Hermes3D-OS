@@ -27,8 +27,10 @@ This runbook covers the current runnable Hermes3D OS MVP.
 Open:
 
 ```text
-http://127.0.0.1:8080
+the URL printed by scripts/run-dev.ps1
 ```
+
+The launcher reads `configs/runtime.local.yaml` and automatically saves a new open API/web port if the configured one is already used.
 
 ## Run The Smoke Test
 

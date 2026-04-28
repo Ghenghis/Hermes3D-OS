@@ -1,12 +1,19 @@
 param(
     [string]$Subnet = "192.168.0",
     [int[]]$Hosts = @(10, 11, 34, 36),
-    [int[]]$Ports = @(80, 7125),
+    [int[]]$Ports = @(),
     [int]$TimeoutSeconds = 2,
     [switch]$FullScan
 )
 
 $ErrorActionPreference = "Continue"
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "runtime-ports.ps1")
+
+if ($Ports.Count -eq 0) {
+    $runtimePorts = Get-HermesMoonrakerScanPorts -RepoRoot $RepoRoot
+    $Ports = $runtimePorts
+}
 
 $HostList = if ($FullScan) { 1..254 } else { $Hosts }
 

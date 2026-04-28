@@ -199,6 +199,10 @@ function renderApprovalsPage() {
 }
 
 function renderSettings() {
+  const runtime = state.settings.runtime || {};
+  const ports = runtime.ports || {};
+  const serviceUrls = runtime.service_urls || {};
+  const duplicatePorts = runtime.duplicate_ports || {};
   const safetyLocks = state.printers
     .filter(printerLocked)
     .map((printer) => settingRow(`${printer.name} Safety Lock`, lockReason(printer)))
@@ -206,14 +210,98 @@ function renderSettings() {
   setHtml(
     "#settingsPage",
     [
-      settingRow("Dry Run Printers", String(state.settings.dry_run_printers)),
-      settingRow("Printers Config", state.settings.printers_config),
-      settingRow("Services Config", state.settings.services_config),
-      settingRow("Storage", state.settings.storage_dir),
-      settingRow("Database", state.health.database),
-      safetyLocks || settingRow("Safety Locks", "No locked printers configured"),
+      `
+        <form id="runtimeSettingsForm" class="settings-form">
+          <div class="settings-toolbar">
+            <div>
+              <h3>Runtime Ports</h3>
+              <p class="muted">Saved to ${escapeHtml(runtime.config_path || state.settings.runtime_config || "configs/runtime.local.yaml")}</p>
+              <p class="muted">API/web port changes apply on the next launcher restart; worker ports are saved for their services.</p>
+            </div>
+            <div class="actions">
+              <button type="button" id="autoPortsBtn">Auto Assign Open Ports</button>
+              <button type="submit">Save Ports</button>
+            </div>
+          </div>
+          <label>
+            <span>API Host</span>
+            <input name="api_host" value="${escapeAttr(runtime.api_host || "127.0.0.1")}" />
+          </label>
+          <div class="settings-grid">
+            ${Object.entries(ports)
+              .map(([name, port]) => runtimePortInput(name, port, duplicatePorts))
+              .join("")}
+          </div>
+          <label>
+            <span>Moonraker Scan Ports</span>
+            <input name="moonraker_scan_ports" value="${escapeAttr((runtime.moonraker_scan_ports || []).join(", "))}" />
+          </label>
+          <div class="settings-grid">
+            ${Object.entries(serviceUrls)
+              .map(([name, url]) => runtimeUrlInput(name, url))
+              .join("")}
+          </div>
+        </form>
+      `,
+      `
+        <section class="section">
+          <h2>Printer Moonraker Ports</h2>
+          <div class="settings-grid">
+            ${state.printers.map(printerPortInput).join("")}
+          </div>
+        </section>
+      `,
+      `<section class="section">${[
+        settingRow("Dry Run Printers", String(state.settings.dry_run_printers)),
+        settingRow("Printers Config", state.settings.printers_config),
+        settingRow("Services Config", state.settings.services_config),
+        settingRow("Storage", state.settings.storage_dir),
+        settingRow("Database", state.health.database),
+        safetyLocks || settingRow("Safety Locks", "No locked printers configured"),
+      ].join("")}</section>`,
     ].join(""),
   );
+}
+
+function runtimePortInput(name, port, duplicatePorts) {
+  const duplicate = Object.entries(duplicatePorts).some(([, names]) => names.includes(name));
+  return `
+    <label class="${duplicate ? "port-warning" : ""}">
+      <span>${escapeHtml(labelize(name))}</span>
+      <input name="port:${escapeAttr(name)}" type="number" min="1" max="65535" value="${escapeAttr(port)}" />
+      ${duplicate ? '<small>Duplicate port</small>' : ""}
+    </label>
+  `;
+}
+
+function runtimeUrlInput(name, url) {
+  return `
+    <label>
+      <span>${escapeHtml(labelize(name))} URL</span>
+      <input name="url:${escapeAttr(name)}" value="${escapeAttr(url)}" />
+    </label>
+  `;
+}
+
+function printerPortInput(printer) {
+  const port = portFromUrl(printer.base_url);
+  const locked = printerLocked(printer);
+  return `
+    <article class="setting-row">
+      <div class="row">
+        <strong>${escapeHtml(printer.name)}</strong>
+        ${locked ? stateBadge("LOCKED") : stateBadge("MOONRAKER")}
+      </div>
+      <p class="muted">${escapeHtml(printer.base_url || "No Moonraker URL configured")}</p>
+      <form class="printer-port-form" data-printer-port-form="${escapeAttr(printer.id)}">
+        <label>
+          <span>Moonraker Port</span>
+          <input name="port" type="number" min="1" max="65535" value="${escapeAttr(port)}" ${locked ? "disabled" : ""} />
+        </label>
+        <button type="submit" ${locked ? "disabled" : ""}>Save Printer Port</button>
+      </form>
+    </article>
+  `;
 }
 
 function renderPlugins() {
@@ -479,6 +567,47 @@ function settingRow(label, value) {
   `;
 }
 
+function labelize(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function portFromUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.port) {
+      return Number(url.port);
+    }
+    return url.protocol === "https:" ? 443 : 80;
+  } catch {
+    return 80;
+  }
+}
+
+function runtimePayloadFromForm(form) {
+  const data = new FormData(form);
+  const payload = {
+    api_host: data.get("api_host") || "127.0.0.1",
+    ports: {},
+    service_urls: {},
+    moonraker_scan_ports: [],
+  };
+  for (const [name, value] of data.entries()) {
+    if (name.startsWith("port:")) {
+      payload.ports[name.slice(5)] = Number(value);
+    }
+    if (name.startsWith("url:")) {
+      payload.service_urls[name.slice(4)] = String(value);
+    }
+  }
+  payload.moonraker_scan_ports = String(data.get("moonraker_scan_ports") || "")
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((port) => Number.isInteger(port) && port > 0);
+  return payload;
+}
+
 function setHtml(selector, html) {
   const target = document.querySelector(selector);
   if (target) {
@@ -527,6 +656,39 @@ document.addEventListener("click", async (event) => {
       state.printerStatus[printerId] = { ok: false, message: error.message };
     }
     renderAll();
+  }
+
+  const autoPortsButton = event.target.closest("#autoPortsBtn");
+  if (autoPortsButton) {
+    autoPortsButton.disabled = true;
+    autoPortsButton.textContent = "Finding Ports";
+    await api("/api/settings/runtime/auto-ports", {
+      method: "POST",
+      body: JSON.stringify({ start: 10000, end: 60000, randomize: true }),
+    });
+    await refresh();
+  }
+});
+
+document.addEventListener("submit", async (event) => {
+  const runtimeForm = event.target.closest("#runtimeSettingsForm");
+  if (runtimeForm) {
+    event.preventDefault();
+    await api("/api/settings/runtime", {
+      method: "PATCH",
+      body: JSON.stringify(runtimePayloadFromForm(runtimeForm)),
+    });
+    await refresh();
+  }
+
+  const printerPortForm = event.target.closest("[data-printer-port-form]");
+  if (printerPortForm) {
+    event.preventDefault();
+    await api(`/api/printers/${printerPortForm.dataset.printerPortForm}/moonraker-port`, {
+      method: "PATCH",
+      body: JSON.stringify({ port: Number(new FormData(printerPortForm).get("port")) }),
+    });
+    await refresh();
   }
 });
 

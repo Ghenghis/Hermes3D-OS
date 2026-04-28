@@ -45,8 +45,10 @@ Do not commit local secrets, printer API keys, or private IP details.
 Open:
 
 ```text
-http://127.0.0.1:8080
+the URL printed by scripts/run-dev.ps1
 ```
+
+If that port is busy, Hermes OS Print Factory automatically finds an open local port and saves it to `configs/runtime.local.yaml`.
 
 The default MVP is dry-run safe. Printer dispatch is simulated unless dry-run is disabled and real connector support is completed.
 

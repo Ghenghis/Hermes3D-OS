@@ -13,8 +13,10 @@ COPY storage ./storage
 ENV PYTHONPATH=/app/apps/api
 ENV HERMES3D_SERVICES_CONFIG=/app/configs/services.example.yaml
 ENV HERMES3D_PRINTERS_CONFIG=/app/configs/printers.pilot.example.yaml
+ENV HERMES3D_RUNTIME_CONFIG=/app/configs/runtime.example.yaml
+ENV HERMES3D_API_PORT=8080
 
 EXPOSE 8080
 
-CMD ["uvicorn", "hermes3d_api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD uvicorn hermes3d_api.main:app --host 0.0.0.0 --port "${HERMES3D_API_PORT:-8080}"
 

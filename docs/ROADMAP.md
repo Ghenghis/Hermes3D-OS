@@ -1,59 +1,64 @@
 # Roadmap
 
-## Phase 0: Repository Foundation
+Hermes OS Print Factory's 2026 roadmap is organized as feature packs that improve daily operator confidence first, then expand design, evidence, fleet, and generation capabilities.
 
-- define architecture
-- define workflow gates
-- define pilot printer inventory
-- define service configuration
+## 2026 Pack Sequence
 
-## Phase 1: Manual Print Pipeline
+| Pack | Operator outcome | Key deliverables |
+| --- | --- | --- |
+| Real Print Readiness | Known-safe jobs can move from model to real upload/start with clear gates. | Confirm Moonraker access, reviewed slicer profiles, printer dimensions, upload-only flow, first calibration print evidence. |
+| OS Control Center | The local dashboard becomes the daily command center. | Fleet readiness, dry-run/real mode, job queue, pause/cancel controls, camera links, locked-printer visibility. |
+| Design Studio | Operators can import or generate print candidates in one workflow. | Model intake, job briefs, local modeling LLM status, CadQuery/OpenSCAD workers, parameter editor, previews. |
+| Validation/Evidence | Every safety and quality decision is reviewable later. | Mesh/G-code validation, slicer warnings, previews, approval records, event timeline, rejection and failure notes. |
+| Fleet Operations | The pilot setup scales to a managed printer fleet. | Printer inventory, FDM Monster sidecar, material/profile compatibility, maintenance reminders, reliability history. |
+| Advanced Generation | Higher-end generation and scheduling arrive after the core factory is reliable. | Blender/Trimesh repair, batch planning, photo-to-3D experiments, production queue scheduling. |
 
-- create backend API
-- add database schema for jobs, printers, artifacts, approvals, telemetry
-- add Moonraker connector
-- add pilot printer records for FLSUN T1-A and FLSUN T1-B
-- upload existing STL/3MF files
-- run PrusaSlicer CLI
-- approve and dispatch G-code to Moonraker
-- monitor telemetry
+## Pack Details
 
-## Phase 2: Hermes-Orchestrated Jobs
+### Real Print Readiness
 
-- wrap job intake with Hermes
-- add structured job plans
-- add evidence summaries
-- add approval prompts
-- persist Hermes decisions into the ledger
+- confirm real Moonraker URLs and API-key needs
+- lock slicer profiles to each cleared printer
+- keep `Upload Only` separate from `Start Print`
+- require model approval, print approval, and user printer check
+- complete first repeatable calibration print
 
-## Phase 3: LangGraph Workflow Engine
+### OS Control Center
 
-- encode print workflow state graph
-- enforce transition rules
-- add retry/repair branches
-- add pause/cancel/fail handling
+- show safe, locked, idle, busy, and unreachable printers
+- show active jobs, pending approvals, and recent evidence
+- add operator controls for pause, cancel, retry, and notes
+- keep dangerous actions explicit and logged
 
-## Phase 4: Modeling Worker
+### Design Studio
 
-- connect local downloaded modeling LLM
-- generate CadQuery/OpenSCAD outputs
-- render STL/3MF artifacts
-- validate and repair meshes
-- create preview images
+- support imported STL/3MF files and generated CAD
+- connect local Hermes/modeling LLM status
+- run CadQuery and OpenSCAD workers
+- expose parameters before model generation
+- send only validated candidates to slicing
 
-## Phase 5: Fleet Operations
+### Validation/Evidence
 
-- add FDM Monster sidecar/dashboard integration
-- onboard additional printers
-- add per-printer slicer profiles
-- add filament/material profiles
-- add historical success/failure analytics
+- validate meshes before slicing and G-code before printing
+- capture previews, slicer settings, warnings, and repair notes
+- persist approvals and operator decisions in the ledger
+- make job history searchable by printer, material, result, and notes
 
-## Phase 6: Advanced Generation
+### Fleet Operations
 
-- add Blender repair/export automation
-- add Trimesh analysis
-- add photo-to-3D flow through ComfyUI/Hunyuan3D/TRELLIS if desired
-- add batch job planning
-- add production queue scheduling
+- onboard remaining printers only after readiness data is complete
+- track material, nozzle, bed, firmware, maintenance, and profile compatibility
+- integrate FDM Monster where it improves fleet visibility
+- report reliability and recurring failure patterns
 
+### Advanced Generation
+
+- add Blender and Trimesh repair/export automation
+- evaluate ComfyUI, Hunyuan3D, or TRELLIS flows as optional inputs
+- support batch planning and production scheduling
+- keep all generated work behind the same validation and approval gates
+
+## Guiding Rule
+
+No feature should make the printer move sooner. New capability should make readiness, evidence, approval, and operator control clearer.

@@ -20,18 +20,28 @@ Hermes OS Print Factory
 └─ Roadmap
 ```
 
+## 2026 Feature-Pack View
+
+The interface should make the 2026 roadmap visible through operator workflows:
+
+- Real Print Readiness: readiness checks, profile locks, approval gates, upload-only flow
+- OS Control Center: fleet state, active jobs, locked printers, camera links, quick actions
+- Design Studio: imports, prompts, local generation workers, editable parameters, previews
+- Validation/Evidence: mesh checks, G-code checks, warnings, approvals, event ledger
+- Fleet Operations: inventory, maintenance, material/profile compatibility, reliability
+- Advanced Generation: repair automation, batch planning, optional photo-to-3D inputs
+
 ## Dashboard
 
 Purpose: daily command center.
 
 Shows:
 
-- safe printer fleet
-- active jobs
-- pending approvals
-- latest evidence/events
 - dry-run or real-printer mode
-- locked printers such as S1
+- safe, locked, idle, busy, and unreachable printers
+- active jobs and pending approvals
+- latest evidence and operator notes
+- quick links to cameras, artifacts, and printer details
 
 ## Design
 
@@ -39,14 +49,15 @@ Purpose: design and job intake.
 
 Includes:
 
+- import model flow
 - prompt/design brief
-- target printer selection
+- target printer and material intent
 - local modeling LLM status
 - CadQuery/OpenSCAD/Blender worker status
-- import model flow
-- generated design evidence
+- parameter editor for generated models
+- preview and validation evidence
 
-Generated models must pass validation before slicing.
+Generated or imported models must pass validation before slicing.
 
 ## Jobs
 
@@ -60,9 +71,10 @@ Includes:
 - model approval
 - print approval
 - upload/start actions
+- pause, cancel, retry, and failure notes
 - job event timeline
 
-Dangerous actions should become explicit buttons before real printing:
+Dangerous actions should remain explicit:
 
 ```text
 Validate Model
@@ -70,6 +82,7 @@ Approve Model
 Slice
 Approve G-code
 Upload Only
+User Checked Printer UI
 Start Print
 Pause
 Cancel
@@ -87,18 +100,20 @@ Purpose: printer inventory and readiness.
 
 Includes:
 
-- Moonraker URL
+- Moonraker URL and API-key state
 - status test
 - safety locks
-- slicer profile
-- firmware/capability notes
+- bed/nozzle dimensions
+- slicer profile lock
+- firmware and capability notes
 - maintenance state
+- material/profile compatibility
 
 S1 is maintenance locked and must not be tested or moved until cleared.
 
 ## Observe
 
-Purpose: watch prints while they run.
+Purpose: watch prints before and during motion.
 
 Supports:
 
@@ -116,7 +131,7 @@ capabilities:
   camera_url: http://192.168.0.10/webcam/?action=stream
 ```
 
-For USB cameras, expose a local stream with a tool such as MJPEG Streamer, OctoPrint-compatible webcam proxy, or another LAN-accessible camera service, then place that URL in `camera_url`.
+For USB cameras, expose a local stream with a tool such as MJPEG Streamer, an OctoPrint-compatible webcam proxy, or another LAN-accessible camera service, then place that URL in `camera_url`.
 
 ## Artifacts
 
@@ -131,6 +146,7 @@ Includes:
 - G-code
 - previews
 - logs
+- validation reports
 
 ## Approvals
 
@@ -140,6 +156,7 @@ Includes:
 
 - pending model approvals
 - pending print approvals
+- printer-check acknowledgement
 - approval history
 - rejection notes
 - operator notes
@@ -180,6 +197,7 @@ Includes:
 - storage paths
 - safety locks
 - plugin enablement
+- backup/export settings
 
 ## Roadmap
 
@@ -187,9 +205,9 @@ Purpose: guide completion toward day-to-day operation.
 
 Shows:
 
+- 2026 feature-pack progress
 - current safe printer set
 - remaining setup
 - next issue links
 - safety milestones
 - real-print readiness checklist
-

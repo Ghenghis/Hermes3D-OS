@@ -1,60 +1,31 @@
 # Day-To-Day Roadmap
 
-This roadmap is the interactive path from the current MVP to daily printer-fleet use.
+Hermes OS Print Factory is moving from MVP to daily shop-floor operation in 2026. The roadmap below is organized by operator-visible feature packs, not internal milestones.
 
-## Current Status
+## Current Operating Baseline
 
-Done:
+Available now:
 
-- tabbed Hermes OS Print Factory interface
-- upload-only workflow before start print
-- local web dashboard
-- FastAPI backend
-- SQLite job/evidence ledger
-- editable local printer config
-- dry-run workflow gates
+- local Hermes OS Print Factory dashboard
+- FastAPI backend with SQLite job and evidence ledger
+- upload-first workflow gates
 - model and print approvals
-- Moonraker discovery script
-- real read-only Moonraker status checks
-- gated real Moonraker upload/start code path
-- Observe page for integrated/USB camera URLs
+- editable local printer config
+- Moonraker discovery and read-only status checks
+- gated Moonraker upload/start path
+- Observe page for integrated and USB camera URLs
 
-## GitHub Action Tracker
+Still required before unattended confidence:
 
-- [#1 Confirm live Moonraker addresses for T1-A, T1-B, and V400](https://github.com/Ghenghis/Hermes3D-OS/issues/1)
-- [#2 Add reviewed PrusaSlicer profiles for the test printers](https://github.com/Ghenghis/Hermes3D-OS/issues/2)
-- [#3 Add upload-only workflow before real auto-start printing](https://github.com/Ghenghis/Hermes3D-OS/issues/3)
-- [#4 Add real STL/3MF validation and preview evidence](https://github.com/Ghenghis/Hermes3D-OS/issues/4)
-- [#5 Add local Hermes/modeling LLM connector](https://github.com/Ghenghis/Hermes3D-OS/issues/5)
-- [#6 Add CadQuery and OpenSCAD model workers](https://github.com/Ghenghis/Hermes3D-OS/issues/6)
-- [#7 Add day-to-day printer controls and telemetry](https://github.com/Ghenghis/Hermes3D-OS/issues/7)
-- [#8 Add FDM Monster sidecar integration](https://github.com/Ghenghis/Hermes3D-OS/issues/8)
+- user-confirmed Moonraker URLs and API-key requirements
+- reviewed slicer profiles for each real printer
+- bed/nozzle dimensions and profile locks
+- clear S1 maintenance lock before any test or movement
 
-Interface map:
+## Daily Operator Path
 
-- Dashboard
-- Design
-- Jobs
-- Printers
-- Observe
-- Artifacts
-- Approvals
-- Plugins
-- Settings
-- Roadmap
-
-Still needs user-confirmed data:
-
-- Moonraker API-key requirements
-- real slicer profiles
-- bed/nozzle dimensions
-- whether each printer should use port `80` or `7125`
-- S1 maintenance clearance before any tests or movement
-
-## Daily Startup Checklist
-
-1. Power on the test printers.
-2. Start Hermes3D OS:
+1. Power on only cleared printers.
+2. Start Hermes OS:
 
 ```powershell
 .\scripts\run-dev.ps1
@@ -63,120 +34,88 @@ Still needs user-confirmed data:
 3. Open:
 
 ```text
-http://127.0.0.1:8080
+the URL printed by scripts/run-dev.ps1
 ```
 
-4. Click `Load Printers`.
-5. Click `Test` on each printer card.
-6. Confirm the two T1 printers are reachable.
-7. Do not test S1 while maintenance locked.
-8. Confirm V400 responds at `192.168.0.34`.
+If the saved port is busy, Hermes automatically finds an open local port and saves it to `configs/runtime.local.yaml`.
 
-Command-line version:
+4. Load printers and run reachability tests.
+5. Confirm dry-run or real-printer mode.
+6. Review pending approvals.
+7. Use `Upload Only` before any `Start Print`.
+8. Watch the printer UI or camera before starting motion.
+
+Command-line printer check:
 
 ```powershell
 .\scripts\test-configured-printers.ps1
 ```
 
-## Phase 1: Confirm Printers
+## 2026 Feature Packs
 
-Goal: three real test printers appear as reachable.
+### 1. Real Print Readiness
 
-Printers:
+Goal: make one known-safe printer job repeatable from intake to upload/start.
 
-- FLSUN T1-A
-- FLSUN T1-B
-- FLSUN V400
+- confirm T1-A, T1-B, and V400 Moonraker access
+- add reviewed PrusaSlicer profiles
+- expose a visible `User Checked Printer UI` gate
+- complete first small calibration print with evidence
+- keep S1 locked until maintenance is cleared
 
-Excluded until maintenance is cleared:
+### 2. OS Control Center
 
-- FLSUN S1
+Goal: make daily operation possible from one local screen.
 
-Collect:
+- show fleet readiness, dry-run state, locked printers, and active jobs
+- add pause, cancel, retry, and failure-note controls
+- separate upload, observation, and start actions
+- surface camera links and latest events per printer
 
-- exact Moonraker base URL
-- API-key requirement
-- bed size
-- nozzle size
-- slicer profile
-- camera URL if available
+### 3. Design Studio
 
-## Phase 2: Real Slicer Profiles
+Goal: turn design intake into validated print candidates.
 
-Goal: Hermes3D OS can produce real printable G-code.
+- import STL/3MF designs with job briefs
+- connect local modeling LLM status
+- add CadQuery and OpenSCAD workers
+- provide editable parameters before generation
+- create preview artifacts for operator review
 
-Tasks:
+### 4. Validation/Evidence
 
-- install PrusaSlicer
-- export or create FLSUN T1 profile
-- export or create FLSUN V400 profile
-- place reviewed profiles under `profiles/prusaslicer`
-- verify `scripts/check-prereqs.ps1` sees PrusaSlicer CLI
-- slice a known safe calibration STL
+Goal: make every print decision auditable.
 
-## Phase 3: First Real Upload Without Auto-Print
+- validate meshes and G-code before approval
+- capture slicer settings, preview images, and warnings
+- record model approval, print approval, upload, start, pause, cancel, and failure events
+- keep rejection notes and operator notes in the job ledger
 
-Goal: upload G-code to one printer without starting it.
+### 5. Fleet Operations
 
-This exists as a separate workflow action before day-to-day printing:
+Goal: scale from pilot printers to a managed printer fleet.
 
-```text
-SLICE -> VALIDATE_GCODE -> PRINT_APPROVAL -> UPLOAD_ONLY -> USER_CHECKS_PRINTER_UI -> START_PRINT
-```
+- add remaining printer inventory
+- integrate FDM Monster as a sidecar when useful
+- add material, filament, maintenance, and profile compatibility fields
+- show reliability history and recurring maintenance reminders
 
-Next refinement: make `USER_CHECKS_PRINTER_UI` a visible acknowledgement gate in the UI.
+### 6. Advanced Generation
 
-## Phase 4: First Real Print
+Goal: support more capable design and repair flows after the core factory is dependable.
 
-Goal: print a small known-safe calibration job on one T1.
+- add Blender and Trimesh repair/export automation
+- add batch job planning
+- evaluate photo-to-3D flows only after validation gates are reliable
+- schedule production queues by printer readiness, material, and risk
 
-Requirements:
+## 2026 Done Criteria
 
-- dry-run disabled only after user confirms
-- real slicer-generated G-code
-- model approval recorded
-- print approval recorded
-- printer reachable
-- printer idle/ready
-- user physically present
+Hermes OS Print Factory is ready for normal daily use when an operator can:
 
-## Phase 5: Day-To-Day Queue
-
-Goal: normal use for small shop-floor jobs.
-
-Add:
-
-- upload-only mode
-- pause/cancel controls
-- job history search
-- filament/material fields
-- per-printer profile locks
-- camera links
-- failure notes
-- repeat job button
-
-## Phase 6: Hermes Modeling
-
-Goal: Hermes can generate or modify printable designs.
-
-Add:
-
-- local modeling LLM connector
-- CadQuery worker
-- OpenSCAD worker
-- Trimesh validation
-- preview generation
-- user parameter editor
-
-## Phase 7: Fleet Operations
-
-Goal: operate the larger printer fleet.
-
-Add:
-
-- FDM Monster sidecar
-- remaining printer inventory
-- fleet health dashboard
-- maintenance reminders
-- historical reliability notes
-- profile compatibility checks
+- see which printers are safe, ready, locked, or busy
+- import or generate a model and inspect evidence
+- approve the model and print plan separately
+- upload without starting motion
+- start only after physical or camera confirmation
+- pause, cancel, annotate, and repeat jobs from the ledger

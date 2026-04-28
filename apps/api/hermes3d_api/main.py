@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import random
+import socket
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -10,9 +13,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import Settings, load_printer_config
+from .config import Settings, load_printer_config, load_runtime_config, save_runtime_config
 from .db import Database, row_to_dict, utc_now
-from .schemas import AdvanceRequest, ApiMessage, ApprovalCreate, JobCreate
+from .schemas import (
+    AdvanceRequest,
+    ApiMessage,
+    ApprovalCreate,
+    JobCreate,
+    PrinterPortUpdate,
+    RuntimeAutoPortRequest,
+    RuntimeSettingsUpdate,
+)
 from .services.artifacts import write_text_artifact
 from .services.moonraker import MoonrakerClient
 from .services.slicer import SlicerWorker
@@ -73,6 +84,7 @@ def health() -> dict[str, Any]:
         "service": "hermes3d-api",
         "dry_run_printers": settings.dry_run_printers,
         "database": str(settings.database_path),
+        "runtime_config": str(settings.runtime_config_path),
     }
 
 
@@ -85,7 +97,9 @@ def workspace() -> dict[str, Any]:
             "printers_config": str(settings.printers_config_path),
             "data_dir": str(settings.data_dir),
             "storage_dir": str(settings.storage_dir),
+            "runtime_config": str(settings.runtime_config_path),
             "dry_run_printers": settings.dry_run_printers,
+            "runtime": _runtime_payload(),
         },
         "printers": _list_printers(),
         "jobs": _list_jobs(),
@@ -93,6 +107,95 @@ def workspace() -> dict[str, Any]:
         "approvals": _list_approvals(),
         "events": _list_events(),
     }
+
+
+@app.get("/api/settings/runtime")
+def get_runtime_settings() -> dict[str, Any]:
+    return _runtime_payload()
+
+
+@app.patch("/api/settings/runtime")
+def update_runtime_settings(payload: RuntimeSettingsUpdate) -> dict[str, Any]:
+    runtime = load_runtime_config(settings)
+    if payload.api_host is not None:
+        runtime["api_host"] = payload.api_host
+    if payload.ports:
+        ports = dict(runtime.get("ports", {}))
+        ports.update(payload.ports)
+        runtime["ports"] = ports
+    if payload.moonraker_scan_ports is not None:
+        runtime["moonraker_scan_ports"] = sorted(set(payload.moonraker_scan_ports))
+    if payload.service_urls:
+        service_urls = dict(runtime.get("service_urls", {}))
+        service_urls.update(payload.service_urls)
+        runtime["service_urls"] = service_urls
+    if payload.extras:
+        extras = dict(runtime.get("extras", {}))
+        extras.update(payload.extras)
+        runtime["extras"] = extras
+    save_runtime_config(settings, runtime)
+    db.add_event(None, "RUNTIME_SETTINGS_UPDATED", "Runtime port settings saved.", _runtime_payload())
+    return _runtime_payload()
+
+
+@app.post("/api/settings/runtime/auto-ports")
+def auto_assign_runtime_ports(payload: RuntimeAutoPortRequest) -> dict[str, Any]:
+    if payload.start > payload.end:
+        raise HTTPException(status_code=400, detail="start must be less than or equal to end")
+    runtime = load_runtime_config(settings)
+    port_names = payload.names or list((runtime.get("ports") or {}).keys())
+    if not port_names:
+        raise HTTPException(status_code=400, detail="No runtime port names are configured")
+    share_web_port = "api" in port_names and "web" in port_names
+    allocation_names = [name for name in port_names if not (share_web_port and name == "web")]
+
+    assigned = _assign_open_ports(
+        allocation_names,
+        payload.start,
+        payload.end,
+        str(runtime.get("api_host") or "127.0.0.1"),
+        payload.randomize,
+    )
+    if share_web_port:
+        assigned["web"] = assigned["api"]
+    ports = dict(runtime.get("ports", {}))
+    ports.update(assigned)
+    runtime["ports"] = ports
+    runtime["service_urls"] = _service_urls_for_ports(runtime)
+    save_runtime_config(settings, runtime)
+    db.add_event(
+        None,
+        "RUNTIME_PORTS_AUTO_ASSIGNED",
+        "Open runtime ports were auto-assigned and saved.",
+        {"assigned": assigned, "config_path": str(settings.runtime_config_path)},
+    )
+    return _runtime_payload()
+
+
+@app.patch("/api/printers/{printer_id}/moonraker-port")
+def update_printer_moonraker_port(printer_id: str, payload: PrinterPortUpdate) -> dict[str, Any]:
+    port = payload.port
+    printer = _get_printer(printer_id)
+    if not printer:
+        raise HTTPException(status_code=404, detail="Printer not found")
+    if _printer_config_is_example():
+        raise HTTPException(
+            status_code=409,
+            detail="Create configs/printers.local.yaml before saving printer port changes.",
+        )
+
+    updated_printer = _save_printer_base_url(
+        printer_id,
+        _replace_url_port(printer.get("base_url") or "", port),
+    )
+    db.upsert_printer(updated_printer)
+    db.add_event(
+        None,
+        "PRINTER_PORT_UPDATED",
+        f"{updated_printer.get('name', printer_id)} Moonraker port saved.",
+        {"printer_id": printer_id, "base_url": updated_printer.get("moonraker", {}).get("base_url")},
+    )
+    return _get_printer(printer_id) or {}
 
 
 @app.post("/api/bootstrap", response_model=ApiMessage)
@@ -337,6 +440,111 @@ def _list_printers() -> list[dict[str, Any]]:
     with db.connect() as conn:
         rows = conn.execute("SELECT * FROM printers ORDER BY name").fetchall()
     return [row_to_dict(row) for row in rows]
+
+
+def _runtime_payload() -> dict[str, Any]:
+    runtime = load_runtime_config(settings)
+    ports = runtime.get("ports", {})
+    duplicates: dict[str, list[str]] = {}
+    for name, port in ports.items():
+        duplicates.setdefault(str(port), []).append(name)
+    allowed_shared = {"api", "web"}
+    duplicate_ports = {
+        port: names
+        for port, names in duplicates.items()
+        if len(names) > 1 and set(names) != allowed_shared
+    }
+    runtime["duplicate_ports"] = duplicate_ports
+    runtime["config_path"] = str(settings.runtime_config_path)
+    return runtime
+
+
+def _assign_open_ports(
+    names: list[str], start: int, end: int, host: str, randomize: bool
+) -> dict[str, int]:
+    if len(names) > (end - start + 1):
+        raise HTTPException(status_code=400, detail="Port range is too small for requested services")
+    candidates = list(range(start, end + 1))
+    if randomize:
+        random.shuffle(candidates)
+    assigned: dict[str, int] = {}
+    reserved: set[int] = set()
+    for name in names:
+        for port in candidates:
+            if port in reserved:
+                continue
+            if _port_is_open(host, port):
+                assigned[name] = port
+                reserved.add(port)
+                break
+        if name not in assigned:
+            raise HTTPException(status_code=409, detail=f"No open port found for {name}")
+    return assigned
+
+
+def _port_is_open(host: str, port: int) -> bool:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((host, port))
+        return True
+    except OSError:
+        return False
+
+
+def _service_urls_for_ports(runtime: dict[str, Any]) -> dict[str, str]:
+    host = str(runtime.get("api_host") or "127.0.0.1")
+    ports = runtime.get("ports", {})
+    urls = dict(runtime.get("service_urls", {}))
+    mapping = {
+        "model_llm": ("model_llm", "/v1"),
+        "fdm_monster": ("fdm_monster", ""),
+        "comfyui": ("comfyui", ""),
+        "hunyuan3d": ("hunyuan3d", ""),
+        "trellis": ("trellis", ""),
+    }
+    for url_name, (port_name, suffix) in mapping.items():
+        port = ports.get(port_name)
+        if port:
+            urls[url_name] = f"http://{host}:{port}{suffix}"
+    return urls
+
+
+def _replace_url_port(base_url: str, port: int) -> str:
+    parsed = urlsplit(base_url if "://" in base_url else f"http://{base_url}")
+    host = parsed.hostname
+    if not host:
+        raise HTTPException(status_code=400, detail="Printer base URL has no host")
+    netloc = host if port == 80 else f"{host}:{port}"
+    if parsed.username:
+        auth = parsed.username
+        if parsed.password:
+            auth = f"{auth}:{parsed.password}"
+        netloc = f"{auth}@{netloc}"
+    return urlunsplit((parsed.scheme or "http", netloc, parsed.path or "", "", ""))
+
+
+def _printer_config_is_example() -> bool:
+    return settings.printers_config_path.name.endswith(".example.yaml")
+
+
+def _save_printer_base_url(printer_id: str, base_url: str) -> dict[str, Any]:
+    import yaml
+
+    with settings.printers_config_path.open("r", encoding="utf-8") as handle:
+        config = yaml.safe_load(handle) or {}
+    printers = config.get("printers", [])
+    if not isinstance(printers, list):
+        raise HTTPException(status_code=500, detail="Printer config is missing a printers list")
+    for printer in printers:
+        if isinstance(printer, dict) and printer.get("id") == printer_id:
+            moonraker = dict(printer.get("moonraker", {}) or {})
+            moonraker["base_url"] = base_url
+            printer["moonraker"] = moonraker
+            with settings.printers_config_path.open("w", encoding="utf-8") as handle:
+                yaml.safe_dump(config, handle, sort_keys=False)
+            return printer
+    raise HTTPException(status_code=404, detail="Printer not found in printer config")
 
 
 def _list_jobs() -> list[dict[str, Any]]:

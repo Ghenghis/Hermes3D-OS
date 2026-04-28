@@ -131,7 +131,9 @@ On Windows:
 Then open:
 
 ```text
-http://127.0.0.1:8080
+the URL printed by scripts/run-dev.ps1
 ```
+
+If the saved/default port is busy, `run-dev.ps1` automatically finds an open local port, saves it to `configs/runtime.local.yaml`, and prints the new URL.
 
 The MVP runs in printer dry-run mode by default. It can create jobs, move through workflow gates, write evidence artifacts, simulate slicing when PrusaSlicer is unavailable, and simulate Moonraker dispatch without touching hardware.

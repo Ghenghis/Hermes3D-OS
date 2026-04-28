@@ -1,8 +1,15 @@
 param(
-    [string]$BaseUrl = "http://127.0.0.1:8080"
+    [string]$BaseUrl = ""
 )
 
 $ErrorActionPreference = "Stop"
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "runtime-ports.ps1")
+
+if (-not $BaseUrl) {
+    $runtimePorts = Get-HermesRuntimePorts -RepoRoot $RepoRoot
+    $BaseUrl = "http://127.0.0.1:$($runtimePorts.api)"
+}
 
 Write-Host "Testing configured Hermes3D OS printers through $BaseUrl"
 Write-Host ""

@@ -1,0 +1,24 @@
+api_host: 127.0.0.1
+ports:
+  api: 8080
+  web: 8080
+  camera_proxy: 8090
+  telemetry: 8091
+  model_llm: 1234
+  cadquery_worker: 8011
+  openscad_worker: 8012
+  slicer_worker: 8020
+  blender_rpc: 9876
+  comfyui: 8188
+  hunyuan3d: 7861
+  trellis: 7860
+  fdm_monster: 4000
+moonraker_scan_ports:
+  - 80
+  - 7125
+service_urls:
+  model_llm: http://127.0.0.1:1234/v1
+  fdm_monster: http://127.0.0.1:4000
+  comfyui: http://127.0.0.1:8188
+  hunyuan3d: http://127.0.0.1:7861
+  trellis: http://127.0.0.1:7860

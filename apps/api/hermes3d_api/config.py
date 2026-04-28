@@ -10,6 +10,33 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
+RUNTIME_DEFAULTS: dict[str, Any] = {
+    "api_host": "127.0.0.1",
+    "ports": {
+        "api": 8080,
+        "web": 8080,
+        "camera_proxy": 8090,
+        "telemetry": 8091,
+        "model_llm": 1234,
+        "cadquery_worker": 8011,
+        "openscad_worker": 8012,
+        "slicer_worker": 8020,
+        "blender_rpc": 9876,
+        "comfyui": 8188,
+        "hunyuan3d": 7861,
+        "trellis": 7860,
+        "fdm_monster": 4000,
+    },
+    "moonraker_scan_ports": [80, 7125],
+    "service_urls": {
+        "model_llm": "http://127.0.0.1:1234/v1",
+        "fdm_monster": "http://127.0.0.1:4000",
+        "comfyui": "http://127.0.0.1:8188",
+        "hunyuan3d": "http://127.0.0.1:7861",
+        "trellis": "http://127.0.0.1:7860",
+    },
+}
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -21,6 +48,16 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 @dataclass(frozen=True)
 class Settings:
     repo_root: Path
@@ -29,6 +66,7 @@ class Settings:
     database_path: Path
     services_config_path: Path
     printers_config_path: Path
+    runtime_config_path: Path
     dry_run_printers: bool
 
     @classmethod
@@ -44,6 +82,10 @@ class Settings:
         )
         if not printers_path.exists():
             printers_path = REPO_ROOT / "configs" / "printers.pilot.example.yaml"
+
+        runtime_path = Path(
+            os.getenv("HERMES3D_RUNTIME_CONFIG", REPO_ROOT / "configs" / "runtime.local.yaml")
+        )
 
         data_dir = Path(os.getenv("HERMES3D_DATA_DIR", REPO_ROOT / "data"))
         storage_dir = Path(os.getenv("HERMES3D_STORAGE_DIR", REPO_ROOT / "storage"))
@@ -61,6 +103,7 @@ class Settings:
             database_path=db_path,
             services_config_path=services_path,
             printers_config_path=printers_path,
+            runtime_config_path=runtime_path,
             dry_run_printers=dry_run,
         )
 
@@ -71,4 +114,17 @@ def load_printer_config(settings: Settings) -> list[dict[str, Any]]:
     if not isinstance(printers, list):
         raise ValueError("Printer config must contain a printers list")
     return [printer for printer in printers if isinstance(printer, dict)]
+
+
+def load_runtime_config(settings: Settings) -> dict[str, Any]:
+    example_path = REPO_ROOT / "configs" / "runtime.example.yaml"
+    runtime = _deep_merge(RUNTIME_DEFAULTS, _load_yaml(example_path))
+    runtime = _deep_merge(runtime, _load_yaml(settings.runtime_config_path))
+    return runtime
+
+
+def save_runtime_config(settings: Settings, runtime: dict[str, Any]) -> None:
+    settings.runtime_config_path.parent.mkdir(parents=True, exist_ok=True)
+    with settings.runtime_config_path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(runtime, handle, sort_keys=False)
 
