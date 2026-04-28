@@ -135,6 +135,12 @@ On Windows:
 .\scripts\run-dev.ps1
 ```
 
+For local 3D generation readiness:
+
+```powershell
+.\scripts\discover-3d-tools.ps1
+```
+
 Then open:
 
 ```text

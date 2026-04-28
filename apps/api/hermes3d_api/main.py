@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 import shutil
 import socket
@@ -46,6 +47,7 @@ from .services.generation.pipeline import (
     PRINTABILITY_TRUTH_GATE,
     GenerationPipelineWorker,
 )
+from .services.generation.comfyui import ComfyUIClient, workflow_statuses
 from .services.moonraker import MoonrakerClient
 from .services.slicer import SlicerWorker
 from .services.speech.agent_voice_router import list_agent_voices, resolve_agent_voice
@@ -523,6 +525,15 @@ def generation_stack_status() -> dict[str, Any]:
     services = load_services_config(settings)
     service_urls = runtime.get("service_urls", {}) if isinstance(runtime, dict) else {}
     generation_config = (services.get("workers", {}) or {}).get("generation_stack", {})
+    comfyui_url = str(service_urls.get("comfyui", ""))
+    comfyui_probe = ComfyUIClient(comfyui_url).probe(timeout_seconds=0.8) if comfyui_url else {
+        "configured": False,
+        "reachable": False,
+        "reason": "No ComfyUI URL configured.",
+    }
+    workflows = workflow_statuses(settings.repo_root, services)
+    blender_path = _tool_path("blender", ["blender"])
+    prusaslicer_path = _tool_path("prusaslicer", ["prusa-slicer", "prusa-slicer-console"])
     return {
         "name": "Hermes3D-OS Full-Stack 3D Generation",
         "primary_engine": "trellis2",
@@ -542,9 +553,22 @@ def generation_stack_status() -> dict[str, Any]:
             "trellis": bool(service_urls.get("trellis")),
             "hunyuan3d": bool(service_urls.get("hunyuan3d")),
             "triposr": bool(service_urls.get("triposr")),
-            "blender": shutil.which("blender") is not None,
-            "prusaslicer": shutil.which("prusa-slicer") is not None
-            or shutil.which("prusa-slicer-console") is not None,
+            "blender": blender_path is not None,
+            "prusaslicer": prusaslicer_path is not None,
+        },
+        "tool_paths": {
+            "blender": blender_path or "",
+            "prusaslicer": prusaslicer_path or "",
+        },
+        "runtime_reachable": {"comfyui": comfyui_probe},
+        "workflows": workflows,
+        "readiness": {
+            "services_configured": bool(generation_config),
+            "comfyui_reachable": bool(comfyui_probe.get("reachable")),
+            "workflows_ready": bool(workflows)
+            and all(not item.get("operator_required") for item in workflows),
+            "toolchain_ready": blender_path is not None and prusaslicer_path is not None,
+            "printability_truth_gate_ready": False,
         },
         "services_configured": bool(generation_config),
     }
@@ -570,6 +594,7 @@ async def generate_3d_from_image(
         settings.storage_dir,
         load_runtime_config(settings),
         load_services_config(settings),
+        settings.repo_root,
     )
     result = worker.run_image_to_print(
         job_id=job_id,
@@ -583,13 +608,16 @@ async def generate_3d_from_image(
         _add_artifact(job_id, f"generation_{kind}", path, result.metadata)
     db.add_event(
         job_id,
-        "GENERATION_STACK_RUN",
+        "GENERATION_OPERATOR_REQUIRED"
+        if result.metadata.get("operator_gates")
+        else "GENERATION_STACK_RUN",
         "Image-to-print generation stack produced candidate evidence.",
         {
             "mode": result.mode,
             "selected_engine": result.selected_engine,
             "printable": False,
             "truth_gate_passed": False,
+            "operator_gates": result.metadata.get("operator_gates", []),
         },
     )
     return get_job(job_id)
@@ -1097,16 +1125,49 @@ def _autopilot_actions(checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _tool_check(key: str, title: str, commands: list[str]) -> dict[str, Any]:
-    found = next((command for command in commands if shutil.which(command)), None)
+    found = _tool_path(key, commands)
     return _autopilot_check(
         f"tool_{key}",
         found is not None,
         title,
-        f"Detected `{found}` on PATH.",
+        f"Detected `{found}`.",
         f"Install or add one of these commands to PATH: {', '.join(commands)}.",
         None,
         "tool",
     )
+
+
+def _tool_path(key: str, commands: list[str]) -> str | None:
+    env_names = {
+        "blender": "HERMES3D_BLENDER_PATH",
+        "prusaslicer": "HERMES3D_PRUSASLICER_PATH",
+        "orcaslicer": "HERMES3D_ORCASLICER_PATH",
+    }
+    env_path = os.getenv(env_names.get(key, ""))
+    if env_path and Path(env_path).exists():
+        return env_path
+    for command in commands:
+        found = shutil.which(command)
+        if found:
+            return found
+    known_paths = {
+        "blender": [
+            r"C:\Program Files\Blender Foundation\Blender 4.3\blender.exe",
+            r"C:\Program Files\Blender Foundation\Blender 4.2\blender.exe",
+            r"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe",
+        ],
+        "prusaslicer": [
+            r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer-console.exe",
+            r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer.exe",
+        ],
+        "orcaslicer": [
+            r"C:\Program Files\OrcaSlicer\orca-slicer.exe",
+        ],
+    }
+    for candidate in known_paths.get(key, []):
+        if Path(candidate).exists():
+            return candidate
+    return None
 
 
 def _camera_count(printers: list[dict[str, Any]]) -> int:

@@ -1,5 +1,6 @@
 param(
-    [switch]$InstallDesktopTools
+    [switch]$InstallDesktopTools,
+    [switch]$ConfigureGeneration
 )
 
 $ErrorActionPreference = "Stop"
@@ -69,6 +70,13 @@ if ($InstallDesktopTools) {
     }
 }
 
+if ($ConfigureGeneration) {
+    Write-Host ""
+    Write-Host "Discovering local 3D generation tools and workflow readiness"
+    & (Join-Path $PSScriptRoot "discover-3d-tools.ps1")
+}
+
 Write-Host ""
 Write-Host "Hermes3D OS setup complete."
 Write-Host "Run: .\scripts\run-dev.ps1"
+Write-Host "Run: .\scripts\discover-3d-tools.ps1 to check Blender, slicers, ComfyUI, and workflows."

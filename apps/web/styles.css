@@ -260,6 +260,36 @@ textarea {
   gap: 4px;
 }
 
+.readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.status-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.status-card.status-ok {
+  border-color: #8ed2b2;
+  background: #f3fbf7;
+}
+
+.status-card.status-pending {
+  border-color: #f0bf7a;
+  background: #fff8ef;
+}
+
+.status-card.status-bad {
+  border-color: #ec9a9a;
+  background: #fff5f5;
+}
+
 .setting-row form {
   display: grid;
   gap: 8px;

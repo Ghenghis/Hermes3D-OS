@@ -31,6 +31,16 @@ Photo / multi-photo input
 
 Workflow placeholders live in `workflows/comfyui/`. Replace them with exported ComfyUI API workflow JSON after the local nodes are installed.
 
+Check local readiness with:
+
+```powershell
+.\scripts\discover-3d-tools.ps1
+```
+
+The script reports Blender, PrusaSlicer, OrcaSlicer, Docker, ComfyUI reachability, and whether the TRELLIS.2, Hunyuan3D-2.1, and TripoSR workflow files are still placeholders.
+
+When replacing a placeholder with an exported ComfyUI API workflow, put `{{source_image}}` in the image input field that should receive the uploaded user photo. Hermes replaces that token with the uploaded ComfyUI input filename before calling `/prompt`.
+
 ## Printability Truth Gate
 
 Every generated object must pass:
@@ -69,6 +79,12 @@ API:
 - `GET /api/generation-stack/status`
 - `POST /api/generation-stack/plan`
 - `POST /api/jobs/{job_id}/generate-3d-from-image`
+
+Runner behavior:
+
+- placeholder workflows stop at `operator_required`
+- exported ComfyUI API workflows can upload the source image, queue `/prompt`, poll `/history/{prompt_id}`, and collect `/view` artifacts
+- downloaded meshes remain unprintable evidence until Blender repair, mesh validation, scale confirmation, and slicer dry-run all pass
 
 ## Why This Is Different From Meshy-Like Tools
 

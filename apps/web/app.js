@@ -185,16 +185,29 @@ function renderGenerationStack() {
   const engines = stack.engines || [];
   const steps = stack.pipeline_steps || [];
   const truthGate = stack.printability_truth_gate || [];
+  const workflows = stack.workflows || [];
+  const configured = stack.configured || {};
+  const readiness = stack.readiness || {};
+  const comfyProbe = stack.runtime_reachable?.comfyui || {};
   setHtml(
     "#generationStackStatus",
     [
-      settingRow("Primary Engine", stack.primary_engine || "trellis2"),
-      settingRow("Comparison Engine", stack.comparison_engine || "hunyuan3d21"),
-      settingRow("Fast Preview", stack.fast_preview_engine || "triposr"),
-      settingRow("ComfyUI", stack.service_urls?.comfyui || "Not configured"),
-      settingRow("TRELLIS.2", stack.service_urls?.trellis || "Not configured"),
-      settingRow("Hunyuan3D-2.1", stack.service_urls?.hunyuan3d || "Not configured"),
-      settingRow("TripoSR", stack.service_urls?.triposr || "Not configured"),
+      `<div class="readiness-grid">
+        ${readinessCard("ComfyUI", comfyProbe.reachable ? "CONNECTED" : configured.comfyui ? "URL SET" : "NEEDS URL", comfyProbe.reason || stack.service_urls?.comfyui || "Backend not configured", comfyProbe.reachable ? "ok" : configured.comfyui ? "pending" : "bad")}
+        ${readinessCard("Workflows", readiness.workflows_ready ? "READY" : "OPERATOR REQUIRED", readiness.workflows_ready ? "Exported API workflows found" : "Replace placeholders with exported ComfyUI API workflows", readiness.workflows_ready ? "ok" : "pending")}
+        ${readinessCard("Toolchain", readiness.toolchain_ready ? "READY" : "MISSING TOOLS", `Blender: ${configured.blender ? "found" : "missing"} · PrusaSlicer: ${configured.prusaslicer ? "found" : "missing"}`, readiness.toolchain_ready ? "ok" : "pending")}
+        ${readinessCard("Truth Gate", readiness.printability_truth_gate_ready ? "PASSING" : "PENDING", "No generated mesh becomes printable until every required gate passes", readiness.printability_truth_gate_ready ? "ok" : "pending")}
+      </div>`,
+      `<div class="section"><h2>Services</h2>
+        ${settingRow("Primary Engine", stack.primary_engine || "trellis2")}
+        ${settingRow("Comparison Engine", stack.comparison_engine || "hunyuan3d21")}
+        ${settingRow("Fast Preview", stack.fast_preview_engine || "triposr")}
+        ${settingRow("ComfyUI", stack.service_urls?.comfyui || "Not configured")}
+        ${settingRow("TRELLIS.2", stack.service_urls?.trellis || "Not configured")}
+        ${settingRow("Hunyuan3D-2.1", stack.service_urls?.hunyuan3d || "Not configured")}
+        ${settingRow("TripoSR", stack.service_urls?.triposr || "Not configured")}
+      </div>`,
+      `<div class="section"><h2>Workflow Readiness</h2>${workflows.map(renderWorkflowStatus).join("") || '<div class="empty-state">No workflows configured.</div>'}</div>`,
       `<div class="section"><h2>Engines</h2>${engines.map(renderGenerationEngine).join("")}</div>`,
       `<div class="section"><h2>Pipeline</h2>${steps.map((step, index) => `<article class="roadmap-item"><strong>${index + 1}</strong><span>${escapeHtml(step.label)}</span></article>`).join("")}</div>`,
     ].join(""),
@@ -226,6 +239,32 @@ function renderGenerationEngine(engine) {
       </div>
       <p class="muted">${escapeHtml(engine.notes || "")}</p>
       <p class="muted">${escapeHtml((engine.outputs || []).join(", "))}</p>
+    </article>
+  `;
+}
+
+function readinessCard(label, status, detail, tone) {
+  return `
+    <article class="status-card status-${escapeAttr(tone)}">
+      <div class="row">
+        <strong>${escapeHtml(label)}</strong>
+        ${stateBadge(status)}
+      </div>
+      <p class="muted">${escapeHtml(detail)}</p>
+    </article>
+  `;
+}
+
+function renderWorkflowStatus(workflow) {
+  const status = workflow.ready ? "READY" : workflow.operator_required ? "OPERATOR REQUIRED" : "PENDING";
+  return `
+    <article class="status-card ${workflow.ready ? "status-ok" : "status-pending"}">
+      <div class="row">
+        <strong>${escapeHtml(workflow.engine)}</strong>
+        ${stateBadge(status)}
+      </div>
+      <p class="muted">${escapeHtml(workflow.reason || "")}</p>
+      <p class="muted">${escapeHtml(workflow.workflow_path || "")}</p>
     </article>
   `;
 }

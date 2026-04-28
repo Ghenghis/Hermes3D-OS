@@ -28,6 +28,9 @@ workers:
       enabled: true
       base_url: http://127.0.0.1:8188
       workflow_dir: workflows/comfyui
+      timeout_seconds: 30
+      probe_timeout_seconds: 1
+      generation_timeout_seconds: 600
     engines:
       trellis2:
         enabled: true
