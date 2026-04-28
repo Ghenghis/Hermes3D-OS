@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -88,6 +89,46 @@ def list_printers() -> list[dict[str, Any]]:
     with db.connect() as conn:
         rows = conn.execute("SELECT * FROM printers ORDER BY name").fetchall()
     return [row_to_dict(row) for row in rows]
+
+
+@app.get("/api/printers/{printer_id}/status")
+async def printer_status(printer_id: str) -> dict[str, Any]:
+    printer = _get_printer(printer_id)
+    if not printer:
+        raise HTTPException(status_code=404, detail="Printer not found")
+
+    try:
+        result = await moonraker.status(printer, real_probe=True)
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        message = f"Moonraker returned HTTP {status_code}"
+        db.add_event(None, "PRINTER_PROBE_FAILED", message, {"printer_id": printer_id})
+        return {
+            "ok": False,
+            "printer_id": printer_id,
+            "base_url": printer.get("base_url"),
+            "message": message,
+            "status_code": status_code,
+        }
+    except (httpx.RequestError, ValueError) as exc:
+        message = str(exc)
+        db.add_event(None, "PRINTER_PROBE_FAILED", message, {"printer_id": printer_id})
+        return {
+            "ok": False,
+            "printer_id": printer_id,
+            "base_url": printer.get("base_url"),
+            "message": message,
+        }
+
+    payload = result.payload
+    db.add_event(None, "PRINTER_PROBE_OK", result.message, {"printer_id": printer_id, **payload})
+    return {
+        "ok": result.ok,
+        "printer_id": printer_id,
+        "base_url": printer.get("base_url"),
+        "message": result.message,
+        "payload": payload,
+    }
 
 
 @app.get("/api/jobs")
@@ -356,6 +397,11 @@ async def _upload_to_printer(job_id: int) -> None:
     gcode = _latest_artifact(job_id, "gcode")
     if not gcode:
         raise HTTPException(status_code=409, detail="No G-code artifact exists")
+    if not settings.dry_run_printers and not gcode.get("metadata", {}).get("printable"):
+        raise HTTPException(
+            status_code=409,
+            detail="Real printer dispatch requires a printable G-code artifact from a real slicer.",
+        )
 
     status = await moonraker.status(printer)
     result = await moonraker.upload_and_start(printer, gcode["path"])

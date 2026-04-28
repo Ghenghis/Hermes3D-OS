@@ -1,6 +1,7 @@
 const state = {
   jobs: [],
   printers: [],
+  printerStatus: {},
   activeJobId: null,
 };
 
@@ -60,10 +61,30 @@ function renderPrinters() {
             </div>
             <p class="muted">${escapeHtml(printer.vendor || "Unknown vendor")} ${escapeHtml(printer.model || "")}</p>
             <p class="muted">${escapeHtml(printer.base_url || "No Moonraker URL configured")}</p>
+            <div class="printer-actions">
+              <button type="button" data-test-printer="${escapeAttr(printer.id)}">Test</button>
+            </div>
+            ${renderPrinterStatus(printer.id)}
           </article>
         `,
       )
       .join("") || '<div class="empty-state">No printers loaded.</div>';
+
+  document.querySelectorAll("[data-test-printer]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const printerId = button.dataset.testPrinter;
+      button.disabled = true;
+      button.textContent = "Testing";
+      state.printerStatus[printerId] = { ok: null, message: "Testing..." };
+      renderPrinters();
+      try {
+        state.printerStatus[printerId] = await api(`/api/printers/${printerId}/status`);
+      } catch (error) {
+        state.printerStatus[printerId] = { ok: false, message: error.message };
+      }
+      renderPrinters();
+    });
+  });
 }
 
 function renderJobs() {
@@ -170,6 +191,22 @@ function setButtons(job) {
 function stateBadge(value) {
   const cls = value === "COMPLETE" ? "complete" : value.includes("APPROVAL") ? "approval" : "";
   return `<span class="state ${cls}">${escapeHtml(value)}</span>`;
+}
+
+function renderPrinterStatus(printerId) {
+  const status = state.printerStatus[printerId];
+  if (!status) {
+    return "";
+  }
+
+  const detail = status.payload?.printer?.state_message || status.payload?.printer?.state || status.message;
+  const cls = status.ok ? "status-ok" : status.ok === null ? "status-pending" : "status-bad";
+  return `
+    <div class="printer-status ${cls}">
+      <strong>${status.ok ? "Reachable" : status.ok === null ? "Testing" : "Needs attention"}</strong>
+      <span>${escapeHtml(detail || "No detail returned")}</span>
+    </div>
+  `;
 }
 
 function escapeHtml(value) {

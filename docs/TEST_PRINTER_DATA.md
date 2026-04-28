@@ -113,6 +113,12 @@ The script prints any detected Moonraker base URLs. Copy confirmed values into:
 configs\printers.local.yaml
 ```
 
+After Hermes3D OS is running, test the configured printer records:
+
+```powershell
+.\scripts\test-configured-printers.ps1
+```
+
 ## Editable Mock / Local Values
 
 The MVP deliberately keeps guessed values in editable local config files:
@@ -140,3 +146,16 @@ Before real printer dispatch is enabled, confirm:
 - What bed size and nozzle size should be recorded for each printer?
 
 If the user does not know, use the scanner script, printer screen, router connected-device list, and Mainsail/Fluidd pages to find the answers.
+
+## Current Scan Result
+
+The first scan found the two T1 printers:
+
+```text
+http://192.168.0.10
+http://192.168.0.10:7125
+http://192.168.0.11
+http://192.168.0.11:7125
+```
+
+The V400 still needs confirmation.

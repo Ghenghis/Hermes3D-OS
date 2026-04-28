@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
 
@@ -20,8 +21,8 @@ class MoonrakerClient:
         self.dry_run = dry_run
         self.timeout = timeout
 
-    async def status(self, printer: dict[str, Any]) -> MoonrakerResult:
-        if self.dry_run:
+    async def status(self, printer: dict[str, Any], real_probe: bool = False) -> MoonrakerResult:
+        if self.dry_run and not real_probe:
             return MoonrakerResult(
                 dry_run=True,
                 ok=True,
@@ -35,9 +36,15 @@ class MoonrakerClient:
 
         headers = self._headers(printer)
         async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
-            response = await client.get(f"{base_url.rstrip('/')}/printer/info")
-            response.raise_for_status()
-            payload = response.json()
+            printer_response = await client.get(f"{base_url.rstrip('/')}/printer/info")
+            printer_response.raise_for_status()
+            server_response = await client.get(f"{base_url.rstrip('/')}/server/info")
+            server_response.raise_for_status()
+            payload = {
+                "printer": printer_response.json(),
+                "server": server_response.json(),
+                "base_url": base_url,
+            }
         return MoonrakerResult(False, True, "Moonraker status read.", payload)
 
     async def upload_and_start(self, printer: dict[str, Any], gcode_path: str) -> MoonrakerResult:
@@ -58,10 +65,38 @@ class MoonrakerClient:
         if not base_url:
             raise ValueError(f"Printer {printer['id']} has no Moonraker base_url")
 
-        # Real upload/start support is intentionally explicit and can be hardened
-        # once printer-specific paths and Moonraker auth are confirmed.
-        raise NotImplementedError(
-            "Real Moonraker upload/start is gated until printer URLs and API keys are configured."
+        path = Path(gcode_path)
+        if not path.exists():
+            raise FileNotFoundError(f"G-code artifact does not exist: {gcode_path}")
+
+        headers = self._headers(printer)
+        async with httpx.AsyncClient(timeout=self.timeout, headers=headers) as client:
+            with path.open("rb") as handle:
+                response = await client.post(
+                    f"{base_url.rstrip('/')}/server/files/upload",
+                    data={"root": "gcodes", "print": "true"},
+                    files={
+                        "file": (
+                            path.name,
+                            handle,
+                            "application/octet-stream",
+                        )
+                    },
+                )
+            response.raise_for_status()
+            payload = response.json()
+
+        return MoonrakerResult(
+            dry_run=False,
+            ok=True,
+            message="G-code uploaded to Moonraker with print=true.",
+            payload={
+                "printer_id": printer["id"],
+                "base_url": base_url,
+                "gcode_path": gcode_path,
+                "moonraker": payload,
+                "hardware_mutated": True,
+            },
         )
 
     def _headers(self, printer: dict[str, Any]) -> dict[str, str]:

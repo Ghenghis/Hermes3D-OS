@@ -116,6 +116,7 @@ For setup and operating context, read:
 - [Local Model Setup](docs/LOCAL_MODEL_SETUP.md)
 - [MVP Runbook](docs/MVP_RUNBOOK.md)
 - [Test Printer Data](docs/TEST_PRINTER_DATA.md)
+- [Day-To-Day Roadmap](docs/DAY_TO_DAY_ROADMAP.md)
 
 ## Run The MVP
 

@@ -165,6 +165,40 @@ textarea {
   padding: 12px;
 }
 
+.printer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.printer-status {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.printer-status span {
+  color: var(--muted);
+}
+
+.status-ok {
+  background: #e8f7ef;
+  color: var(--green);
+}
+
+.status-pending {
+  background: #ecf2ff;
+  color: #174ea6;
+}
+
+.status-bad {
+  background: #fff0f0;
+  color: var(--red);
+}
+
 .job-card {
   cursor: pointer;
 }

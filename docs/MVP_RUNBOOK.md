@@ -50,6 +50,16 @@ Printer actions are dry-run by default.
 
 The MVP records upload/start events but does not mutate printer hardware. This keeps the UI and workflow testable before real Moonraker dispatch is enabled.
 
+Real upload/start code exists, but it is blocked unless all of these are true:
+
+- `dry_run: false` is set in `configs/services.local.yaml`
+- the job has model approval
+- the job has print approval
+- the selected printer is configured
+- the G-code artifact is marked printable by a real slicer
+
+Do not disable dry-run until the printer status test passes and the user is physically present.
+
 ## Find Test Printers
 
 With the two FLSUN T1 printers and the FLSUN V400 powered on, run:
@@ -67,6 +77,12 @@ configs\printers.local.yaml
 ```
 
 See [Test Printer Data](TEST_PRINTER_DATA.md) for the full checklist.
+
+To test all printers configured in Hermes3D OS through the running backend:
+
+```powershell
+.\scripts\test-configured-printers.ps1
+```
 
 ## Local Files
 
