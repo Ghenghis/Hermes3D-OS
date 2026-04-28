@@ -6,7 +6,7 @@ printers:
     role: pilot
     connector: moonraker
     moonraker:
-      base_url: http://flsun-t1-a.local
+      base_url: http://192.168.0.10
       api_key_env: MOONRAKER_FLSUN_T1_A_API_KEY
     slicer_profile: profiles/prusaslicer/flsun-t1.ini
     capabilities:
@@ -23,7 +23,7 @@ printers:
     role: pilot
     connector: moonraker
     moonraker:
-      base_url: http://flsun-t1-b.local
+      base_url: http://192.168.0.11
       api_key_env: MOONRAKER_FLSUN_T1_B_API_KEY
     slicer_profile: profiles/prusaslicer/flsun-t1.ini
     capabilities:
@@ -33,3 +33,38 @@ printers:
       heated_bed: true
       enclosure: unknown
 
+  - id: flsun-s1
+    name: FLSUN S1
+    vendor: FLSUN
+    model: S1
+    role: next-onboarding
+    connector: moonraker
+    moonraker:
+      base_url: http://192.168.0.12
+      api_key_env: MOONRAKER_FLSUN_S1_API_KEY
+    slicer_profile: profiles/prusaslicer/flsun-s1.ini
+    capabilities:
+      firmware: klipper
+      input_shaping: true
+      camera: unknown
+      heated_bed: true
+      enclosure: unknown
+
+  - id: flsun-v400
+    name: FLSUN V400
+    vendor: FLSUN
+    model: V400
+    role: next-onboarding
+    connector: moonraker
+    moonraker:
+      base_url: http://192.168.0.34
+      alternate_base_urls:
+        - http://192.168.0.36
+      api_key_env: MOONRAKER_FLSUN_V400_API_KEY
+    slicer_profile: profiles/prusaslicer/flsun-v400.ini
+    capabilities:
+      firmware: klipper
+      input_shaping: true
+      camera: unknown
+      heated_bed: true
+      enclosure: unknown

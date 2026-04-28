@@ -4,8 +4,13 @@ Printer onboarding should be slow and evidence-based. Start with the two pilot F
 
 ## Pilot Printers
 
-- FLSUN T1-A
-- FLSUN T1-B
+- FLSUN T1-A: `http://192.168.0.10`
+- FLSUN T1-B: `http://192.168.0.11`
+
+## Next Known Addresses
+
+- FLSUN S1: `http://192.168.0.12`
+- FLSUN V400: `http://192.168.0.34` or `http://192.168.0.36`
 
 ## Later Fleet
 
@@ -53,4 +58,3 @@ Before enabling dispatch:
 ## Inventory Source of Truth
 
 Hermes3D OS should own the printer inventory. FDM Monster may mirror or display fleet state, but it should not be the only source of truth.
-
