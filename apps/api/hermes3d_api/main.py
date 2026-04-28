@@ -29,13 +29,22 @@ from .schemas import (
     ApprovalCreate,
     JobCreate,
     PrinterPortUpdate,
+    PrinterCheckCreate,
     RuntimeAutoPortRequest,
     RuntimeSettingsUpdate,
 )
 from .services.artifacts import write_text_artifact
 from .services.moonraker import MoonrakerClient
 from .services.slicer import SlicerWorker
-from .workflow import COMPLETE, MODEL_APPROVAL, PRINT_APPROVAL, SELECT_PRINTER, START_PRINT, next_transition
+from .workflow import (
+    COMPLETE,
+    MODEL_APPROVAL,
+    PRINT_APPROVAL,
+    SELECT_PRINTER,
+    START_PRINT,
+    USER_CHECKED_PRINTER_UI,
+    next_transition,
+)
 
 
 settings = Settings.load()
@@ -417,7 +426,10 @@ async def advance_job(job_id: int, payload: AdvanceRequest | None = None) -> dic
     if transition.next_state == "UPLOAD_ONLY":
         raise HTTPException(status_code=409, detail="Use the explicit Upload Only action.")
 
-    if transition.next_state == "START_PRINT":
+    if transition.next_state == USER_CHECKED_PRINTER_UI:
+        raise HTTPException(status_code=409, detail="Use the explicit User Checked Printer UI action.")
+
+    if transition.next_state == START_PRINT:
         raise HTTPException(status_code=409, detail="Use the explicit Start Print action.")
 
     if transition.next_state == "MONITOR_PRINT":
@@ -451,17 +463,44 @@ async def upload_only(job_id: int, payload: AdvanceRequest | None = None) -> dic
     return get_job(job_id)
 
 
+@app.post("/api/jobs/{job_id}/user-printer-check")
+def user_printer_check(job_id: int, payload: PrinterCheckCreate | None = None) -> dict[str, Any]:
+    payload = payload or PrinterCheckCreate()
+    job = get_job(job_id)
+    if job["state"] not in {"UPLOAD_ONLY", USER_CHECKED_PRINTER_UI}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is in {job['state']}; expected UPLOAD_ONLY or USER_CHECKED_PRINTER_UI",
+        )
+    if not payload.checked:
+        raise HTTPException(status_code=400, detail="Printer check must be confirmed before start print.")
+    printer = _get_printer(job.get("target_printer_id"))
+    if not printer:
+        raise HTTPException(status_code=409, detail="No printer selected")
+    _require_printer_probe_allowed(printer)
+    _require_approval(job_id, PRINT_APPROVAL)
+    _set_job_state(job_id, USER_CHECKED_PRINTER_UI)
+    db.add_event(
+        job_id,
+        "USER_CHECKED_PRINTER_UI",
+        "User confirmed printer UI or camera check after upload-only.",
+        {"note": payload.note, "printer_id": printer["id"]},
+    )
+    db.add_event(job_id, "WORKFLOW_ADVANCED", "Workflow advanced to USER_CHECKED_PRINTER_UI.")
+    return get_job(job_id)
+
+
 @app.post("/api/jobs/{job_id}/start-print")
 async def start_print(job_id: int) -> dict[str, Any]:
     job = get_job(job_id)
     if job["state"] != START_PRINT:
-        if job["state"] == "UPLOAD_ONLY":
+        if job["state"] == USER_CHECKED_PRINTER_UI:
             _set_job_state(job_id, START_PRINT)
             job = get_job(job_id)
         else:
             raise HTTPException(
                 status_code=409,
-                detail=f"Job is in {job['state']}; expected UPLOAD_ONLY or START_PRINT",
+                detail=f"Job is in {job['state']}; expected USER_CHECKED_PRINTER_UI or START_PRINT",
             )
     _require_approval(job_id, PRINT_APPROVAL)
     await _start_print(job_id)
@@ -882,6 +921,7 @@ def _autopilot_job_to_next_gate(job_id: int) -> None:
         PRINT_APPROVAL,
         SELECT_PRINTER,
         "UPLOAD_ONLY",
+        USER_CHECKED_PRINTER_UI,
         START_PRINT,
         COMPLETE,
     }
@@ -896,7 +936,7 @@ def _autopilot_job_to_next_gate(job_id: int) -> None:
             )
             return
         transition = next_transition(job["state"])
-        if transition.next_state in {"UPLOAD_ONLY", START_PRINT}:
+        if transition.next_state in {"UPLOAD_ONLY", USER_CHECKED_PRINTER_UI, START_PRINT}:
             db.add_event(
                 job_id,
                 "AUTOPILOT_STOPPED",
@@ -973,6 +1013,7 @@ def _write_agent_plan(job_id: int, job: dict[str, Any]) -> Path:
         "- Model approval",
         "- Print approval",
         "- Upload-only event before any start request",
+        "- User checked printer UI or camera acknowledgement",
         "",
         "## Next Safe Action",
         _next_safe_action_for_job(job),
@@ -1006,7 +1047,7 @@ def _next_safe_action_for_job(job: dict[str, Any]) -> str:
     state = job["state"]
     if state in {MODEL_APPROVAL, PRINT_APPROVAL}:
         return f"User review is required at {state}."
-    if state in {SELECT_PRINTER, "UPLOAD_ONLY", START_PRINT}:
+    if state in {SELECT_PRINTER, "UPLOAD_ONLY", USER_CHECKED_PRINTER_UI, START_PRINT}:
         return f"User printer action is required at {state}."
     if state == COMPLETE:
         return "Job is complete."

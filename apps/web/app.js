@@ -18,6 +18,7 @@ const advanceBtn = document.querySelector("#advanceBtn");
 const approveModelBtn = document.querySelector("#approveModelBtn");
 const approvePrintBtn = document.querySelector("#approvePrintBtn");
 const uploadOnlyBtn = document.querySelector("#uploadOnlyBtn");
+const userPrinterCheckBtn = document.querySelector("#userPrinterCheckBtn");
 const startPrintBtn = document.querySelector("#startPrintBtn");
 
 async function api(path, options = {}) {
@@ -400,7 +401,7 @@ function renderRoadmap() {
     "Add live camera URLs for integrated or USB print observation",
     "Enable plugin cards for slicers, cameras, CAD, filament, maintenance, and fleet dashboards",
     "Add FDM Monster sidecar integration",
-    "Add visible User Checked Printer UI gate before Start Print",
+    "Add camera URL editor per printer",
     "Add service health checks for modeling, slicers, CAD, and camera workers",
   ];
   setHtml(
@@ -456,6 +457,7 @@ function renderWorkflow(currentState) {
     "PRINT_APPROVAL",
     "SELECT_PRINTER",
     "UPLOAD_ONLY",
+    "USER_CHECKED_PRINTER_UI",
     "START_PRINT",
     "MONITOR_PRINT",
     "COMPLETE",
@@ -549,12 +551,16 @@ function setButtons(job) {
     job.state === "PRINT_APPROVAL" ||
     job.state === "SELECT_PRINTER" ||
     job.state === "UPLOAD_ONLY" ||
+    job.state === "USER_CHECKED_PRINTER_UI" ||
     job.state === "START_PRINT" ||
     job.state === "COMPLETE";
   approveModelBtn.disabled = !hasJob || job.state !== "MODEL_APPROVAL";
   approvePrintBtn.disabled = !hasJob || job.state !== "PRINT_APPROVAL";
   uploadOnlyBtn.disabled = !hasJob || (job.state !== "SELECT_PRINTER" && job.state !== "UPLOAD_ONLY");
-  startPrintBtn.disabled = !hasJob || (job.state !== "UPLOAD_ONLY" && job.state !== "START_PRINT");
+  userPrinterCheckBtn.disabled =
+    !hasJob || (job.state !== "UPLOAD_ONLY" && job.state !== "USER_CHECKED_PRINTER_UI");
+  startPrintBtn.disabled =
+    !hasJob || (job.state !== "USER_CHECKED_PRINTER_UI" && job.state !== "START_PRINT");
 }
 
 function stateBadge(value) {
@@ -809,6 +815,17 @@ uploadOnlyBtn.addEventListener("click", async () => {
   await api(`/api/jobs/${state.activeJobId}/upload-only`, {
     method: "POST",
     body: JSON.stringify({ target_printer_id: printerSelect.value || null }),
+  });
+  await refresh();
+});
+
+userPrinterCheckBtn.addEventListener("click", async () => {
+  await api(`/api/jobs/${state.activeJobId}/user-printer-check`, {
+    method: "POST",
+    body: JSON.stringify({
+      checked: true,
+      note: "User confirmed printer UI or camera from web dashboard.",
+    }),
   });
   await refresh();
 });

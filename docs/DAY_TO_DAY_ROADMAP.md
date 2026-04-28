@@ -11,6 +11,7 @@ Available now:
 - Hermes agent plan artifacts for jobs
 - FastAPI backend with SQLite job and evidence ledger
 - upload-first workflow gates
+- visible `User Checked Printer UI` gate before start print
 - model and print approvals
 - editable local printer config
 - Moonraker discovery and read-only status checks
@@ -46,7 +47,7 @@ If the saved port is busy, Hermes automatically finds an open local port and sav
 6. Confirm dry-run or real-printer mode.
 7. Review pending approvals.
 8. Use `Upload Only` before any `Start Print`.
-9. Watch the printer UI or camera before starting motion.
+9. Record `User Checked Printer UI` after watching the printer UI or camera.
 
 Command-line printer check:
 

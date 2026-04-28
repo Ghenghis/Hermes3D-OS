@@ -50,6 +50,11 @@ $job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/upload-only" `
     -ContentType "application/json" `
     -Body '{}'
 
+$job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/user-printer-check" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body '{"checked":true,"note":"Smoke test user printer UI check."}'
+
 $job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/start-print" `
     -Method Post `
     -ContentType "application/json" `

@@ -15,6 +15,7 @@ VALIDATE_GCODE
 PRINT_APPROVAL
 SELECT_PRINTER
 UPLOAD_ONLY
+USER_CHECKED_PRINTER_UI
 START_PRINT
 MONITOR_PRINT
 COMPLETE
@@ -71,7 +72,8 @@ Before starting a print, capture:
 - bed and hotend temperatures
 - currently loaded filament if known
 - uploaded file confirmation
-- final user approval
+- print approval
+- user checked printer UI or camera acknowledgement
 
 ### Upload Only
 
@@ -84,6 +86,17 @@ Capture:
 - Moonraker upload response
 - operator/camera/printer UI check status
 
+### User Checked Printer UI
+
+Before start print, the operator must confirm they checked the printer UI or camera after upload-only.
+
+Capture:
+
+- selected printer
+- uploaded file already recorded
+- operator note if provided
+- acknowledgement timestamp
+
 ## Safety Rules
 
 - Hermes may not start a print without a print approval record.
@@ -92,4 +105,5 @@ Capture:
 - Generated models may not be printed without at least one preview/evidence artifact.
 - Moonraker mutation calls must be recorded in the ledger.
 - Real print start must be separate from upload.
+- Real print start must require `USER_CHECKED_PRINTER_UI`.
 - Failed or cancelled jobs should preserve artifacts for debugging.

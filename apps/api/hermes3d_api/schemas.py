@@ -16,6 +16,11 @@ class ApprovalCreate(BaseModel):
     note: str | None = None
 
 
+class PrinterCheckCreate(BaseModel):
+    checked: bool = True
+    note: str | None = Field(default=None, max_length=1000)
+
+
 class AdvanceRequest(BaseModel):
     target_printer_id: str | None = None
 

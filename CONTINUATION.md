@@ -109,6 +109,7 @@ Maintenance lock: do not test or move. Movement may damage the hotend.
 - Printer inventory.
 - Moonraker status/upload/start connector.
 - Explicit `Upload Only` before `Start Print`.
+- Visible `User Checked Printer UI` gate between upload and start.
 - Editable/savable runtime ports.
 - Auto-assign open local ports.
 - Observe page for camera URLs.
@@ -133,20 +134,19 @@ Known missing items:
 - Real reviewed slicer profiles.
 - PrusaSlicer/OrcaSlicer/OpenSCAD/Blender/CadQuery installed or on PATH.
 - Real local modeling model name in `configs/services.local.yaml`.
-- Visible `User Checked Printer UI` gate before `Start Print`.
+- Camera URL editor per printer.
 
 ## Next Coding Tasks
 
-1. Add the visible `USER_CHECKED_PRINTER_UI` workflow gate.
-2. Add camera URL editor per printer.
+1. Add camera URL editor per printer.
+2. Add model endpoint picker from `/v1/models`.
 3. Add printer geometry fields:
    - bed size
    - nozzle diameter
    - filament diameter
    - enclosure/camera state
-4. Add model endpoint picker from `/v1/models`.
-5. Add profile readiness UI for slicer profiles.
-6. Add structured service-health endpoint for:
+4. Add profile readiness UI for slicer profiles.
+5. Add structured service-health endpoint for:
    - model server
    - PrusaSlicer
    - OrcaSlicer
@@ -155,8 +155,8 @@ Known missing items:
    - Blender
    - FDM Monster
    - camera proxy
-7. Add safer operator notes/reject/retry workflow states.
-8. Add real mesh/G-code validation evidence.
+6. Add safer operator notes/reject/retry workflow states.
+7. Add real mesh/G-code validation evidence.
 
 ## Useful Files
 

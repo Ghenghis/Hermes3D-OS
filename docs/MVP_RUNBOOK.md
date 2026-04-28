@@ -14,6 +14,7 @@ This runbook covers the current runnable Hermes3D OS MVP.
 - print approval gate
 - simulated slicing fallback
 - dry-run Moonraker dispatch
+- user checked printer UI gate before start print
 - telemetry/event recording
 - smoke test script
 
@@ -65,7 +66,7 @@ Do not disable dry-run until the printer status test passes and the user is phys
 The safe dispatch flow is split into two actions:
 
 ```text
-Upload Only -> observe/check printer -> Start Print
+Upload Only -> User Checked Printer UI -> Start Print
 ```
 
 Real use should upload first, inspect the printer UI/camera, then start separately.
