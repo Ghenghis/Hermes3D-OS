@@ -57,10 +57,10 @@ printers:
     role: next-onboarding
     connector: moonraker
     moonraker:
-      base_url: http://192.168.1.146
+      base_url: http://192.168.0.34
       alternate_base_urls:
-        - http://192.168.0.34
         - http://192.168.0.36
+        - http://192.168.1.146
       api_key_env: MOONRAKER_FLSUN_V400_API_KEY
     slicer_profile: profiles/prusaslicer/flsun-v400.ini
     capabilities:

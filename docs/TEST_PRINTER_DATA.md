@@ -10,10 +10,10 @@ The goal is to replace every guessed or mocked value with user-confirmed data be
 | --- | --- | --- |
 | FLSUN T1-A | `http://192.168.0.10` | yes |
 | FLSUN T1-B | `http://192.168.0.11` | yes |
-| FLSUN S1 | `http://192.168.0.12` | IP confirmed, Moonraker pending |
-| FLSUN V400 Speeder Pad | `http://192.168.1.146` | yes |
-| FLSUN V400 old candidate | `http://192.168.0.34` | maybe |
-| FLSUN V400 old alternate | `http://192.168.0.36` | maybe |
+| FLSUN S1 | `http://192.168.0.12` | confirmed reachable |
+| FLSUN V400 | `http://192.168.0.34` | confirmed reachable |
+| FLSUN V400 alternate | `http://192.168.0.36` | maybe |
+| FLSUN V400 Speeder Pad history | `http://192.168.1.146` | old network |
 
 ## Where To Find The Needed Data
 
@@ -54,9 +54,9 @@ Try these URLs in a browser:
 http://192.168.0.10
 http://192.168.0.11
 http://192.168.0.12
-http://192.168.1.146
 http://192.168.0.34
 http://192.168.0.36
+http://192.168.1.146
 ```
 
 If the printer UI opens, the base URL is probably correct.
@@ -69,9 +69,9 @@ Try:
 http://192.168.0.10/server/info
 http://192.168.0.11/server/info
 http://192.168.0.12/server/info
-http://192.168.1.146/server/info
 http://192.168.0.34/server/info
 http://192.168.0.36/server/info
+http://192.168.1.146/server/info
 ```
 
 If port `80` does not respond, also try Moonraker's common direct port:
@@ -80,9 +80,9 @@ If port `80` does not respond, also try Moonraker's common direct port:
 http://192.168.0.10:7125/server/info
 http://192.168.0.11:7125/server/info
 http://192.168.0.12:7125/server/info
-http://192.168.1.146:7125/server/info
 http://192.168.0.34:7125/server/info
 http://192.168.0.36:7125/server/info
+http://192.168.1.146:7125/server/info
 ```
 
 ## Scanner Script
@@ -103,7 +103,7 @@ By default this checks the known candidates:
 192.168.0.36
 ```
 
-To check the V400 Speeder Pad:
+To check the old V400 Speeder Pad address:
 
 ```powershell
 .\scripts\find-moonraker-printers.ps1 -Subnet 192.168.1 -Hosts 146
@@ -153,9 +153,9 @@ Before real printer dispatch is enabled, confirm:
 
 - Is T1-A definitely `192.168.0.10`?
 - Is T1-B definitely `192.168.0.11`?
-- Is S1 Moonraker available at `192.168.0.12` on port `80` or `7125`?
-- Is V400 Speeder Pad definitely `192.168.1.146`?
-- Does V400 Moonraker answer on port `80` or `7125`?
+- Is S1 Moonraker available at `192.168.0.12` on port `80` or `7125`? Yes, latest scan found both.
+- Is V400 definitely `192.168.0.34`? Yes.
+- Does V400 Moonraker answer on port `80` or `7125`? Yes, latest scan found both.
 - Does Moonraker answer on port `80` or `7125`?
 - Does Moonraker require an API key?
 - What slicer profile should each printer use?
@@ -174,18 +174,13 @@ http://192.168.0.11
 http://192.168.0.11:7125
 ```
 
-The V400 Speeder Pad is now expected at:
-
-```text
-http://192.168.1.146
-```
-
-It still needs a live Moonraker reachability test.
-
-The S1 IP is confirmed as:
+The latest scan found:
 
 ```text
 http://192.168.0.12
+http://192.168.0.12:7125
+http://192.168.0.34
+http://192.168.0.34:7125
 ```
 
-The latest test did not find Moonraker on port `80` or `7125`, so S1 still needs a Moonraker reachability check.
+Hermes also read status successfully for T1-A, T1-B, S1, and V400 through `scripts\test-configured-printers.ps1`.
