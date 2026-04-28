@@ -1,0 +1,47 @@
+hermes:
+  mode: local
+  model_provider: openai_compatible
+  model_base_url: http://127.0.0.1:1234/v1
+  model_name: your-local-hermes-or-modeling-model
+
+workflow:
+  engine: langgraph
+  require_model_approval: true
+  require_print_approval: true
+
+database:
+  url: sqlite:///./data/hermes3d.sqlite
+
+workers:
+  modeling:
+    enabled: true
+    provider: openai_compatible
+    base_url: http://127.0.0.1:1234/v1
+    model: your-downloaded-3d-modeling-llm
+  cadquery:
+    enabled: true
+    executable: cadquery
+  openscad:
+    enabled: true
+    executable: openscad
+  blender:
+    enabled: true
+    executable: blender
+  trimesh:
+    enabled: true
+
+slicers:
+  prusaslicer:
+    enabled: true
+    executable: prusa-slicer
+  orcaslicer:
+    enabled: false
+    executable: orca-slicer
+
+connectors:
+  moonraker:
+    timeout_seconds: 30
+  fdm_monster:
+    enabled: false
+    base_url: http://127.0.0.1:4000
+

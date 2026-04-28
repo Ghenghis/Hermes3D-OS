@@ -1,0 +1,35 @@
+printers:
+  - id: flsun-t1-a
+    name: FLSUN T1-A
+    vendor: FLSUN
+    model: T1
+    role: pilot
+    connector: moonraker
+    moonraker:
+      base_url: http://flsun-t1-a.local
+      api_key_env: MOONRAKER_FLSUN_T1_A_API_KEY
+    slicer_profile: profiles/prusaslicer/flsun-t1.ini
+    capabilities:
+      firmware: klipper
+      input_shaping: true
+      camera: unknown
+      heated_bed: true
+      enclosure: unknown
+
+  - id: flsun-t1-b
+    name: FLSUN T1-B
+    vendor: FLSUN
+    model: T1
+    role: pilot
+    connector: moonraker
+    moonraker:
+      base_url: http://flsun-t1-b.local
+      api_key_env: MOONRAKER_FLSUN_T1_B_API_KEY
+    slicer_profile: profiles/prusaslicer/flsun-t1.ini
+    capabilities:
+      firmware: klipper
+      input_shaping: true
+      camera: unknown
+      heated_bed: true
+      enclosure: unknown
+
