@@ -60,6 +60,14 @@ Real upload/start code exists, but it is blocked unless all of these are true:
 
 Do not disable dry-run until the printer status test passes and the user is physically present.
 
+The safe dispatch flow is split into two actions:
+
+```text
+Upload Only -> observe/check printer -> Start Print
+```
+
+Real use should upload first, inspect the printer UI/camera, then start separately.
+
 ## Find Test Printers
 
 With the two FLSUN T1 printers and the FLSUN V400 powered on, run:

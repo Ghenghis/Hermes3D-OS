@@ -16,7 +16,7 @@ from .schemas import AdvanceRequest, ApiMessage, ApprovalCreate, JobCreate
 from .services.artifacts import write_text_artifact
 from .services.moonraker import MoonrakerClient
 from .services.slicer import SlicerWorker
-from .workflow import COMPLETE, MODEL_APPROVAL, PRINT_APPROVAL, SELECT_PRINTER, next_transition
+from .workflow import COMPLETE, MODEL_APPROVAL, PRINT_APPROVAL, SELECT_PRINTER, START_PRINT, next_transition
 
 
 settings = Settings.load()
@@ -229,13 +229,11 @@ async def advance_job(job_id: int, payload: AdvanceRequest | None = None) -> dic
             raise HTTPException(status_code=409, detail="No printer is available for selection")
         _set_target_printer(job_id, target_printer_id)
 
-    if transition.next_state == "UPLOAD_TO_MOONRAKER":
-        _require_approval(job_id, PRINT_APPROVAL)
-        await _upload_to_printer(job_id)
+    if transition.next_state == "UPLOAD_ONLY":
+        raise HTTPException(status_code=409, detail="Use the explicit Upload Only action.")
 
     if transition.next_state == "START_PRINT":
-        _require_approval(job_id, PRINT_APPROVAL)
-        db.add_event(job_id, "PRINT_STARTED", "Print start recorded.", {"dry_run": settings.dry_run_printers})
+        raise HTTPException(status_code=409, detail="Use the explicit Start Print action.")
 
     if transition.next_state == "MONITOR_PRINT":
         _record_telemetry(job_id, "printing")
@@ -249,6 +247,40 @@ async def advance_job(job_id: int, payload: AdvanceRequest | None = None) -> dic
         "WORKFLOW_ADVANCED",
         f"Workflow advanced from {state} to {transition.next_state}.",
     )
+    return get_job(job_id)
+
+
+@app.post("/api/jobs/{job_id}/upload-only")
+async def upload_only(job_id: int, payload: AdvanceRequest | None = None) -> dict[str, Any]:
+    job = get_job(job_id)
+    if job["state"] not in {"SELECT_PRINTER", "UPLOAD_ONLY"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job is in {job['state']}; expected SELECT_PRINTER or UPLOAD_ONLY",
+        )
+    _require_approval(job_id, PRINT_APPROVAL)
+    _ensure_target_printer(job_id, job, (payload or AdvanceRequest()).target_printer_id)
+    await _upload_to_printer(job_id)
+    _set_job_state(job_id, "UPLOAD_ONLY")
+    db.add_event(job_id, "WORKFLOW_ADVANCED", "Workflow advanced to UPLOAD_ONLY.")
+    return get_job(job_id)
+
+
+@app.post("/api/jobs/{job_id}/start-print")
+async def start_print(job_id: int) -> dict[str, Any]:
+    job = get_job(job_id)
+    if job["state"] != START_PRINT:
+        if job["state"] == "UPLOAD_ONLY":
+            _set_job_state(job_id, START_PRINT)
+            job = get_job(job_id)
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Job is in {job['state']}; expected UPLOAD_ONLY or START_PRINT",
+            )
+    _require_approval(job_id, PRINT_APPROVAL)
+    await _start_print(job_id)
+    db.add_event(job_id, "PRINT_STARTED", "Print start recorded.", {"dry_run": settings.dry_run_printers})
     return get_job(job_id)
 
 
@@ -363,6 +395,14 @@ def _set_target_printer(job_id: int, printer_id: str) -> None:
         )
 
 
+def _ensure_target_printer(job_id: int, job: dict[str, Any], target_printer_id: str | None = None) -> str:
+    target_printer_id = target_printer_id or job.get("target_printer_id") or _first_printer_id()
+    if not target_printer_id:
+        raise HTTPException(status_code=409, detail="No printer is available for selection")
+    _set_target_printer(job_id, target_printer_id)
+    return target_printer_id
+
+
 def _add_artifact(job_id: int, kind: str, path: Path, metadata: dict[str, Any] | None = None) -> None:
     with db.connect() as conn:
         conn.execute(
@@ -471,6 +511,7 @@ async def _upload_to_printer(job_id: int) -> None:
     printer = _get_printer(job.get("target_printer_id"))
     if not printer:
         raise HTTPException(status_code=409, detail="No printer selected")
+    _require_printer_probe_allowed(printer)
     gcode = _latest_artifact(job_id, "gcode")
     if not gcode:
         raise HTTPException(status_code=409, detail="No G-code artifact exists")
@@ -481,9 +522,28 @@ async def _upload_to_printer(job_id: int) -> None:
         )
 
     status = await moonraker.status(printer)
-    result = await moonraker.upload_and_start(printer, gcode["path"])
+    result = await moonraker.upload_gcode(printer, gcode["path"], print_after_upload=False)
     db.add_event(job_id, "PRINTER_STATUS", status.message, status.payload)
-    db.add_event(job_id, "PRINTER_UPLOAD_START", result.message, result.payload)
+    db.add_event(job_id, "PRINTER_UPLOAD_ONLY", result.message, result.payload)
+
+
+async def _start_print(job_id: int) -> None:
+    job = get_job(job_id)
+    printer = _get_printer(job.get("target_printer_id"))
+    if not printer:
+        raise HTTPException(status_code=409, detail="No printer selected")
+    _require_printer_probe_allowed(printer)
+    gcode = _latest_artifact(job_id, "gcode")
+    if not gcode:
+        raise HTTPException(status_code=409, detail="No G-code artifact exists")
+    if not settings.dry_run_printers and not gcode.get("metadata", {}).get("printable"):
+        raise HTTPException(
+            status_code=409,
+            detail="Real printer start requires a printable G-code artifact from a real slicer.",
+        )
+
+    result = await moonraker.start_print(printer, Path(gcode["path"]).name)
+    db.add_event(job_id, "PRINTER_START_REQUESTED", result.message, result.payload)
 
 
 def _record_telemetry(job_id: int, state: str) -> None:

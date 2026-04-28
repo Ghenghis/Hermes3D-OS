@@ -16,6 +16,8 @@ const printerSelect = document.querySelector("#printerSelect");
 const advanceBtn = document.querySelector("#advanceBtn");
 const approveModelBtn = document.querySelector("#approveModelBtn");
 const approvePrintBtn = document.querySelector("#approvePrintBtn");
+const uploadOnlyBtn = document.querySelector("#uploadOnlyBtn");
+const startPrintBtn = document.querySelector("#startPrintBtn");
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -311,7 +313,7 @@ function renderWorkflow(currentState) {
     "VALIDATE_GCODE",
     "PRINT_APPROVAL",
     "SELECT_PRINTER",
-    "UPLOAD_TO_MOONRAKER",
+    "UPLOAD_ONLY",
     "START_PRINT",
     "MONITOR_PRINT",
     "COMPLETE",
@@ -400,9 +402,17 @@ function renderEventCards(events) {
 function setButtons(job) {
   const hasJob = Boolean(job);
   advanceBtn.disabled =
-    !hasJob || job.state === "MODEL_APPROVAL" || job.state === "PRINT_APPROVAL" || job.state === "COMPLETE";
+    !hasJob ||
+    job.state === "MODEL_APPROVAL" ||
+    job.state === "PRINT_APPROVAL" ||
+    job.state === "SELECT_PRINTER" ||
+    job.state === "UPLOAD_ONLY" ||
+    job.state === "START_PRINT" ||
+    job.state === "COMPLETE";
   approveModelBtn.disabled = !hasJob || job.state !== "MODEL_APPROVAL";
   approvePrintBtn.disabled = !hasJob || job.state !== "PRINT_APPROVAL";
+  uploadOnlyBtn.disabled = !hasJob || (job.state !== "SELECT_PRINTER" && job.state !== "UPLOAD_ONLY");
+  startPrintBtn.disabled = !hasJob || (job.state !== "UPLOAD_ONLY" && job.state !== "START_PRINT");
 }
 
 function stateBadge(value) {
@@ -563,6 +573,22 @@ approvePrintBtn.addEventListener("click", async () => {
   await api(`/api/jobs/${state.activeJobId}/approvals/PRINT_APPROVAL`, {
     method: "POST",
     body: JSON.stringify({ approved: true, note: "Approved from web dashboard." }),
+  });
+  await refresh();
+});
+
+uploadOnlyBtn.addEventListener("click", async () => {
+  await api(`/api/jobs/${state.activeJobId}/upload-only`, {
+    method: "POST",
+    body: JSON.stringify({ target_printer_id: printerSelect.value || null }),
+  });
+  await refresh();
+});
+
+startPrintBtn.addEventListener("click", async () => {
+  await api(`/api/jobs/${state.activeJobId}/start-print`, {
+    method: "POST",
+    body: "{}",
   });
   await refresh();
 });

@@ -7,6 +7,7 @@ This roadmap is the interactive path from the current MVP to daily printer-fleet
 Done:
 
 - tabbed Hermes OS Print Factory interface
+- upload-only workflow before start print
 - local web dashboard
 - FastAPI backend
 - SQLite job/evidence ledger
@@ -117,11 +118,13 @@ Tasks:
 
 Goal: upload G-code to one printer without starting it.
 
-This should be added as a separate workflow action before day-to-day printing:
+This exists as a separate workflow action before day-to-day printing:
 
 ```text
 SLICE -> VALIDATE_GCODE -> PRINT_APPROVAL -> UPLOAD_ONLY -> USER_CHECKS_PRINTER_UI -> START_PRINT
 ```
+
+Next refinement: make `USER_CHECKS_PRINTER_UI` a visible acknowledgement gate in the UI.
 
 ## Phase 4: First Real Print
 

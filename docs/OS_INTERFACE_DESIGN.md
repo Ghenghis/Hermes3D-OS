@@ -75,6 +75,12 @@ Pause
 Cancel
 ```
 
+Upload and start must stay separate:
+
+```text
+Upload Only -> Observe camera / check printer UI -> Start Print
+```
+
 ## Printers
 
 Purpose: printer inventory and readiness.

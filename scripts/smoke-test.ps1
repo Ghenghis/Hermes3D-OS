@@ -38,7 +38,17 @@ $job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/approvals/PRINT_APPROVAL"
     -ContentType "application/json" `
     -Body '{"approved":true,"note":"Smoke test print approval."}'
 
-for ($i = 0; $i -lt 5; $i++) {
+$job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/upload-only" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body '{}'
+
+$job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/start-print" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body '{}'
+
+for ($i = 0; $i -lt 2; $i++) {
     $job = Invoke-RestMethod "$BaseUrl/api/jobs/$($job.id)/advance" `
         -Method Post `
         -ContentType "application/json" `

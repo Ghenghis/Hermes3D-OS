@@ -14,7 +14,7 @@ SLICE
 VALIDATE_GCODE
 PRINT_APPROVAL
 SELECT_PRINTER
-UPLOAD_TO_MOONRAKER
+UPLOAD_ONLY
 START_PRINT
 MONITOR_PRINT
 COMPLETE
@@ -73,6 +73,17 @@ Before starting a print, capture:
 - uploaded file confirmation
 - final user approval
 
+### Upload Only
+
+Before start print, upload the G-code without auto-starting it.
+
+Capture:
+
+- selected printer
+- uploaded filename
+- Moonraker upload response
+- operator/camera/printer UI check status
+
 ## Safety Rules
 
 - Hermes may not start a print without a print approval record.
@@ -80,5 +91,5 @@ Before starting a print, capture:
 - Slicing may not start before model validation passes.
 - Generated models may not be printed without at least one preview/evidence artifact.
 - Moonraker mutation calls must be recorded in the ledger.
+- Real print start must be separate from upload.
 - Failed or cancelled jobs should preserve artifacts for debugging.
-
