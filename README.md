@@ -118,6 +118,7 @@ For setup and operating context, read:
 - [MVP Runbook](docs/MVP_RUNBOOK.md)
 - [Test Printer Data](docs/TEST_PRINTER_DATA.md)
 - [Day-To-Day Roadmap](docs/DAY_TO_DAY_ROADMAP.md)
+- [2026 Research Action Plan](docs/RESEARCH_2026_ACTION_PLAN.md)
 - [OS Interface Design](docs/OS_INTERFACE_DESIGN.md)
 
 ## Run The MVP

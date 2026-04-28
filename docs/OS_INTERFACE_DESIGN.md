@@ -21,16 +21,30 @@ Hermes OS Print Factory
 └─ Roadmap
 ```
 
+Near-term OS page expansion:
+
+```text
+Hermes OS Print Factory
+├─ Materials
+├─ Calibration
+├─ Telemetry
+├─ Quality
+├─ Trust
+└─ Digital Thread
+```
+
 ## 2026 Feature-Pack View
 
 The interface should make the 2026 roadmap visible through operator workflows:
 
 - Real Print Readiness: readiness checks, profile locks, approval gates, upload-only flow
 - OS Control Center: fleet state, active jobs, locked printers, editable camera links, quick actions
-- Design Studio: imports, prompts, Hermes agent plans, local generation workers, editable parameters, previews
-- Validation/Evidence: mesh checks, G-code checks, warnings, approvals, event ledger
-- Fleet Operations: inventory, maintenance, material/profile compatibility, reliability
-- Advanced Generation: repair automation, batch planning, optional photo-to-3D inputs
+- Design Studio: design specs, executable CAD workers, Hermes agent plans, editable parameters, geometry validation
+- Compiler/Evidence: slicer provenance, G-code analysis, 3MF print contracts, warnings, approvals, event ledger
+- Observer AI: camera discovery, snapshots, first-layer evidence, anomaly policies
+- Fleet Digital Twin: inventory, telemetry, maintenance, material/profile compatibility, reliability
+- Agentic OS: plugin permissions, trust panel, signed updates, local-first export/import
+- Advanced Generation: repair automation, production planning, calibration intelligence, optional photo-to-3D inputs
 
 ## Dashboard
 
@@ -79,15 +93,22 @@ Purpose: design and job intake.
 Includes:
 
 - import model flow
+- structured `DesignSpec` fields for dimensions, units, constraints, tolerances, material, and target printer
 - Hermes agent plan artifact
 - prompt/design brief
 - target printer and material intent
 - local modeling LLM status
-- CadQuery/OpenSCAD/Blender worker status
+- CadQuery/build123d/OpenSCAD/Blender worker status
 - parameter editor for generated models
 - preview and validation evidence
 
 Generated or imported models must pass validation before slicing.
+
+The Design page should make the CAD agent loop visible:
+
+```text
+Plan -> Generate CAD source -> Execute -> Inspect geometry -> Revise -> Approve model
+```
 
 ## Jobs
 
@@ -152,6 +173,9 @@ Supports:
 - MJPEG/HTTP camera URLs
 - camera slots per printer
 - editable and savable camera URLs per printer
+- stream/snapshot health when supported by Moonraker webcams
+- first-layer and anomaly evidence snapshots
+- observer policy: observe only, alert operator, pause recommended, auto-pause allowed
 - locked-printer camera suppression
 
 Camera URLs are edited in Settings and saved to `capabilities.camera_url` in printer config:
@@ -163,6 +187,77 @@ capabilities:
 ```
 
 For USB cameras, expose a local stream with a tool such as MJPEG Streamer, an OctoPrint-compatible webcam proxy, or another LAN-accessible camera service, then place that URL in `camera_url`.
+
+## Materials
+
+Purpose: make material readiness explicit before slicing and printing.
+
+Includes:
+
+- spool inventory
+- material type, color, brand, lot, and remaining grams
+- drying/moisture notes
+- nozzle/material compatibility
+- profile compatibility
+- Spoolman connector state
+- OpenPrintTag-ready metadata
+
+## Calibration
+
+Purpose: turn calibration into evidence-backed profile confidence.
+
+Includes:
+
+- temperature tower
+- flow calibration
+- pressure advance
+- max volumetric speed
+- dimensional coupon
+- measurement capture
+- profile confidence and expiry
+
+## Telemetry
+
+Purpose: show the live and historical state of cleared printers.
+
+Includes:
+
+- Moonraker connection freshness
+- temperatures and targets
+- print state and progress
+- queue state
+- error state
+- camera heartbeat
+- material usage
+- time-series export
+
+## Quality
+
+Purpose: track evidence and risk for parts, prints, and profiles.
+
+Includes:
+
+- G-code analyzer reports
+- first-layer evidence
+- anomaly scores
+- operator labels
+- failure taxonomy
+- reliability trends
+- dimensional-risk score
+
+## Trust
+
+Purpose: show whether an agent, plugin, or tool is allowed to do something.
+
+Includes:
+
+- plugin manifest
+- permissions and scopes
+- license
+- source repository
+- signatures and update channel
+- SBOM or dependency summary
+- runtime calls and audit events
 
 ## Artifacts
 

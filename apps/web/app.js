@@ -404,16 +404,18 @@ function renderPlugins() {
 function renderRoadmap() {
   const items = [
     "Confirm safe printer set: T1-A, T1-B, and V400 only while S1 is locked",
-    "Add reviewed PrusaSlicer profiles for T1 and V400",
-    "Add upload-only workflow before real auto-start printing",
-    "Add real STL/3MF validation and preview evidence",
-    "Connect local Hermes/modeling LLM",
-    "Add CadQuery and OpenSCAD model workers",
-    "Add live camera URLs for integrated or USB print observation",
-    "Enable plugin cards for slicers, cameras, CAD, filament, maintenance, and fleet dashboards",
-    "Add FDM Monster sidecar integration",
-    "Add camera URL editor per printer",
-    "Add service health checks for modeling, slicers, CAD, and camera workers",
+    "Add model endpoint picker from /v1/models",
+    "Add DesignSpec fields for dimensions, constraints, tolerances, material, and target printer",
+    "Add executable CAD worker with source, preview, bounding box, volume, and export validation",
+    "Add reviewed PrusaSlicer profiles for T1-A, T1-B, and V400",
+    "Add slicer compiler evidence: version, command, profile hash, warnings, estimates, and G-code hash",
+    "Add G-code semantic analyzer for bounds, thermal commands, extrusion, object labels, and blocked commands",
+    "Add Moonraker webcam discovery plus snapshot evidence at printer-check, start, anomaly, complete, and failure gates",
+    "Add Spoolman/OpenPrintTag-ready material and spool readiness gates",
+    "Add Moonraker telemetry subscriber and printer digital twin records",
+    "Add plugin permissions/trust manifest for agentic OS tools",
+    "Add 3MF print-contract import/export with model, profile, material, approvals, and evidence references",
+    "Add production planner with printer eligibility, material/nozzle matching, ETA, priority, and risk",
   ];
   setHtml(
     "#roadmapPage",

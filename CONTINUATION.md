@@ -7,11 +7,11 @@ Use this after reboot to resume work quickly.
 - Repository: `G:\Github\Hermes3D-OS`
 - GitHub: `https://github.com/Ghenghis/Hermes3D-OS`
 - Branch: `develop`
-- Latest verified baseline before this continuation pass: `5a68b87`
-- Commit message: `feat: require user printer check before start`
+- Latest synced commit before the 2026 research roadmap pass: `cfbeafa`
+- Commit message: `feat: add printer camera URL editor`
 - Working tree was clean when this file was created.
 
-All tracked branches were synced to `5a68b87` before this continuation pass:
+All tracked branches were synced to `cfbeafa` before the 2026 research roadmap pass:
 
 - `main`
 - `develop`
@@ -120,6 +120,7 @@ Maintenance lock: do not test or move. Movement may damage the hotend.
 - Hermes agent plan artifacts.
 - Dry-run pilot job creation.
 - Safe Autopilot-to-next-gate that stops at approvals/printer/hardware gates.
+- Research-backed 2026 action plan in `docs/RESEARCH_2026_ACTION_PLAN.md`.
 
 ## Current Autopilot Readiness
 
@@ -139,13 +140,38 @@ Known missing items:
 ## Next Coding Tasks
 
 1. Add model endpoint picker from `/v1/models`.
-2. Add printer geometry fields:
+2. Add `DesignSpec` schema and Design page fields:
+   - dimensions and units
+   - constraints and tolerances
+   - material intent
+   - target printer/profile
+   - acceptance checks
+3. Add executable CAD worker v1:
+   - CadQuery or build123d source generation
+   - source execution
+   - exported STL/STEP/3MF artifact
+   - bounding box/volume/export validation
+4. Add printer geometry fields:
    - bed size
    - nozzle diameter
    - filament diameter
    - enclosure/camera state
-3. Add profile readiness UI for slicer profiles.
-4. Add structured service-health endpoint for:
+5. Add slicer compiler evidence:
+   - slicer version
+   - command
+   - profile hash
+   - input/output hash
+   - warnings and estimates
+6. Add `GCodeAnalyzer` v1:
+   - bounds
+   - temperatures
+   - extrusion
+   - blocked commands
+   - layer/object markers
+7. Add profile readiness UI for slicer profiles.
+8. Add camera object schema and Moonraker webcam discovery.
+9. Add evidence snapshots for printer check, start, anomaly, complete, and failure gates.
+10. Add structured service-health endpoint for:
    - model server
    - PrusaSlicer
    - OrcaSlicer
@@ -154,8 +180,10 @@ Known missing items:
    - Blender
    - FDM Monster
    - camera proxy
-5. Add safer operator notes/reject/retry workflow states.
-6. Add real mesh/G-code validation evidence.
+11. Add Spoolman/material connector stub and material compatibility gate.
+12. Draft `Hermes3D Plugin Manifest v0` with permissions/trust data.
+13. Add safer operator notes/reject/retry workflow states.
+14. Add 3MF print-contract import/export design.
 
 ## Useful Files
 
