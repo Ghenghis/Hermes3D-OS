@@ -6,6 +6,7 @@ This roadmap is the interactive path from the current MVP to daily printer-fleet
 
 Done:
 
+- tabbed Hermes OS Print Factory interface
 - local web dashboard
 - FastAPI backend
 - SQLite job/evidence ledger
@@ -15,6 +16,7 @@ Done:
 - Moonraker discovery script
 - real read-only Moonraker status checks
 - gated real Moonraker upload/start code path
+- Observe page for integrated/USB camera URLs
 
 ## GitHub Action Tracker
 
@@ -26,6 +28,19 @@ Done:
 - [#6 Add CadQuery and OpenSCAD model workers](https://github.com/Ghenghis/Hermes3D-OS/issues/6)
 - [#7 Add day-to-day printer controls and telemetry](https://github.com/Ghenghis/Hermes3D-OS/issues/7)
 - [#8 Add FDM Monster sidecar integration](https://github.com/Ghenghis/Hermes3D-OS/issues/8)
+
+Interface map:
+
+- Dashboard
+- Design
+- Jobs
+- Printers
+- Observe
+- Artifacts
+- Approvals
+- Plugins
+- Settings
+- Roadmap
 
 Still needs user-confirmed data:
 

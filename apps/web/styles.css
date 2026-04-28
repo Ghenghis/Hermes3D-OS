@@ -57,6 +57,39 @@ button:disabled {
   padding: 18px 24px;
 }
 
+.top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  padding: 0 16px;
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 12px;
+}
+
+.tab.active {
+  border-bottom-color: var(--blue);
+  color: var(--text);
+  font-weight: 700;
+}
+
 h1,
 h2,
 h3,
@@ -85,11 +118,32 @@ h3 {
   font-size: 13px;
 }
 
-.layout {
+.page-shell {
+  padding: 16px;
+}
+
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+.layout,
+.split-grid,
+.dashboard-grid {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(360px, 1fr);
   gap: 16px;
-  padding: 16px;
+}
+
+.dashboard-grid {
+  grid-template-columns: minmax(280px, 420px) minmax(280px, 420px) minmax(360px, 1fr);
+}
+
+.wide-panel {
+  min-height: 420px;
 }
 
 .panel {
@@ -149,8 +203,12 @@ textarea {
 
 .jobs,
 .printers,
+.approval-list,
 .artifact-list,
-.event-list {
+.event-list,
+.settings-list,
+.roadmap-list,
+.plugin-grid {
   display: grid;
   gap: 10px;
 }
@@ -158,11 +216,53 @@ textarea {
 .job-card,
 .printer-card,
 .artifact-card,
-.event-card {
+.event-card,
+.approval-card,
+.plugin-card,
+.setting-row,
+.roadmap-item,
+.camera-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   padding: 12px;
+}
+
+.printer-grid,
+.camera-grid,
+.plugin-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.setting-row,
+.roadmap-item {
+  display: grid;
+  gap: 4px;
+}
+
+.setting-row span,
+.roadmap-item span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.roadmap-item {
+  grid-template-columns: 32px 1fr;
+  align-items: start;
+}
+
+.roadmap-item strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 50%;
+  background: #ecf2ff;
+  color: #174ea6;
+}
+
+.locked-card {
+  border-color: #e2b5b5;
 }
 
 .printer-actions {
@@ -237,6 +337,11 @@ textarea {
   color: var(--amber);
 }
 
+.state.locked {
+  background: #fff0f0;
+  color: var(--red);
+}
+
 .section {
   display: grid;
   gap: 10px;
@@ -256,12 +361,63 @@ textarea {
   gap: 12px;
 }
 
+.workflow-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workflow-step {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.workflow-step.current {
+  border-color: var(--blue);
+  background: #ecf2ff;
+  color: #174ea6;
+}
+
+.camera-card {
+  display: grid;
+  gap: 10px;
+}
+
+.camera-frame,
+.camera-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #eef1f5;
+}
+
+.camera-frame {
+  display: block;
+  object-fit: cover;
+}
+
+.camera-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 12px;
+  text-align: center;
+}
+
 .error {
   color: var(--red);
 }
 
 @media (max-width: 860px) {
-  .layout {
+  .layout,
+  .split-grid,
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 

@@ -76,6 +76,25 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/api/workspace")
+def workspace() -> dict[str, Any]:
+    return {
+        "health": health(),
+        "settings": {
+            "services_config": str(settings.services_config_path),
+            "printers_config": str(settings.printers_config_path),
+            "data_dir": str(settings.data_dir),
+            "storage_dir": str(settings.storage_dir),
+            "dry_run_printers": settings.dry_run_printers,
+        },
+        "printers": _list_printers(),
+        "jobs": _list_jobs(),
+        "artifacts": _list_artifacts(),
+        "approvals": _list_approvals(),
+        "events": _list_events(),
+    }
+
+
 @app.post("/api/bootstrap", response_model=ApiMessage)
 def bootstrap() -> ApiMessage:
     for printer in load_printer_config(settings):
@@ -86,9 +105,7 @@ def bootstrap() -> ApiMessage:
 
 @app.get("/api/printers")
 def list_printers() -> list[dict[str, Any]]:
-    with db.connect() as conn:
-        rows = conn.execute("SELECT * FROM printers ORDER BY name").fetchall()
-    return [row_to_dict(row) for row in rows]
+    return _list_printers()
 
 
 @app.get("/api/printers/{printer_id}/status")
@@ -134,9 +151,7 @@ async def printer_status(printer_id: str) -> dict[str, Any]:
 
 @app.get("/api/jobs")
 def list_jobs() -> list[dict[str, Any]]:
-    with db.connect() as conn:
-        rows = conn.execute("SELECT * FROM jobs ORDER BY id DESC").fetchall()
-    return [row_to_dict(row) for row in rows]
+    return _list_jobs()
 
 
 @app.post("/api/jobs")
@@ -284,6 +299,60 @@ def _set_job_state(job_id: int, state: str) -> None:
             "UPDATE jobs SET state = ?, updated_at = ?, completed_at = ? WHERE id = ?",
             (state, utc_now(), utc_now() if state == COMPLETE else None, job_id),
         )
+
+
+def _list_printers() -> list[dict[str, Any]]:
+    with db.connect() as conn:
+        rows = conn.execute("SELECT * FROM printers ORDER BY name").fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def _list_jobs() -> list[dict[str, Any]]:
+    with db.connect() as conn:
+        rows = conn.execute("SELECT * FROM jobs ORDER BY id DESC").fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def _list_artifacts() -> list[dict[str, Any]]:
+    with db.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT artifacts.*, jobs.title AS job_title
+            FROM artifacts
+            JOIN jobs ON jobs.id = artifacts.job_id
+            ORDER BY artifacts.id DESC
+            LIMIT 200
+            """
+        ).fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def _list_approvals() -> list[dict[str, Any]]:
+    with db.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT approvals.*, jobs.title AS job_title
+            FROM approvals
+            JOIN jobs ON jobs.id = approvals.job_id
+            ORDER BY approvals.id DESC
+            LIMIT 200
+            """
+        ).fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def _list_events() -> list[dict[str, Any]]:
+    with db.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT events.*, jobs.title AS job_title
+            FROM events
+            LEFT JOIN jobs ON jobs.id = events.job_id
+            ORDER BY events.id DESC
+            LIMIT 200
+            """
+        ).fetchall()
+    return [row_to_dict(row) for row in rows]
 
 
 def _set_target_printer(job_id: int, printer_id: str) -> None:

@@ -3,61 +3,185 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hermes3D OS</title>
+    <title>Hermes OS Print Factory</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div>
-        <h1>Hermes3D OS</h1>
+        <h1>Hermes OS Print Factory</h1>
         <p id="health">Connecting...</p>
       </div>
-      <button id="refreshBtn" type="button">Refresh</button>
+      <div class="top-actions">
+        <button id="bootstrapBtn" type="button">Load Printers</button>
+        <button id="refreshBtn" type="button">Refresh</button>
+      </div>
     </header>
 
-    <main class="layout">
-      <section class="panel queue-panel">
-        <div class="panel-header">
-          <h2>Job Queue</h2>
-          <button id="bootstrapBtn" type="button">Load Printers</button>
+    <nav class="tabs" aria-label="Factory pages">
+      <button class="tab active" type="button" data-page="dashboard">Dashboard</button>
+      <button class="tab" type="button" data-page="design">Design</button>
+      <button class="tab" type="button" data-page="jobs">Jobs</button>
+      <button class="tab" type="button" data-page="printers">Printers</button>
+      <button class="tab" type="button" data-page="observe">Observe</button>
+      <button class="tab" type="button" data-page="artifacts">Artifacts</button>
+      <button class="tab" type="button" data-page="approvals">Approvals</button>
+      <button class="tab" type="button" data-page="plugins">Plugins</button>
+      <button class="tab" type="button" data-page="settings">Settings</button>
+      <button class="tab" type="button" data-page="roadmap">Roadmap</button>
+    </nav>
+
+    <main class="page-shell">
+      <section id="page-dashboard" class="page active">
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Fleet</h2>
+              <span class="muted">Safe printer status</span>
+            </div>
+            <div id="dashboardFleet" class="printers"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Queue</h2>
+              <span class="muted">Current jobs</span>
+            </div>
+            <div id="dashboardJobs" class="jobs"></div>
+          </section>
+          <section class="panel wide-panel">
+            <div class="panel-header">
+              <h2>Evidence Feed</h2>
+              <span class="muted">Latest system events</span>
+            </div>
+            <div id="dashboardEvents" class="event-list"></div>
+          </section>
         </div>
-        <form id="jobForm" class="job-form">
-          <label>
-            <span>Title</span>
-            <input name="title" value="Pilot calibration cube" required maxlength="120" />
-          </label>
-          <label>
-            <span>Description</span>
-            <textarea name="description" required rows="4">Create a safe pilot job record for Hermes3D OS and move it through workflow gates in dry-run mode.</textarea>
-          </label>
-          <label>
-            <span>Target Printer</span>
-            <select name="target_printer_id" id="printerSelect"></select>
-          </label>
-          <button type="submit">Create Job</button>
-        </form>
-        <div id="jobs" class="jobs"></div>
       </section>
 
-      <section class="panel detail-panel">
-        <div class="panel-header">
-          <h2>Active Job</h2>
-          <div class="actions">
-            <button id="advanceBtn" type="button" disabled>Advance</button>
-            <button id="approveModelBtn" type="button" disabled>Approve Model</button>
-            <button id="approvePrintBtn" type="button" disabled>Approve Print</button>
+      <section id="page-design" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Design Intake</h2>
+              <span class="muted">Create or import a print job</span>
+            </div>
+            <form id="jobForm" class="job-form">
+              <label>
+                <span>Title</span>
+                <input name="title" value="Pilot calibration cube" required maxlength="120" />
+              </label>
+              <label>
+                <span>Description / Design Prompt</span>
+                <textarea name="description" required rows="6">Create a safe pilot job record for Hermes OS Print Factory and move it through workflow gates in dry-run mode.</textarea>
+              </label>
+              <label>
+                <span>Target Printer</span>
+                <select name="target_printer_id" id="printerSelect"></select>
+              </label>
+              <button type="submit">Create Job</button>
+            </form>
+          </section>
+          <section class="panel">
+            <h2>Design Toolchain</h2>
+            <div id="designToolchain" class="settings-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-jobs" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Job Queue</h2>
+              <span class="muted">Select a job</span>
+            </div>
+            <div id="jobs" class="jobs"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Active Job</h2>
+              <div class="actions">
+                <button id="advanceBtn" type="button" disabled>Advance</button>
+                <button id="approveModelBtn" type="button" disabled>Approve Model</button>
+                <button id="approvePrintBtn" type="button" disabled>Approve Print</button>
+              </div>
+            </div>
+            <div id="activeJob" class="empty-state">No job selected.</div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-printers" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Printers</h2>
+            <span class="muted">Moonraker fleet inventory</span>
           </div>
-        </div>
-        <div id="activeJob" class="empty-state">No job selected.</div>
+          <div id="printers" class="printers printer-grid"></div>
+        </section>
       </section>
 
-      <section class="panel printer-panel">
-        <h2>Printers</h2>
-        <div id="printers" class="printers"></div>
+      <section id="page-observe" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Observe Prints</h2>
+            <span class="muted">Integrated and USB camera slots</span>
+          </div>
+          <div id="observeGrid" class="camera-grid"></div>
+        </section>
+      </section>
+
+      <section id="page-artifacts" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Artifacts</h2>
+            <span class="muted">Models, evidence, G-code, and logs</span>
+          </div>
+          <div id="artifactPageList" class="artifact-list"></div>
+        </section>
+      </section>
+
+      <section id="page-approvals" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Approvals</h2>
+            <span class="muted">Model and print gates</span>
+          </div>
+          <div id="approvalsPageList" class="approval-list"></div>
+        </section>
+      </section>
+
+      <section id="page-plugins" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Plugins</h2>
+            <span class="muted">Factory capabilities and integrations</span>
+          </div>
+          <div id="pluginsPage" class="plugin-grid"></div>
+        </section>
+      </section>
+
+      <section id="page-settings" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Settings</h2>
+            <span class="muted">Local-only runtime configuration</span>
+          </div>
+          <div id="settingsPage" class="settings-list"></div>
+        </section>
+      </section>
+
+      <section id="page-roadmap" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Roadmap</h2>
+            <span class="muted">Daily-use completion path</span>
+          </div>
+          <div id="roadmapPage" class="roadmap-list"></div>
+        </section>
       </section>
     </main>
 
     <script src="/static/app.js"></script>
   </body>
 </html>
-

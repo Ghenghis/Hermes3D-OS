@@ -13,6 +13,7 @@ printers:
       firmware: klipper
       input_shaping: true
       camera: unknown
+      camera_url: ""
       heated_bed: true
       enclosure: unknown
 
@@ -30,6 +31,7 @@ printers:
       firmware: klipper
       input_shaping: true
       camera: unknown
+      camera_url: ""
       heated_bed: true
       enclosure: unknown
 
@@ -48,6 +50,7 @@ printers:
       firmware: klipper
       input_shaping: true
       camera: unknown
+      camera_url: ""
       heated_bed: true
       enclosure: unknown
       maintenance_lock: true
@@ -71,5 +74,6 @@ printers:
       firmware: klipper
       input_shaping: true
       camera: unknown
+      camera_url: ""
       heated_bed: true
       enclosure: unknown
