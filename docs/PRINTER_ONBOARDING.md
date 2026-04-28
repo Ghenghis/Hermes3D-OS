@@ -43,6 +43,25 @@ For each printer, capture:
 - enclosure state if available
 - known limitations
 
+## Immediate Test Data Needed
+
+For the two FLSUN T1 printers and the FLSUN V400, ask the user if they already know:
+
+- the exact IP address
+- whether Moonraker responds on port `80` or `7125`
+- whether Moonraker requires an API key
+- the preferred slicer profile
+- bed size
+- nozzle size
+
+If they do not know, collect it from the printer screen, the router connected-device list, or by running:
+
+```powershell
+.\scripts\find-moonraker-printers.ps1
+```
+
+Keep guessed values in `configs\printers.local.yaml` and update them as soon as the real values are known.
+
 ## Safety Validation
 
 Before enabling dispatch:

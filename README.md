@@ -115,6 +115,7 @@ For setup and operating context, read:
 - [Printer Onboarding](docs/PRINTER_ONBOARDING.md)
 - [Local Model Setup](docs/LOCAL_MODEL_SETUP.md)
 - [MVP Runbook](docs/MVP_RUNBOOK.md)
+- [Test Printer Data](docs/TEST_PRINTER_DATA.md)
 
 ## Run The MVP
 

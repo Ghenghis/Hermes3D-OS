@@ -50,6 +50,24 @@ Printer actions are dry-run by default.
 
 The MVP records upload/start events but does not mutate printer hardware. This keeps the UI and workflow testable before real Moonraker dispatch is enabled.
 
+## Find Test Printers
+
+With the two FLSUN T1 printers and the FLSUN V400 powered on, run:
+
+```powershell
+.\scripts\find-moonraker-printers.ps1
+```
+
+The default scanner checks `.10`, `.11`, `.12`, `.34`, and `.36`.
+
+Copy confirmed Moonraker base URLs into:
+
+```text
+configs\printers.local.yaml
+```
+
+See [Test Printer Data](TEST_PRINTER_DATA.md) for the full checklist.
+
 ## Local Files
 
 Setup creates local-only files:
@@ -61,6 +79,8 @@ Setup creates local-only files:
 - `storage/jobs/...`
 
 These are intentionally ignored by Git.
+
+Any mocked or guessed value should live in one of those local files so it can be changed without editing code.
 
 ## Next Implementation Tasks
 

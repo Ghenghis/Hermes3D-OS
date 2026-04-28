@@ -1,0 +1,142 @@
+# Test Printer Data
+
+Use this checklist while the two FLSUN T1 printers and the FLSUN V400 are powered on.
+
+The goal is to replace every guessed or mocked value with user-confirmed data before enabling real printer dispatch.
+
+## Test Printers
+
+| Printer | Current expected URL | Needs confirmation |
+| --- | --- | --- |
+| FLSUN T1-A | `http://192.168.0.10` | yes |
+| FLSUN T1-B | `http://192.168.0.11` | yes |
+| FLSUN V400 | `http://192.168.0.34` | yes |
+| FLSUN V400 alternate | `http://192.168.0.36` | yes |
+
+## Where To Find The Needed Data
+
+### Printer Screen
+
+Look for network or Wi-Fi details on the printer touchscreen:
+
+- IP address
+- printer hostname, if shown
+- firmware or Klipper/Moonraker status
+
+### Router / Network App
+
+Open the router admin page or network app and look at connected devices.
+
+Useful names may include:
+
+- `flsun`
+- `t1`
+- `v400`
+- `mks`
+- `klipper`
+- `moonraker`
+- `fluidd`
+- `mainsail`
+
+Record:
+
+- IP address
+- MAC address if visible
+- hostname/device name
+
+### Mainsail / Fluidd Browser Page
+
+Try these URLs in a browser:
+
+```text
+http://192.168.0.10
+http://192.168.0.11
+http://192.168.0.34
+http://192.168.0.36
+```
+
+If the printer UI opens, the base URL is probably correct.
+
+### Moonraker API Probe
+
+Try:
+
+```text
+http://192.168.0.10/server/info
+http://192.168.0.11/server/info
+http://192.168.0.34/server/info
+http://192.168.0.36/server/info
+```
+
+If port `80` does not respond, also try Moonraker's common direct port:
+
+```text
+http://192.168.0.10:7125/server/info
+http://192.168.0.11:7125/server/info
+http://192.168.0.34:7125/server/info
+http://192.168.0.36:7125/server/info
+```
+
+## Scanner Script
+
+With the printers powered on, run:
+
+```powershell
+.\scripts\find-moonraker-printers.ps1
+```
+
+By default this checks the known candidates:
+
+```text
+192.168.0.10
+192.168.0.11
+192.168.0.12
+192.168.0.34
+192.168.0.36
+```
+
+To scan another subnet:
+
+```powershell
+.\scripts\find-moonraker-printers.ps1 -Subnet 192.168.1
+```
+
+To scan every address in the subnet:
+
+```powershell
+.\scripts\find-moonraker-printers.ps1 -FullScan
+```
+
+The script prints any detected Moonraker base URLs. Copy confirmed values into:
+
+```text
+configs\printers.local.yaml
+```
+
+## Editable Mock / Local Values
+
+The MVP deliberately keeps guessed values in editable local config files:
+
+- `configs\printers.local.yaml`: printer names, IPs, slicer profiles, capability notes
+- `configs\services.local.yaml`: dry-run mode, model endpoint, worker settings
+- `.env`: API keys and local secrets
+
+The committed examples are templates:
+
+- `configs\printers.pilot.example.yaml`
+- `configs\services.example.yaml`
+- `.env.example`
+
+## Ask The User For These Values
+
+Before real printer dispatch is enabled, confirm:
+
+- Is T1-A definitely `192.168.0.10`?
+- Is T1-B definitely `192.168.0.11`?
+- Is V400 `192.168.0.34` or `192.168.0.36`?
+- Does Moonraker answer on port `80` or `7125`?
+- Does Moonraker require an API key?
+- What slicer profile should each printer use?
+- What bed size and nozzle size should be recorded for each printer?
+
+If the user does not know, use the scanner script, printer screen, router connected-device list, and Mainsail/Fluidd pages to find the answers.
