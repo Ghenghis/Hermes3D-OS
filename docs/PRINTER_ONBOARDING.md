@@ -9,7 +9,7 @@ Printer onboarding should be slow and evidence-based. Start with the two pilot F
 
 ## Next Known Addresses
 
-- FLSUN S1: `http://192.168.0.12`
+- FLSUN S1 confirmed IP: `http://192.168.0.12`
 - FLSUN V400 Speeder Pad: `http://192.168.1.146`
 - FLSUN V400 old candidates: `http://192.168.0.34` or `http://192.168.0.36`
 
@@ -62,6 +62,8 @@ If they do not know, collect it from the printer screen, the router connected-de
 ```
 
 Keep guessed values in `configs\printers.local.yaml` and update them as soon as the real values are known.
+
+Current note: S1 IP is confirmed as `192.168.0.12`, but Moonraker did not answer on port `80` or `7125` during the latest test.
 
 ## Safety Validation
 

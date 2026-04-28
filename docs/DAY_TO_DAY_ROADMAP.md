@@ -29,6 +29,7 @@ Done:
 
 Still needs user-confirmed data:
 
+- S1 Moonraker reachability at `http://192.168.0.12`
 - V400 Speeder Pad reachability at `http://192.168.1.146`
 - Moonraker API-key requirements
 - real slicer profiles
@@ -53,7 +54,8 @@ http://127.0.0.1:8080
 4. Click `Load Printers`.
 5. Click `Test` on each printer card.
 6. Confirm the two T1 printers are reachable.
-7. Confirm whether the V400 Speeder Pad responds at `192.168.1.146`.
+7. Confirm whether the S1 responds at `192.168.0.12`.
+8. Confirm whether the V400 Speeder Pad responds at `192.168.1.146`.
 
 Command-line version:
 

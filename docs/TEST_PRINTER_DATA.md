@@ -10,6 +10,7 @@ The goal is to replace every guessed or mocked value with user-confirmed data be
 | --- | --- | --- |
 | FLSUN T1-A | `http://192.168.0.10` | yes |
 | FLSUN T1-B | `http://192.168.0.11` | yes |
+| FLSUN S1 | `http://192.168.0.12` | IP confirmed, Moonraker pending |
 | FLSUN V400 Speeder Pad | `http://192.168.1.146` | yes |
 | FLSUN V400 old candidate | `http://192.168.0.34` | maybe |
 | FLSUN V400 old alternate | `http://192.168.0.36` | maybe |
@@ -52,6 +53,7 @@ Try these URLs in a browser:
 ```text
 http://192.168.0.10
 http://192.168.0.11
+http://192.168.0.12
 http://192.168.1.146
 http://192.168.0.34
 http://192.168.0.36
@@ -66,6 +68,7 @@ Try:
 ```text
 http://192.168.0.10/server/info
 http://192.168.0.11/server/info
+http://192.168.0.12/server/info
 http://192.168.1.146/server/info
 http://192.168.0.34/server/info
 http://192.168.0.36/server/info
@@ -76,6 +79,7 @@ If port `80` does not respond, also try Moonraker's common direct port:
 ```text
 http://192.168.0.10:7125/server/info
 http://192.168.0.11:7125/server/info
+http://192.168.0.12:7125/server/info
 http://192.168.1.146:7125/server/info
 http://192.168.0.34:7125/server/info
 http://192.168.0.36:7125/server/info
@@ -149,6 +153,7 @@ Before real printer dispatch is enabled, confirm:
 
 - Is T1-A definitely `192.168.0.10`?
 - Is T1-B definitely `192.168.0.11`?
+- Is S1 Moonraker available at `192.168.0.12` on port `80` or `7125`?
 - Is V400 Speeder Pad definitely `192.168.1.146`?
 - Does V400 Moonraker answer on port `80` or `7125`?
 - Does Moonraker answer on port `80` or `7125`?
@@ -176,3 +181,11 @@ http://192.168.1.146
 ```
 
 It still needs a live Moonraker reachability test.
+
+The S1 IP is confirmed as:
+
+```text
+http://192.168.0.12
+```
+
+The latest test did not find Moonraker on port `80` or `7125`, so S1 still needs a Moonraker reachability check.
