@@ -114,4 +114,21 @@ For setup and operating context, read:
 - [Branching Strategy](docs/BRANCHING.md)
 - [Printer Onboarding](docs/PRINTER_ONBOARDING.md)
 - [Local Model Setup](docs/LOCAL_MODEL_SETUP.md)
+- [MVP Runbook](docs/MVP_RUNBOOK.md)
 
+## Run The MVP
+
+On Windows:
+
+```powershell
+.\scripts\setup.ps1
+.\scripts\run-dev.ps1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8080
+```
+
+The MVP runs in printer dry-run mode by default. It can create jobs, move through workflow gates, write evidence artifacts, simulate slicing when PrusaSlicer is unavailable, and simulate Moonraker dispatch without touching hardware.

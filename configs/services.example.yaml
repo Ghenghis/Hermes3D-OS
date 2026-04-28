@@ -40,8 +40,8 @@ slicers:
 
 connectors:
   moonraker:
+    dry_run: true
     timeout_seconds: 30
   fdm_monster:
     enabled: false
     base_url: http://127.0.0.1:4000
-

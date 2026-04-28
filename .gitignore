@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+.ruff_cache/
 
 # Local data and artifacts
 data/*
@@ -13,6 +14,9 @@ data/*
 storage/*
 !storage/.gitkeep
 artifacts/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.stl
 *.3mf
 *.gcode
@@ -21,6 +25,7 @@ artifacts/
 .env
 .env.*
 !.env.example
+configs/*.local.yaml
 
 # OS/editor
 .DS_Store

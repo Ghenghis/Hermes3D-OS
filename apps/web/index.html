@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hermes3D OS</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Hermes3D OS</h1>
+        <p id="health">Connecting...</p>
+      </div>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </header>
+
+    <main class="layout">
+      <section class="panel queue-panel">
+        <div class="panel-header">
+          <h2>Job Queue</h2>
+          <button id="bootstrapBtn" type="button">Load Printers</button>
+        </div>
+        <form id="jobForm" class="job-form">
+          <label>
+            <span>Title</span>
+            <input name="title" value="Pilot calibration cube" required maxlength="120" />
+          </label>
+          <label>
+            <span>Description</span>
+            <textarea name="description" required rows="4">Create a safe pilot job record for Hermes3D OS and move it through workflow gates in dry-run mode.</textarea>
+          </label>
+          <label>
+            <span>Target Printer</span>
+            <select name="target_printer_id" id="printerSelect"></select>
+          </label>
+          <button type="submit">Create Job</button>
+        </form>
+        <div id="jobs" class="jobs"></div>
+      </section>
+
+      <section class="panel detail-panel">
+        <div class="panel-header">
+          <h2>Active Job</h2>
+          <div class="actions">
+            <button id="advanceBtn" type="button" disabled>Advance</button>
+            <button id="approveModelBtn" type="button" disabled>Approve Model</button>
+            <button id="approvePrintBtn" type="button" disabled>Approve Print</button>
+          </div>
+        </div>
+        <div id="activeJob" class="empty-state">No job selected.</div>
+      </section>
+
+      <section class="panel printer-panel">
+        <h2>Printers</h2>
+        <div id="printers" class="printers"></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+

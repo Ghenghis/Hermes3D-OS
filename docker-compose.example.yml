@@ -12,16 +12,3 @@ services:
       - ./configs:/app/configs:ro
     ports:
       - "8080:8080"
-
-  web:
-    image: hermes3d-web:local
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    environment:
-      HERMES3D_API_URL: http://localhost:8080
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
-

@@ -8,7 +8,7 @@ The current repo state is a project foundation: architecture, workflow gates, ex
 
 Recommended local tools:
 
-- Python 3.11+
+- Python 3.11-3.13, with Python 3.12 recommended
 - Node.js 20+
 - Git
 - PrusaSlicer CLI
@@ -25,9 +25,7 @@ Recommended local tools:
 ```powershell
 git clone https://github.com/Ghenghis/Hermes3D-OS.git
 cd Hermes3D-OS
-copy .env.example .env
-copy configs\services.example.yaml configs\services.local.yaml
-copy configs\printers.pilot.example.yaml configs\printers.local.yaml
+.\scripts\setup.ps1
 ```
 
 Then edit:
@@ -37,6 +35,20 @@ Then edit:
 - `configs/printers.local.yaml`
 
 Do not commit local secrets, printer API keys, or private IP details.
+
+## Run The Local App
+
+```powershell
+.\scripts\run-dev.ps1
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080
+```
+
+The default MVP is dry-run safe. Printer dispatch is simulated unless dry-run is disabled and real connector support is completed.
 
 ## First Build Goal
 
@@ -63,4 +75,3 @@ Start with:
 - FLSUN T1-B
 
 After the pilot workflow is stable, onboard the remaining fleet one printer family at a time.
-
