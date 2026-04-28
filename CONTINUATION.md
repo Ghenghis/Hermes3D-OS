@@ -121,6 +121,20 @@ Maintenance lock: do not test or move. Movement may damage the hotend.
 - Dry-run pilot job creation.
 - Safe Autopilot-to-next-gate that stops at approvals/printer/hardware gates.
 - Research-backed 2026 action plan in `docs/RESEARCH_2026_ACTION_PLAN.md`.
+- Azure Speech voice layer API and Voice tab:
+  - per-agent voices
+  - voice preview
+  - push-to-talk upload
+  - SSML/directive support
+  - transcript JSONL
+  - safety alert voice test
+- Full-stack 3D Generation tab and backend contract:
+  - TRELLIS.2 primary
+  - Hunyuan3D-2.1 comparison/fallback
+  - TripoSR fast preview
+  - printability truth gate
+  - markdown report and SVG pipeline diagram artifacts
+  - ComfyUI workflow placeholders under `workflows/comfyui/`
 
 ## Current Autopilot Readiness
 
@@ -136,42 +150,68 @@ Known missing items:
 - Real reviewed slicer profiles.
 - PrusaSlicer/OrcaSlicer/OpenSCAD/Blender/CadQuery installed or on PATH.
 - Real local modeling model name in `configs/services.local.yaml`.
+- Azure Speech key and region in `.env`.
+- Real exported ComfyUI API workflows for TRELLIS.2, Hunyuan3D-2.1, and TripoSR.
+- Local ComfyUI 3D node installs and model paths.
 
 ## Next Coding Tasks
 
-1. Add model endpoint picker from `/v1/models`.
-2. Add `DesignSpec` schema and Design page fields:
+1. Replace placeholder ComfyUI workflow JSON with exported API workflows:
+   - TRELLIS.2 primary
+   - Hunyuan3D-2.1 fallback/compare
+   - TripoSR fast preview
+2. Add ComfyUI runner:
+   - upload image
+   - patch workflow JSON
+   - POST `/prompt`
+   - track `/ws`
+   - fetch `/history`
+   - copy GLB/OBJ/STL/3MF/textures/logs into job storage
+3. Add Blender/Trimesh/Manifold repair worker v1.
+4. Add printability truth-gate implementation:
+   - watertight
+   - manifold
+   - normals
+   - holes
+   - scale
+   - wall thickness
+   - bed fit
+   - overhang/support
+   - slicer dry-run
+   - material/printer compatibility
+5. Add model endpoint picker from `/v1/models`.
+6. Add `DesignSpec` schema and Design page fields:
    - dimensions and units
    - constraints and tolerances
    - material intent
    - target printer/profile
    - acceptance checks
-3. Add executable CAD worker v1:
+7. Add executable CAD worker v1:
    - CadQuery or build123d source generation
    - source execution
    - exported STL/STEP/3MF artifact
    - bounding box/volume/export validation
-4. Add printer geometry fields:
+8. Add printer geometry fields:
    - bed size
    - nozzle diameter
    - filament diameter
    - enclosure/camera state
-5. Add slicer compiler evidence:
+9. Add slicer compiler evidence:
    - slicer version
    - command
    - profile hash
    - input/output hash
    - warnings and estimates
-6. Add `GCodeAnalyzer` v1:
+10. Add `GCodeAnalyzer` v1:
    - bounds
    - temperatures
    - extrusion
    - blocked commands
    - layer/object markers
-7. Add profile readiness UI for slicer profiles.
-8. Add camera object schema and Moonraker webcam discovery.
-9. Add evidence snapshots for printer check, start, anomaly, complete, and failure gates.
-10. Add structured service-health endpoint for:
+11. Add profile readiness UI for slicer profiles.
+12. Add camera object schema and Moonraker webcam discovery.
+13. Add evidence snapshots for printer check, start, anomaly, complete, and failure gates.
+14. Add structured service-health endpoint for:
    - model server
    - PrusaSlicer
    - OrcaSlicer
@@ -180,10 +220,10 @@ Known missing items:
    - Blender
    - FDM Monster
    - camera proxy
-11. Add Spoolman/material connector stub and material compatibility gate.
-12. Draft `Hermes3D Plugin Manifest v0` with permissions/trust data.
-13. Add safer operator notes/reject/retry workflow states.
-14. Add 3MF print-contract import/export design.
+15. Add Spoolman/material connector stub and material compatibility gate.
+16. Draft `Hermes3D Plugin Manifest v0` with permissions/trust data.
+17. Add safer operator notes/reject/retry workflow states.
+18. Add 3MF print-contract import/export design.
 
 ## Useful Files
 

@@ -1,0 +1,20 @@
+{
+  "template_status": "operator_config_required",
+  "engine": "trellis2",
+  "purpose": "Primary Hermes3D-OS image-to-3D workflow template.",
+  "notes": [
+    "Install the local TRELLIS.2 ComfyUI nodes, then replace this placeholder with the exported API workflow JSON.",
+    "Hermes3D-OS treats ComfyUI as a backend only; generated meshes still must pass the printability truth gate."
+  ],
+  "inputs": {
+    "image": "{{source_image}}",
+    "object_intent": "{{object_intent}}",
+    "seed": "{{seed}}"
+  },
+  "expected_outputs": [
+    "preview_image",
+    "glb",
+    "obj_or_stl",
+    "metadata"
+  ]
+}

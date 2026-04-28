@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,19 +24,38 @@ from .config import (
 from .db import Database, row_to_dict, utc_now
 from .schemas import (
     AdvanceRequest,
+    AgentVoiceUpdate,
     ApiMessage,
     AutopilotActionRequest,
     ApprovalCreate,
+    GenerationStackRequest,
     JobCreate,
+    LearningModeRequest,
     PrinterCameraUrlUpdate,
     PrinterPortUpdate,
     PrinterCheckCreate,
     RuntimeAutoPortRequest,
     RuntimeSettingsUpdate,
+    SpeechSynthesizeRequest,
+    VoicePreviewRequest,
 )
 from .services.artifacts import write_text_artifact
+from .services.generation.pipeline import (
+    GENERATION_ENGINES,
+    PIPELINE_STEPS,
+    PRINTABILITY_TRUTH_GATE,
+    GenerationPipelineWorker,
+)
 from .services.moonraker import MoonrakerClient
 from .services.slicer import SlicerWorker
+from .services.speech.agent_voice_router import list_agent_voices, resolve_agent_voice
+from .services.speech.azure_stt import AzureSpeechStt
+from .services.speech.azure_tts import AzureSpeechTts
+from .services.speech.voice_catalog import (
+    azure_is_configured,
+    fetch_azure_voice_catalog,
+    speech_config_from_services,
+)
 from .workflow import (
     COMPLETE,
     MODEL_APPROVAL,
@@ -165,7 +184,14 @@ def run_autopilot_action(action_id: str, payload: AutopilotActionRequest | None 
             db.upsert_printer(printer)
         db.add_event(None, "AUTOPILOT_ACTION", "Printer inventory loaded from config.", {"note": note})
     elif action_id == "ensure_storage_dirs":
-        for path in [settings.data_dir, settings.storage_dir, settings.storage_dir / "jobs", settings.storage_dir / "autopilot"]:
+        for path in [
+            settings.data_dir,
+            settings.storage_dir,
+            settings.storage_dir / "jobs",
+            settings.storage_dir / "autopilot",
+            settings.storage_dir / "speech",
+            settings.storage_dir / "learning",
+        ]:
             path.mkdir(parents=True, exist_ok=True)
         db.add_event(None, "AUTOPILOT_ACTION", "Storage directories ensured.", {"note": note})
     elif action_id == "create_pilot_job":
@@ -318,6 +344,269 @@ def bootstrap() -> ApiMessage:
         db.upsert_printer(printer)
     db.add_event(None, "BOOTSTRAP", "Printer inventory loaded from config.")
     return ApiMessage(message="Printer inventory loaded.")
+
+
+@app.get("/api/speech/status")
+def speech_status() -> dict[str, Any]:
+    config = _speech_config()
+    azure = config["azure"]
+    return {
+        "provider": config["provider"],
+        "configured": azure_is_configured(config),
+        "region": azure.get("region") or "",
+        "default_voice": azure.get("default_voice"),
+        "fallback_voice": azure.get("fallback_voice"),
+        "output_format": azure.get("output_format"),
+        "enable_ssml": azure.get("enable_ssml"),
+        "enable_stt": azure.get("enable_stt"),
+        "agents": list_agent_voices(config),
+        "transcript_count": len(_read_transcripts(2000)),
+        "learning_mode": _learning_mode_status(),
+    }
+
+
+@app.get("/api/speech/voices")
+async def speech_voices() -> dict[str, Any]:
+    config = _speech_config()
+    try:
+        voices, source = await fetch_azure_voice_catalog(config)
+    except httpx.HTTPError as exc:
+        db.add_event(None, "VOICE_CATALOG_FAILED", str(exc), {"provider": "azure"})
+        voices, source = await fetch_azure_voice_catalog({"azure": {}})
+    return {
+        "provider": "azure",
+        "source": source,
+        "count": len(voices),
+        "voices": voices,
+    }
+
+
+@app.get("/api/speech/agents")
+def speech_agents() -> list[dict[str, Any]]:
+    return list_agent_voices(_speech_config())
+
+
+@app.patch("/api/speech/agents/{agent_id}/voice")
+def update_agent_voice(agent_id: str, payload: AgentVoiceUpdate) -> dict[str, Any]:
+    if settings.services_config_path.name.endswith(".example.yaml"):
+        raise HTTPException(
+            status_code=409,
+            detail="Create configs/services.local.yaml before saving agent voice changes.",
+        )
+    updated = _save_agent_voice(agent_id, payload.voice)
+    db.add_event(
+        None,
+        "AGENT_VOICE_UPDATED",
+        f"{agent_id} voice saved.",
+        {"agent_id": agent_id, "voice": payload.voice},
+    )
+    return updated
+
+
+@app.post("/api/speech/tts")
+async def synthesize_speech(payload: SpeechSynthesizeRequest) -> dict[str, Any]:
+    config = _speech_config()
+    voice = resolve_agent_voice(config, payload.agent_id, payload.voice)
+    tts = AzureSpeechTts(config, settings.storage_dir)
+    try:
+        result = await tts.synthesize_to_file(
+            text=payload.text,
+            agent_id=payload.agent_id,
+            voice=voice,
+            style=payload.style,
+            rate=payload.rate,
+            pitch=payload.pitch,
+            tone=payload.tone,
+            ssml=payload.ssml if payload.use_ssml else None,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPStatusError as exc:
+        detail = exc.response.text[:500] or f"Azure Speech returned HTTP {exc.response.status_code}"
+        raise HTTPException(status_code=502, detail=detail) from exc
+    _append_transcript(
+        "tts",
+        payload.agent_id,
+        result["text"],
+        audio_url=result.get("audio_url"),
+        metadata={"voice": result.get("voice"), "provider": "azure", "tone": payload.tone},
+    )
+    db.add_event(
+        None,
+        "VOICE_TTS",
+        f"{payload.agent_id} spoke with {result.get('voice')}.",
+        {"audio_url": result.get("audio_url"), "warnings": result.get("warnings", [])},
+    )
+    return result
+
+
+@app.post("/api/speech/preview")
+async def preview_voice(payload: VoicePreviewRequest) -> dict[str, Any]:
+    return await synthesize_speech(
+        SpeechSynthesizeRequest(
+            text=payload.text,
+            agent_id=payload.agent_id,
+            voice=payload.voice,
+            style=payload.style,
+            rate=payload.rate,
+            pitch=payload.pitch,
+            tone=payload.tone,
+        )
+    )
+
+
+@app.post("/api/speech/stt")
+async def speech_to_text(
+    audio: UploadFile = File(...),
+    locale: str = Form("en-US"),
+    agent_id: str = Form("factory_operator"),
+) -> dict[str, Any]:
+    config = _speech_config()
+    stt = AzureSpeechStt(config)
+    try:
+        result = await stt.transcribe_bytes(
+            audio=await audio.read(),
+            filename=audio.filename or "speech.webm",
+            content_type=audio.content_type or "application/octet-stream",
+            locale=locale,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPStatusError as exc:
+        detail = exc.response.text[:500] or f"Azure Speech returned HTTP {exc.response.status_code}"
+        raise HTTPException(status_code=502, detail=detail) from exc
+    _append_transcript(
+        "stt",
+        agent_id,
+        result.get("text", ""),
+        metadata={"locale": locale, "provider": "azure", "filename": audio.filename},
+    )
+    db.add_event(None, "VOICE_STT", "User speech transcribed.", {"agent_id": agent_id, "locale": locale})
+    return result
+
+
+@app.get("/api/speech/transcripts")
+def speech_transcripts(limit: int = 100) -> dict[str, Any]:
+    safe_limit = max(1, min(limit, 500))
+    return {"items": _read_transcripts(safe_limit)}
+
+
+@app.get("/api/speech/audio/{filename}")
+def speech_audio(filename: str) -> FileResponse:
+    audio_dir = (settings.storage_dir / "speech" / "audio").resolve()
+    path = (audio_dir / Path(filename).name).resolve()
+    if audio_dir not in path.parents or not path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(path)
+
+
+@app.get("/api/learning-mode/status")
+def learning_mode_status() -> dict[str, Any]:
+    return _learning_mode_status()
+
+
+@app.post("/api/learning-mode/report")
+def create_learning_mode_report(payload: LearningModeRequest) -> dict[str, Any]:
+    report = _write_learning_report(payload.topic or "Hermes3D-OS research and printability improvements")
+    db.add_event(
+        None,
+        "LEARNING_MODE_REPORT",
+        "Learning Mode markdown report created.",
+        {"path": str(report), "enabled": payload.enabled, "topic": payload.topic},
+    )
+    return {"enabled": payload.enabled, "report_path": str(report)}
+
+
+@app.get("/api/generation-stack/status")
+def generation_stack_status() -> dict[str, Any]:
+    runtime = load_runtime_config(settings)
+    services = load_services_config(settings)
+    service_urls = runtime.get("service_urls", {}) if isinstance(runtime, dict) else {}
+    generation_config = (services.get("workers", {}) or {}).get("generation_stack", {})
+    return {
+        "name": "Hermes3D-OS Full-Stack 3D Generation",
+        "primary_engine": "trellis2",
+        "comparison_engine": "hunyuan3d21",
+        "fast_preview_engine": "triposr",
+        "engines": GENERATION_ENGINES,
+        "pipeline_steps": PIPELINE_STEPS,
+        "printability_truth_gate": PRINTABILITY_TRUTH_GATE,
+        "service_urls": {
+            "comfyui": service_urls.get("comfyui", ""),
+            "trellis": service_urls.get("trellis", ""),
+            "hunyuan3d": service_urls.get("hunyuan3d", ""),
+            "triposr": service_urls.get("triposr", ""),
+        },
+        "configured": {
+            "comfyui": bool(service_urls.get("comfyui")),
+            "trellis": bool(service_urls.get("trellis")),
+            "hunyuan3d": bool(service_urls.get("hunyuan3d")),
+            "triposr": bool(service_urls.get("triposr")),
+            "blender": shutil.which("blender") is not None,
+            "prusaslicer": shutil.which("prusa-slicer") is not None
+            or shutil.which("prusa-slicer-console") is not None,
+        },
+        "services_configured": bool(generation_config),
+    }
+
+
+@app.post("/api/jobs/{job_id}/generate-3d-from-image")
+async def generate_3d_from_image(
+    job_id: int,
+    image: UploadFile = File(...),
+    object_intent: str = Form(...),
+    requested_engine: str | None = Form(None),
+    scale_estimate_mm: str | None = Form(None),
+    target_printer_id: str | None = Form(None),
+) -> dict[str, Any]:
+    job = get_job(job_id)
+    destination_dir = settings.storage_dir / "jobs" / str(job_id) / "generation-inputs"
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    image_path = destination_dir / Path(image.filename or "source-image.png").name
+    image_path.write_bytes(await image.read())
+    target_id = target_printer_id or job.get("target_printer_id")
+    target_printer = _get_printer(target_id) if target_id else None
+    worker = GenerationPipelineWorker(
+        settings.storage_dir,
+        load_runtime_config(settings),
+        load_services_config(settings),
+    )
+    result = worker.run_image_to_print(
+        job_id=job_id,
+        image_path=image_path,
+        object_intent=object_intent,
+        target_printer=target_printer,
+        requested_engine=requested_engine,
+        scale_estimate_mm=scale_estimate_mm,
+    )
+    for kind, path in result.artifacts.items():
+        _add_artifact(job_id, f"generation_{kind}", path, result.metadata)
+    db.add_event(
+        job_id,
+        "GENERATION_STACK_RUN",
+        "Image-to-print generation stack produced candidate evidence.",
+        {
+            "mode": result.mode,
+            "selected_engine": result.selected_engine,
+            "printable": False,
+            "truth_gate_passed": False,
+        },
+    )
+    return get_job(job_id)
+
+
+@app.post("/api/generation-stack/plan")
+def create_generation_stack_plan(payload: GenerationStackRequest) -> dict[str, Any]:
+    target_printer = _get_printer(payload.target_printer_id) if payload.target_printer_id else None
+    return {
+        "request": payload.model_dump(),
+        "selected_engine": payload.requested_engine or "trellis2",
+        "target_printer": target_printer,
+        "pipeline_steps": PIPELINE_STEPS,
+        "printability_truth_gate": PRINTABILITY_TRUTH_GATE,
+        "result": "plan-only",
+        "note": "Upload an image to /api/jobs/{job_id}/generate-3d-from-image to produce artifacts.",
+    }
 
 
 @app.get("/api/printers")
@@ -612,6 +901,9 @@ def _autopilot_status() -> dict[str, Any]:
     printers = _list_printers()
     services = load_services_config(settings)
     model_endpoint = _model_endpoint_status(services)
+    speech = speech_config_from_services(services)
+    generation_stack = (services.get("workers", {}) or {}).get("generation_stack", {})
+    runtime_urls = runtime.get("service_urls", {})
     checks = [
         _autopilot_check(
             "runtime_config",
@@ -683,6 +975,24 @@ def _autopilot_status() -> dict[str, Any]:
             "Modeling LLM Endpoint",
             model_endpoint["detail"],
             model_endpoint["detail"],
+            None,
+            "manual",
+        ),
+        _autopilot_check(
+            "azure_speech_configured",
+            azure_is_configured(speech),
+            "Azure Voice Layer",
+            "Azure Speech key and region are configured.",
+            "Set AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in .env for Hermes agent voices.",
+            None,
+            "manual",
+        ),
+        _autopilot_check(
+            "generation_stack_configured",
+            bool(generation_stack.get("enabled", True)) and bool(runtime_urls.get("comfyui")),
+            "3D Generation Stack",
+            "ComfyUI/TRELLIS generation sidecar URLs are saved.",
+            "Save ComfyUI, TRELLIS.2, Hunyuan3D-2.1, and TripoSR service URLs in runtime settings.",
             None,
             "manual",
         ),
@@ -1128,6 +1438,7 @@ def _service_urls_for_ports(runtime: dict[str, Any]) -> dict[str, str]:
         "comfyui": ("comfyui", ""),
         "hunyuan3d": ("hunyuan3d", ""),
         "trellis": ("trellis", ""),
+        "triposr": ("triposr", ""),
     }
     for url_name, (port_name, suffix) in mapping.items():
         port = ports.get(port_name)
@@ -1412,3 +1723,126 @@ def _record_telemetry(job_id: int, state: str) -> None:
             (job_id, printer_id, state, json.dumps(payload, sort_keys=True), utc_now()),
         )
     db.add_event(job_id, "TELEMETRY_RECORDED", f"Telemetry recorded: {state}.", payload)
+
+
+def _speech_config() -> dict[str, Any]:
+    return speech_config_from_services(load_services_config(settings))
+
+
+def _save_agent_voice(agent_id: str, voice: str) -> dict[str, Any]:
+    import yaml
+
+    config_path = settings.services_config_path
+    if not config_path.exists():
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(settings.repo_root / "configs" / "services.example.yaml", config_path)
+    with config_path.open("r", encoding="utf-8") as handle:
+        config = yaml.safe_load(handle) or {}
+    agents = config.setdefault("agents", {})
+    if not isinstance(agents, dict):
+        raise HTTPException(status_code=500, detail="Services config agents section must be an object")
+    agent = agents.setdefault(agent_id, {})
+    if not isinstance(agent, dict):
+        agent = {}
+        agents[agent_id] = agent
+    agent["voice"] = voice
+    with config_path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(config, handle, sort_keys=False)
+    return {"agent_id": agent_id, "voice": voice, "config_path": str(config_path)}
+
+
+def _transcript_path() -> Path:
+    path = settings.storage_dir / "speech" / "transcripts.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _append_transcript(
+    kind: str,
+    agent_id: str,
+    text: str,
+    *,
+    audio_url: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    entry = {
+        "created_at": utc_now(),
+        "kind": kind,
+        "agent_id": agent_id,
+        "text": text,
+        "audio_url": audio_url,
+        "metadata": metadata or {},
+    }
+    with _transcript_path().open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def _read_transcripts(limit: int) -> list[dict[str, Any]]:
+    path = _transcript_path()
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines()[-limit:]:
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(item, dict):
+            rows.append(item)
+    rows.reverse()
+    return rows
+
+
+def _learning_mode_status() -> dict[str, Any]:
+    learning_dir = settings.storage_dir / "learning"
+    learning_dir.mkdir(parents=True, exist_ok=True)
+    reports = sorted(learning_dir.glob("*.md"), key=lambda path: path.stat().st_mtime, reverse=True)
+    return {
+        "enabled": True,
+        "mode": "idle-research-reporting",
+        "reports_dir": str(learning_dir),
+        "latest_reports": [str(path) for path in reports[:10]],
+        "safe_scope": [
+            "research public workflows and papers",
+            "write markdown reports and diagrams",
+            "never move or test locked printers",
+            "propose changes for approval before hardware actions",
+        ],
+    }
+
+
+def _write_learning_report(topic: str) -> Path:
+    learning_dir = settings.storage_dir / "learning"
+    learning_dir.mkdir(parents=True, exist_ok=True)
+    stamp = utc_now().replace(":", "").replace("-", "").replace(".", "")
+    safe_topic = "".join(ch if ch.isalnum() else "-" for ch in topic.lower()).strip("-")[:60]
+    path = learning_dir / f"{stamp}-{safe_topic or 'learning-report'}.md"
+    path.write_text(
+        "\n".join(
+            [
+                "# Hermes3D-OS Learning Mode Report",
+                "",
+                f"- Created: {utc_now()}",
+                f"- Topic: {topic}",
+                "- Mode: research-only idle learning",
+                "- Hardware policy: no printer movement, no S1 testing, no upload/start actions",
+                "",
+                "## Research Targets",
+                "",
+                "- TRELLIS.2, Hunyuan3D-2.1, TripoSR, and ComfyUI 3D workflow improvements",
+                "- printer-specific notes for FLSUN T1 and V400",
+                "- printability validation, repair, and slicer dry-run patterns",
+                "- Moonraker telemetry, camera observation, and safety voice alert improvements",
+                "",
+                "## Next Agent Actions",
+                "",
+                "- collect sources",
+                "- summarize findings",
+                "- propose roadmap changes",
+                "- create diagrams and implementation tickets",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return path

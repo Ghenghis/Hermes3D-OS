@@ -1,0 +1,21 @@
+{
+  "template_status": "operator_config_required",
+  "engine": "hunyuan3d21",
+  "purpose": "Comparison and fallback Hermes3D-OS image-to-3D workflow template.",
+  "notes": [
+    "Install the local Hunyuan3D-2.1 ComfyUI nodes, then replace this placeholder with the exported API workflow JSON.",
+    "Use this engine to compare geometry and material quality against TRELLIS.2 before repair and slicer validation."
+  ],
+  "inputs": {
+    "image": "{{source_image}}",
+    "object_intent": "{{object_intent}}",
+    "seed": "{{seed}}"
+  },
+  "expected_outputs": [
+    "preview_image",
+    "glb",
+    "obj_or_stl",
+    "pbr_materials",
+    "metadata"
+  ]
+}

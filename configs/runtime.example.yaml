@@ -8,10 +8,13 @@ ports:
   cadquery_worker: 8011
   openscad_worker: 8012
   slicer_worker: 8020
+  mesh_repair_worker: 8030
+  generation_worker: 8031
   blender_rpc: 9876
   comfyui: 8188
   hunyuan3d: 7861
   trellis: 7860
+  triposr: 7862
   fdm_monster: 4000
 moonraker_scan_ports:
   - 80
@@ -22,3 +25,4 @@ service_urls:
   comfyui: http://127.0.0.1:8188
   hunyuan3d: http://127.0.0.1:7861
   trellis: http://127.0.0.1:7860
+  triposr: http://127.0.0.1:7862

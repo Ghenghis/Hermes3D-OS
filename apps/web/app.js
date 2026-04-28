@@ -7,6 +7,7 @@ const state = {
   events: [],
   settings: {},
   autopilot: {},
+  generationStack: {},
   health: {},
   printerStatus: {},
   activeJobId: null,
@@ -33,9 +34,24 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+async function apiForm(path, formData) {
+  const response = await fetch(path, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || response.statusText);
+  }
+  return response.json();
+}
+
 async function refresh() {
   try {
-    const workspace = await api("/api/workspace");
+    const [workspace, generationStack] = await Promise.all([
+      api("/api/workspace"),
+      api("/api/generation-stack/status").catch(() => ({})),
+    ]);
     state.health = workspace.health;
     state.settings = workspace.settings;
     state.printers = workspace.printers;
@@ -44,6 +60,7 @@ async function refresh() {
     state.approvals = workspace.approvals;
     state.events = workspace.events;
     state.autopilot = workspace.autopilot || {};
+    state.generationStack = generationStack || {};
 
     healthEl.textContent = state.health.dry_run_printers
       ? "API online. Printer actions are dry-run."
@@ -65,6 +82,7 @@ function renderAll() {
   renderDashboard();
   renderSetup();
   renderDesign();
+  renderGenerationStack();
   renderJobs();
   renderPrinters();
   renderObserve();
@@ -160,6 +178,56 @@ function renderDesign() {
       settingRow("Safety Gate", "Generated models require validation and approval before printing"),
     ].join(""),
   );
+}
+
+function renderGenerationStack() {
+  const stack = state.generationStack || {};
+  const engines = stack.engines || [];
+  const steps = stack.pipeline_steps || [];
+  const truthGate = stack.printability_truth_gate || [];
+  setHtml(
+    "#generationStackStatus",
+    [
+      settingRow("Primary Engine", stack.primary_engine || "trellis2"),
+      settingRow("Comparison Engine", stack.comparison_engine || "hunyuan3d21"),
+      settingRow("Fast Preview", stack.fast_preview_engine || "triposr"),
+      settingRow("ComfyUI", stack.service_urls?.comfyui || "Not configured"),
+      settingRow("TRELLIS.2", stack.service_urls?.trellis || "Not configured"),
+      settingRow("Hunyuan3D-2.1", stack.service_urls?.hunyuan3d || "Not configured"),
+      settingRow("TripoSR", stack.service_urls?.triposr || "Not configured"),
+      `<div class="section"><h2>Engines</h2>${engines.map(renderGenerationEngine).join("")}</div>`,
+      `<div class="section"><h2>Pipeline</h2>${steps.map((step, index) => `<article class="roadmap-item"><strong>${index + 1}</strong><span>${escapeHtml(step.label)}</span></article>`).join("")}</div>`,
+    ].join(""),
+  );
+  setHtml(
+    "#generationTruthGate",
+    truthGate
+      .map((gate, index) => `<article class="roadmap-item"><strong>${index + 1}</strong><span>${escapeHtml(gate.label)}</span></article>`)
+      .join("") || '<div class="empty-state">Truth gate unavailable.</div>',
+  );
+  const jobOptions = state.jobs
+    .map((job) => `<option value="${escapeAttr(job.id)}">#${job.id} ${escapeHtml(job.title)}</option>`)
+    .join("");
+  setHtml("#generationJobSelect", jobOptions || '<option value="">Create a job first</option>');
+  setHtml(
+    "#generationEngineSelect",
+    engines
+      .map((engine) => `<option value="${escapeAttr(engine.id)}">${escapeHtml(engine.label)} · ${escapeHtml(engine.role)}</option>`)
+      .join("") || '<option value="trellis2">TRELLIS.2</option>',
+  );
+}
+
+function renderGenerationEngine(engine) {
+  return `
+    <article class="plugin-card">
+      <div class="row">
+        <h3>${escapeHtml(engine.label)}</h3>
+        ${stateBadge(String(engine.role || "engine").toUpperCase())}
+      </div>
+      <p class="muted">${escapeHtml(engine.notes || "")}</p>
+      <p class="muted">${escapeHtml((engine.outputs || []).join(", "))}</p>
+    </article>
+  `;
 }
 
 function renderJobs() {
@@ -376,7 +444,11 @@ function renderPlugins() {
     ["OrcaSlicer", "Secondary slicer worker for profile compatibility", "planned"],
     ["CadQuery", "Parametric Python CAD generation", "planned"],
     ["OpenSCAD", "Scripted parametric model generation", "planned"],
+    ["TRELLIS.2", "Primary image-to-3D generation engine through ComfyUI", "planned"],
+    ["Hunyuan3D-2.1", "Comparison/fallback image-to-3D engine", "planned"],
+    ["TripoSR", "Fast preview fallback for early shape review", "planned"],
     ["Blender / Trimesh", "Mesh repair, validation, previews, exports", "planned"],
+    ["Azure Voice", "Agent TTS/STT, safety alerts, preview, and transcripts", "active"],
     ["Local Modeling LLM", "Hermes design assistant through local model endpoint", "planned"],
     ["FDM Monster", "Fleet sidecar dashboard integration", "planned"],
     ["Maintenance", "Locks, service notes, nozzle/hotend safety, reminders", "active"],
@@ -407,6 +479,8 @@ function renderRoadmap() {
     "Add model endpoint picker from /v1/models",
     "Add DesignSpec fields for dimensions, constraints, tolerances, material, and target printer",
     "Add executable CAD worker with source, preview, bounding box, volume, and export validation",
+    "Add full image-to-print generation stack: TRELLIS.2 primary, Hunyuan3D-2.1 comparison, TripoSR preview",
+    "Add Printability Truth Gate for generated meshes before slicer approval",
     "Add reviewed PrusaSlicer profiles for T1-A, T1-B, and V400",
     "Add slicer compiler evidence: version, command, profile hash, warnings, estimates, and G-code hash",
     "Add G-code semantic analyzer for bounds, thermal commands, extrusion, object labels, and blocked commands",
@@ -783,6 +857,20 @@ document.addEventListener("submit", async (event) => {
       method: "PATCH",
       body: JSON.stringify({ camera_url: new FormData(printerCameraForm).get("camera_url") || "" }),
     });
+    await refresh();
+  }
+
+  const generationForm = event.target.closest("#generationForm");
+  if (generationForm) {
+    event.preventDefault();
+    const formData = new FormData(generationForm);
+    const jobId = formData.get("job_id");
+    if (!jobId) {
+      throw new Error("Create or select a job before running generation.");
+    }
+    await apiForm(`/api/jobs/${jobId}/generate-3d-from-image`, formData);
+    state.activeJobId = Number(jobId);
+    state.activePage = "jobs";
     await refresh();
   }
 });

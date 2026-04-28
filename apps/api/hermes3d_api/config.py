@@ -21,10 +21,13 @@ RUNTIME_DEFAULTS: dict[str, Any] = {
         "cadquery_worker": 8011,
         "openscad_worker": 8012,
         "slicer_worker": 8020,
+        "mesh_repair_worker": 8030,
+        "generation_worker": 8031,
         "blender_rpc": 9876,
         "comfyui": 8188,
         "hunyuan3d": 7861,
         "trellis": 7860,
+        "triposr": 7862,
         "fdm_monster": 4000,
     },
     "moonraker_scan_ports": [80, 7125],
@@ -34,6 +37,7 @@ RUNTIME_DEFAULTS: dict[str, Any] = {
         "comfyui": "http://127.0.0.1:8188",
         "hunyuan3d": "http://127.0.0.1:7861",
         "trellis": "http://127.0.0.1:7860",
+        "triposr": "http://127.0.0.1:7862",
     },
 }
 
@@ -46,6 +50,20 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"Expected YAML object in {path}")
     return data
+
+
+def _load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -71,6 +89,8 @@ class Settings:
 
     @classmethod
     def load(cls) -> "Settings":
+        _load_env_file(REPO_ROOT / ".env")
+
         services_path = Path(
             os.getenv("HERMES3D_SERVICES_CONFIG", REPO_ROOT / "configs" / "services.local.yaml")
         )

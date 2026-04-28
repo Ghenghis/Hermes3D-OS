@@ -1,0 +1,18 @@
+{
+  "template_status": "operator_config_required",
+  "engine": "triposr",
+  "purpose": "Fast preview fallback template for early shape review.",
+  "notes": [
+    "Install a TripoSR ComfyUI node, then replace this placeholder with the exported API workflow JSON.",
+    "TripoSR output is preview-only in Hermes3D-OS and cannot advance to printing without repair, validation, and slicer proof."
+  ],
+  "inputs": {
+    "image": "{{source_image}}",
+    "seed": "{{seed}}"
+  },
+  "expected_outputs": [
+    "preview_image",
+    "obj",
+    "metadata"
+  ]
+}

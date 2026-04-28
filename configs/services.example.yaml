@@ -18,6 +18,26 @@ workers:
     provider: openai_compatible
     base_url: http://127.0.0.1:1234/v1
     model: your-downloaded-3d-modeling-llm
+  generation_stack:
+    enabled: true
+    primary_engine: trellis2
+    comparison_engine: hunyuan3d21
+    fast_preview_engine: triposr
+    require_printability_truth_gate: true
+    comfyui:
+      enabled: true
+      base_url: http://127.0.0.1:8188
+      workflow_dir: workflows/comfyui
+    engines:
+      trellis2:
+        enabled: true
+        workflow: workflows/comfyui/trellis2-image-to-3d.json
+      hunyuan3d21:
+        enabled: true
+        workflow: workflows/comfyui/hunyuan3d-2.1-image-to-3d.json
+      triposr:
+        enabled: true
+        workflow: workflows/comfyui/triposr-fast-preview.json
   cadquery:
     enabled: true
     executable: cadquery
@@ -29,6 +49,32 @@ workers:
     executable: blender
   trimesh:
     enabled: true
+
+speech:
+  provider: azure
+  azure:
+    speech_key: ${AZURE_SPEECH_KEY}
+    region: ${AZURE_SPEECH_REGION}
+    default_voice: en-GB-MaisieNeural
+    fallback_voice: en-US-JennyNeural
+    output_format: audio-24khz-96kbitrate-mono-mp3
+    enable_ssml: true
+    enable_stt: true
+    timeout_seconds: 30
+
+agents:
+  factory_operator:
+    voice: en-GB-MaisieNeural
+    role: Print factory narrator and operator guide
+  print_safety_agent:
+    voice: en-AU-CarlyNeural
+    role: Short safety alerts and warnings
+  mesh_repair_agent:
+    voice: en-US-AriaNeural
+    role: Model validation, repair, and slicing updates
+  research_agent:
+    voice: en-US-GuyNeural
+    role: Idle learning reports and upgrade research
 
 slicers:
   prusaslicer:

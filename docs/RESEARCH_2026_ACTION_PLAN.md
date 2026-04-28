@@ -208,17 +208,43 @@ Acceptance:
 - Keep generated 3D meshes from text/image models as concept/reference inputs until validated, repaired, and explicitly approved.
 - Keep private printer IPs, API keys, camera URLs, spool IDs, and local model endpoints in ignored local config.
 
+## Voice and 3D Generation Research Addendum
+
+New 2026 direction:
+
+- Add Azure Speech as the core Hermes agent voice layer: TTS, STT, SSML, per-agent voices, push-to-talk, transcript ledger, and safety alerts.
+- Use OpenClaw 2026.4.26 as an architecture reference for provider registries, per-agent overrides, `[[tts:...]]` directives, local prefs, and separated batch TTS versus realtime talk contracts.
+- Build full-stack image-to-print generation, not a single ComfyUI workflow.
+- Use TRELLIS.2 as primary, Hunyuan3D-2.1 as comparison/fallback, and TripoSR as fast preview.
+- Treat Meshy, Tripo, Rodin, 3D AI Studio, CSM, Kaedim, Alpha3D, Masterpiece X, Scenario, Autodesk Wonder 3D, and similar tools as market benchmarks for UX and export formats.
+- Differentiate by owning the printability gap: visual 3D asset generation is upstream; Hermes must prove print-safe geometry and slicer-approved G-code.
+
+Required generation gate:
+
+```text
+AI mesh -> normalize -> scale candidates -> repair -> thicken/remesh -> orient -> package 3MF -> slicer validation -> printable report
+```
+
+The durable product moat is:
+
+```text
+AI 3D asset generation -> print-safe geometry -> slicer-approved G-code
+```
+
 ## Immediate Next Tasks
 
-1. Add model endpoint picker from `/v1/models`.
-2. Add `DesignSpec` schema and Design page fields.
-3. Add CAD worker v1 with executable source and validation artifacts.
-4. Extend PrusaSlicer evidence metadata and profile hash capture.
-5. Implement `GCodeAnalyzer` v1.
-6. Add camera object schema and Moonraker webcam discovery.
-7. Add evidence snapshots for printer-check/start/complete gates.
-8. Add Spoolman service config and connector stub.
-9. Add Moonraker WebSocket telemetry subscriber design.
-10. Draft `Hermes3D Plugin Manifest v0`.
-11. Add plugin trust/permissions model to the Plugins page.
-12. Add 3MF print-contract import/export design.
+1. Replace ComfyUI placeholder workflow JSON with exported TRELLIS.2, Hunyuan3D-2.1, and TripoSR API workflows.
+2. Add ComfyUI runner: `/prompt`, `/ws`, `/history`, artifact copy, and interrupt support.
+3. Add model endpoint picker from `/v1/models`.
+4. Add `DesignSpec` schema and Design page fields.
+5. Add CAD worker v1 with executable source and validation artifacts.
+6. Add Blender/Trimesh/Manifold repair worker v1.
+7. Extend PrusaSlicer evidence metadata and profile hash capture.
+8. Implement `GCodeAnalyzer` v1.
+9. Add camera object schema and Moonraker webcam discovery.
+10. Add evidence snapshots for printer-check/start/complete gates.
+11. Add Spoolman service config and connector stub.
+12. Add Moonraker WebSocket telemetry subscriber design.
+13. Draft `Hermes3D Plugin Manifest v0`.
+14. Add plugin trust/permissions model to the Plugins page.
+15. Add 3MF print-contract import/export design.

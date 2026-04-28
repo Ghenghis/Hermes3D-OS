@@ -83,3 +83,45 @@ class PrinterCameraUrlUpdate(BaseModel):
 class AutopilotActionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
 
+
+class SpeechSynthesizeRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=8000)
+    agent_id: str = Field(default="factory_operator", min_length=1, max_length=120)
+    voice: str | None = Field(default=None, max_length=120)
+    style: str | None = Field(default=None, max_length=80)
+    rate: str | None = Field(default=None, max_length=40)
+    pitch: str | None = Field(default=None, max_length=40)
+    tone: str | None = Field(default=None, max_length=40)
+    ssml: str | None = Field(default=None, max_length=12000)
+    use_ssml: bool = True
+
+
+class VoicePreviewRequest(BaseModel):
+    agent_id: str = Field(default="factory_operator", min_length=1, max_length=120)
+    voice: str | None = Field(default=None, max_length=120)
+    text: str = Field(
+        default="Dave, Hermes voice is online. I can talk through the print factory now.",
+        min_length=1,
+        max_length=1000,
+    )
+    style: str | None = Field(default=None, max_length=80)
+    rate: str | None = Field(default=None, max_length=40)
+    pitch: str | None = Field(default=None, max_length=40)
+    tone: str | None = Field(default=None, max_length=40)
+
+
+class AgentVoiceUpdate(BaseModel):
+    voice: str = Field(min_length=3, max_length=120)
+
+
+class LearningModeRequest(BaseModel):
+    enabled: bool = True
+    topic: str | None = Field(default=None, max_length=500)
+
+
+class GenerationStackRequest(BaseModel):
+    object_intent: str = Field(min_length=1, max_length=2000)
+    requested_engine: str | None = Field(default=None, max_length=80)
+    scale_estimate_mm: str | None = Field(default=None, max_length=200)
+    target_printer_id: str | None = Field(default=None, max_length=120)
+

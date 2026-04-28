@@ -20,11 +20,13 @@ Tool / service layer
  ├─ FDM Monster connector
  ├─ PrusaSlicer CLI worker
  ├─ OrcaSlicer worker
+ ├─ TRELLIS.2 / Hunyuan3D / TripoSR generation stack
  ├─ CadQuery worker
  ├─ OpenSCAD worker
  ├─ Blender / Trimesh repair worker
  ├─ printer inventory database
  ├─ job/evidence ledger
+ ├─ Azure Speech voice layer
  └─ safety/approval gate
         |
 Pilot printers
@@ -119,7 +121,10 @@ For setup and operating context, read:
 - [Test Printer Data](docs/TEST_PRINTER_DATA.md)
 - [Day-To-Day Roadmap](docs/DAY_TO_DAY_ROADMAP.md)
 - [2026 Research Action Plan](docs/RESEARCH_2026_ACTION_PLAN.md)
+- [AI 3D Generation Research 2026](docs/AI_3D_GENERATION_RESEARCH_2026.md)
 - [OS Interface Design](docs/OS_INTERFACE_DESIGN.md)
+- [Voice Layer](docs/VOICE_LAYER.md)
+- [Full-Stack 3D Generation](docs/FULL_STACK_3D_GENERATION.md)
 
 ## Run The MVP
 

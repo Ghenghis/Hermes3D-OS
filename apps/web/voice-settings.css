@@ -1,0 +1,46 @@
+.voice-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.voice-status-grid,
+.voice-agent-grid,
+.voice-command-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.voice-controls,
+.voice-agent-card {
+  display: grid;
+  gap: 12px;
+}
+
+.voice-agent-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.voice-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.voice-transcripts {
+  display: grid;
+  gap: 10px;
+}
+
+.generation-layout {
+  grid-template-columns: minmax(280px, 420px) minmax(320px, 520px) minmax(320px, 1fr);
+}
+
+@media (max-width: 1040px) {
+  .generation-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes OS Print Factory</title>
     <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/voice-settings.css" />
   </head>
   <body>
     <header class="topbar">
@@ -22,9 +23,11 @@
       <button class="tab active" type="button" data-page="dashboard">Dashboard</button>
       <button class="tab" type="button" data-page="setup">Autopilot</button>
       <button class="tab" type="button" data-page="design">Design</button>
+      <button class="tab" type="button" data-page="generation">3D Generation</button>
       <button class="tab" type="button" data-page="jobs">Jobs</button>
       <button class="tab" type="button" data-page="printers">Printers</button>
       <button class="tab" type="button" data-page="observe">Observe</button>
+      <button class="tab" type="button" data-page="voice">Voice</button>
       <button class="tab" type="button" data-page="artifacts">Artifacts</button>
       <button class="tab" type="button" data-page="approvals">Approvals</button>
       <button class="tab" type="button" data-page="plugins">Plugins</button>
@@ -112,6 +115,56 @@
         </div>
       </section>
 
+      <section id="page-generation" class="page">
+        <div class="split-grid generation-layout">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>3D Generation Stack</h2>
+              <span class="muted">TRELLIS.2 primary</span>
+            </div>
+            <div id="generationStackStatus" class="settings-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Image To Print Run</h2>
+              <span class="muted">Creates evidence only</span>
+            </div>
+            <form id="generationForm" class="job-form">
+              <label>
+                <span>Job</span>
+                <select name="job_id" id="generationJobSelect"></select>
+              </label>
+              <label>
+                <span>Source Image</span>
+                <input name="image" type="file" accept="image/*" required />
+              </label>
+              <label>
+                <span>Object Intent</span>
+                <textarea name="object_intent" rows="5" required>Generate a printable object candidate from this image, estimate scale, repair mesh, validate printability, and stop before print approval.</textarea>
+              </label>
+              <div class="settings-grid">
+                <label>
+                  <span>Engine</span>
+                  <select name="requested_engine" id="generationEngineSelect"></select>
+                </label>
+                <label>
+                  <span>Scale Estimate</span>
+                  <input name="scale_estimate_mm" placeholder="example: 80 mm tall" />
+                </label>
+              </div>
+              <button type="submit">Create Generation Evidence</button>
+            </form>
+          </section>
+          <section class="panel wide-panel">
+            <div class="panel-header">
+              <h2>Printability Truth Gate</h2>
+              <span class="muted">Required before slicing</span>
+            </div>
+            <div id="generationTruthGate" class="roadmap-list"></div>
+          </section>
+        </div>
+      </section>
+
       <section id="page-jobs" class="page">
         <div class="split-grid">
           <section class="panel">
@@ -155,6 +208,16 @@
             <span class="muted">Integrated and USB camera slots</span>
           </div>
           <div id="observeGrid" class="camera-grid"></div>
+        </section>
+      </section>
+
+      <section id="page-voice" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Hermes Voice Layer</h2>
+            <span class="muted">Azure Speech for agents</span>
+          </div>
+          <div id="voicePanel"></div>
         </section>
       </section>
 
@@ -210,5 +273,6 @@
     </main>
 
     <script src="/static/app.js"></script>
+    <script src="/static/voice-panel.js"></script>
   </body>
 </html>

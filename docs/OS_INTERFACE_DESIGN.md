@@ -11,9 +11,11 @@ Hermes OS Print Factory
 ├─ Dashboard
 ├─ Autopilot
 ├─ Design
+├─ 3D Generation
 ├─ Jobs
 ├─ Printers
 ├─ Observe
+├─ Voice
 ├─ Artifacts
 ├─ Approvals
 ├─ Plugins
@@ -110,6 +112,29 @@ The Design page should make the CAD agent loop visible:
 Plan -> Generate CAD source -> Execute -> Inspect geometry -> Revise -> Approve model
 ```
 
+## 3D Generation
+
+Purpose: turn photos or multi-photo input into printability-gated candidate objects.
+
+Includes:
+
+- TRELLIS.2 primary engine status
+- Hunyuan3D-2.1 comparison/fallback status
+- TripoSR fast preview fallback status
+- ComfyUI sidecar URL and workflow templates
+- image upload into an existing job
+- object intent and scale estimate
+- generation metadata, report, and pipeline diagram artifacts
+- printability truth gate checklist
+
+ComfyUI is only the generation backend. Hermes remains responsible for repair, validation, slicer dry-run, approvals, printer selection, Moonraker upload, monitoring, voice updates, and evidence.
+
+Generated meshes are evidence only until the truth gate passes:
+
+```text
+AI asset -> print-safe geometry -> slicer-approved G-code
+```
+
 ## Jobs
 
 Purpose: print workflow control.
@@ -187,6 +212,31 @@ capabilities:
 ```
 
 For USB cameras, expose a local stream with a tool such as MJPEG Streamer, an OctoPrint-compatible webcam proxy, or another LAN-accessible camera service, then place that URL in `camera_url`.
+
+## Voice
+
+Purpose: natural Hermes agent interaction and safety alerts.
+
+Includes:
+
+- Azure Speech status
+- 100+ English Azure neural voices when credentials are configured
+- per-agent voice assignment
+- preview/test buttons
+- SSML tone, rate, pitch, pause, and warning support
+- push-to-talk STT upload
+- staged wake/listen mode
+- local transcript log
+- safety alert playback
+
+Default voice agents:
+
+```text
+factory_operator -> en-GB-MaisieNeural
+print_safety_agent -> en-AU-CarlyNeural
+mesh_repair_agent -> en-US-AriaNeural
+research_agent -> en-US-GuyNeural
+```
 
 ## Materials
 
