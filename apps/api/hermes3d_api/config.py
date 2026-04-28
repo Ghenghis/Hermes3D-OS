@@ -116,6 +116,10 @@ def load_printer_config(settings: Settings) -> list[dict[str, Any]]:
     return [printer for printer in printers if isinstance(printer, dict)]
 
 
+def load_services_config(settings: Settings) -> dict[str, Any]:
+    return _load_yaml(settings.services_config_path)
+
+
 def load_runtime_config(settings: Settings) -> dict[str, Any]:
     example_path = REPO_ROOT / "configs" / "runtime.example.yaml"
     runtime = _deep_merge(RUNTIME_DEFAULTS, _load_yaml(example_path))

@@ -19,6 +19,32 @@ Hermes should handle:
 
 Hermes should not directly bypass safety gates.
 
+## Safe Autopilot
+
+The first built-in Hermes automation mode is safe setup and gate advancement.
+
+It may:
+
+- inspect local runtime, printer, and service config
+- create missing local runtime/storage files
+- auto-assign open local ports
+- create dry-run setup jobs
+- write setup reports
+- write per-job agent plan artifacts
+- advance workflow steps that do not touch hardware
+
+It must stop at:
+
+- model approval
+- print approval
+- printer selection
+- upload-only
+- start print
+- pause/cancel
+- any locked printer
+
+This makes Hermes useful immediately while preserving operator control.
+
 ## Tool Boundary
 
 Hermes calls tools through explicit service adapters.
@@ -70,4 +96,3 @@ Hermes memory should store useful shop context:
 - recurring part requirements
 
 Operational facts should also be stored in the database so they are queryable without relying only on conversational memory.
-

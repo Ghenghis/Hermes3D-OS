@@ -6,6 +6,7 @@ const state = {
   approvals: [],
   events: [],
   settings: {},
+  autopilot: {},
   health: {},
   printerStatus: {},
   activeJobId: null,
@@ -41,6 +42,7 @@ async function refresh() {
     state.artifacts = workspace.artifacts;
     state.approvals = workspace.approvals;
     state.events = workspace.events;
+    state.autopilot = workspace.autopilot || {};
 
     healthEl.textContent = state.health.dry_run_printers
       ? "API online. Printer actions are dry-run."
@@ -60,6 +62,7 @@ function renderAll() {
   renderTabs();
   renderPrinterSelect();
   renderDashboard();
+  renderSetup();
   renderDesign();
   renderJobs();
   renderPrinters();
@@ -95,6 +98,54 @@ function renderDashboard() {
   setHtml("#dashboardFleet", renderPrinterCards(state.printers.slice(0, 4), true));
   setHtml("#dashboardJobs", renderJobCards(state.jobs.slice(0, 8)));
   setHtml("#dashboardEvents", renderEventCards(state.events.slice(0, 12)));
+}
+
+function renderSetup() {
+  const autopilot = state.autopilot || {};
+  const checks = autopilot.checks || [];
+  const actions = autopilot.actions || [];
+  const guardrails = autopilot.guardrails || [];
+  setHtml("#autopilotScore", autopilot.summary || "Setup readiness unavailable");
+  setHtml(
+    "#setupChecks",
+    checks.map(renderSetupCheck).join("") || '<div class="empty-state">No setup checks available.</div>',
+  );
+  setHtml(
+    "#setupActions",
+    actions.map(renderSetupAction).join("") || '<div class="empty-state">No safe actions available.</div>',
+  );
+  setHtml(
+    "#setupGuardrails",
+    guardrails.map((item) => settingRow("Guardrail", item)).join("") || settingRow("Guardrails", "No guardrails reported."),
+  );
+}
+
+function renderSetupCheck(check) {
+  const stateText = check.ok ? "READY" : check.kind === "safety" ? "LOCKED" : "NEEDS SETUP";
+  return `
+    <article class="setup-card ${check.ok ? "setup-ready" : "setup-needed"}">
+      <div class="row">
+        <h3>${escapeHtml(check.title)}</h3>
+        ${stateBadge(stateText)}
+      </div>
+      <p class="muted">${escapeHtml(check.detail)}</p>
+    </article>
+  `;
+}
+
+function renderSetupAction(action) {
+  return `
+    <article class="setup-card">
+      <div class="row">
+        <h3>${escapeHtml(action.title)}</h3>
+        ${stateBadge(action.safe ? "SAFE" : "REVIEW")}
+      </div>
+      <p class="muted">${escapeHtml(action.detail)}</p>
+      <div class="printer-actions">
+        <button type="button" data-autopilot-action="${escapeAttr(action.id)}">${escapeHtml(action.title)}</button>
+      </div>
+    </article>
+  `;
 }
 
 function renderDesign() {
@@ -307,6 +358,7 @@ function printerPortInput(printer) {
 function renderPlugins() {
   const plugins = [
     ["Moonraker", "Printer API control, status, upload, telemetry", "active"],
+    ["Autopilot Setup", "Readiness checks, safe setup actions, and agent plan artifacts", "active"],
     ["Camera Observer", "Integrated printer cameras and USB camera URLs", "ready"],
     ["PrusaSlicer", "Primary slicer CLI worker for safe G-code generation", "planned"],
     ["OrcaSlicer", "Secondary slicer worker for profile compatibility", "planned"],
@@ -348,6 +400,8 @@ function renderRoadmap() {
     "Add live camera URLs for integrated or USB print observation",
     "Enable plugin cards for slicers, cameras, CAD, filament, maintenance, and fleet dashboards",
     "Add FDM Monster sidecar integration",
+    "Add visible User Checked Printer UI gate before Start Print",
+    "Add service health checks for modeling, slicers, CAD, and camera workers",
   ];
   setHtml(
     "#roadmapPage",
@@ -665,6 +719,18 @@ document.addEventListener("click", async (event) => {
     await api("/api/settings/runtime/auto-ports", {
       method: "POST",
       body: JSON.stringify({ start: 10000, end: 60000, randomize: true }),
+    });
+    await refresh();
+  }
+
+  const autopilotButton = event.target.closest("[data-autopilot-action]");
+  if (autopilotButton) {
+    const actionId = autopilotButton.dataset.autopilotAction;
+    autopilotButton.disabled = true;
+    autopilotButton.textContent = "Running";
+    await api(`/api/autopilot/actions/${actionId}`, {
+      method: "POST",
+      body: JSON.stringify({ note: "Triggered from Hermes OS Autopilot page." }),
     });
     await refresh();
   }

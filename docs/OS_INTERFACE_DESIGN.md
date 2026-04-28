@@ -9,6 +9,7 @@ It should feel like an OS control center, not a collection of disconnected scrip
 ```text
 Hermes OS Print Factory
 ├─ Dashboard
+├─ Autopilot
 ├─ Design
 ├─ Jobs
 ├─ Printers
@@ -26,7 +27,7 @@ The interface should make the 2026 roadmap visible through operator workflows:
 
 - Real Print Readiness: readiness checks, profile locks, approval gates, upload-only flow
 - OS Control Center: fleet state, active jobs, locked printers, camera links, quick actions
-- Design Studio: imports, prompts, local generation workers, editable parameters, previews
+- Design Studio: imports, prompts, Hermes agent plans, local generation workers, editable parameters, previews
 - Validation/Evidence: mesh checks, G-code checks, warnings, approvals, event ledger
 - Fleet Operations: inventory, maintenance, material/profile compatibility, reliability
 - Advanced Generation: repair automation, batch planning, optional photo-to-3D inputs
@@ -43,6 +44,34 @@ Shows:
 - latest evidence and operator notes
 - quick links to cameras, artifacts, and printer details
 
+## Autopilot
+
+Purpose: automate safe setup and planning without moving printers.
+
+Shows:
+
+- readiness score
+- local config and port checks
+- tool and model endpoint checks
+- slicer profile and camera readiness
+- printer lock checks
+- safe setup actions
+- Hermes agent plan actions
+- guardrails for hardware safety
+
+Allowed actions:
+
+- create runtime config
+- auto-assign open local ports
+- load printer inventory
+- create storage folders
+- write setup report
+- create dry-run pilot job
+- write agent plan
+- advance only to the next safe human gate
+
+Autopilot must stop at model approval, print approval, printer selection, upload, start, pause, cancel, or any other hardware-adjacent action.
+
 ## Design
 
 Purpose: design and job intake.
@@ -50,6 +79,7 @@ Purpose: design and job intake.
 Includes:
 
 - import model flow
+- Hermes agent plan artifact
 - prompt/design brief
 - target printer and material intent
 - local modeling LLM status

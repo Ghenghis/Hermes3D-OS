@@ -7,6 +7,8 @@ Hermes OS Print Factory is moving from MVP to daily shop-floor operation in 2026
 Available now:
 
 - local Hermes OS Print Factory dashboard
+- Autopilot readiness checks and safe setup actions
+- Hermes agent plan artifacts for jobs
 - FastAPI backend with SQLite job and evidence ledger
 - upload-first workflow gates
 - model and print approvals
@@ -40,10 +42,11 @@ the URL printed by scripts/run-dev.ps1
 If the saved port is busy, Hermes automatically finds an open local port and saves it to `configs/runtime.local.yaml`.
 
 4. Load printers and run reachability tests.
-5. Confirm dry-run or real-printer mode.
-6. Review pending approvals.
-7. Use `Upload Only` before any `Start Print`.
-8. Watch the printer UI or camera before starting motion.
+5. Open `Autopilot` and run safe setup actions.
+6. Confirm dry-run or real-printer mode.
+7. Review pending approvals.
+8. Use `Upload Only` before any `Start Print`.
+9. Watch the printer UI or camera before starting motion.
 
 Command-line printer check:
 
@@ -68,6 +71,7 @@ Goal: make one known-safe printer job repeatable from intake to upload/start.
 Goal: make daily operation possible from one local screen.
 
 - show fleet readiness, dry-run state, locked printers, and active jobs
+- show Autopilot readiness score, guardrails, and safe one-click setup actions
 - add pause, cancel, retry, and failure-note controls
 - separate upload, observation, and start actions
 - surface camera links and latest events per printer
@@ -78,6 +82,7 @@ Goal: turn design intake into validated print candidates.
 
 - import STL/3MF designs with job briefs
 - connect local modeling LLM status
+- create Hermes agent plan artifacts before generation
 - add CadQuery and OpenSCAD workers
 - provide editable parameters before generation
 - create preview artifacts for operator review

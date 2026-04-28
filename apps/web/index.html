@@ -20,6 +20,7 @@
 
     <nav class="tabs" aria-label="Factory pages">
       <button class="tab active" type="button" data-page="dashboard">Dashboard</button>
+      <button class="tab" type="button" data-page="setup">Autopilot</button>
       <button class="tab" type="button" data-page="design">Design</button>
       <button class="tab" type="button" data-page="jobs">Jobs</button>
       <button class="tab" type="button" data-page="printers">Printers</button>
@@ -54,6 +55,29 @@
               <span class="muted">Latest system events</span>
             </div>
             <div id="dashboardEvents" class="event-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-setup" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Autopilot Readiness</h2>
+              <span id="autopilotScore" class="muted">Checking setup</span>
+            </div>
+            <div id="setupChecks" class="setup-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Safe Actions</h2>
+              <span class="muted">No printer movement</span>
+            </div>
+            <div id="setupActions" class="setup-list"></div>
+            <section class="section">
+              <h2>Guardrails</h2>
+              <div id="setupGuardrails" class="settings-list"></div>
+            </section>
           </section>
         </div>
       </section>

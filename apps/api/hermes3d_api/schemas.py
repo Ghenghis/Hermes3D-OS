@@ -62,3 +62,7 @@ class RuntimeAutoPortRequest(BaseModel):
 class PrinterPortUpdate(BaseModel):
     port: int = Field(ge=1, le=65535)
 
+
+class AutopilotActionRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=1000)
+

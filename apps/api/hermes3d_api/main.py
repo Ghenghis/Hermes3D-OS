@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+import shutil
 import socket
 from pathlib import Path
 from typing import Any
@@ -13,11 +14,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import Settings, load_printer_config, load_runtime_config, save_runtime_config
+from .config import (
+    Settings,
+    load_printer_config,
+    load_runtime_config,
+    load_services_config,
+    save_runtime_config,
+)
 from .db import Database, row_to_dict, utc_now
 from .schemas import (
     AdvanceRequest,
     ApiMessage,
+    AutopilotActionRequest,
     ApprovalCreate,
     JobCreate,
     PrinterPortUpdate,
@@ -106,7 +114,77 @@ def workspace() -> dict[str, Any]:
         "artifacts": _list_artifacts(),
         "approvals": _list_approvals(),
         "events": _list_events(),
+        "autopilot": _autopilot_status(),
     }
+
+
+@app.get("/api/autopilot/status")
+def autopilot_status() -> dict[str, Any]:
+    return _autopilot_status()
+
+
+@app.post("/api/autopilot/actions/{action_id}")
+def run_autopilot_action(action_id: str, payload: AutopilotActionRequest | None = None) -> dict[str, Any]:
+    note = (payload or AutopilotActionRequest()).note
+    if action_id == "ensure_runtime_config":
+        runtime = load_runtime_config(settings)
+        save_runtime_config(settings, runtime)
+        db.add_event(None, "AUTOPILOT_ACTION", "Runtime config ensured.", {"note": note})
+    elif action_id == "auto_assign_ports":
+        runtime = load_runtime_config(settings)
+        port_names = list((runtime.get("ports") or {}).keys())
+        share_web_port = "api" in port_names and "web" in port_names
+        allocation_names = [name for name in port_names if not (share_web_port and name == "web")]
+        assigned = _assign_open_ports(
+            allocation_names,
+            10000,
+            60000,
+            str(runtime.get("api_host") or "127.0.0.1"),
+            True,
+        )
+        if share_web_port:
+            assigned["web"] = assigned["api"]
+        ports = dict(runtime.get("ports", {}))
+        ports.update(assigned)
+        runtime["ports"] = ports
+        runtime["service_urls"] = _service_urls_for_ports(runtime)
+        save_runtime_config(settings, runtime)
+        db.add_event(None, "AUTOPILOT_ACTION", "Open ports auto-assigned.", {"assigned": assigned})
+    elif action_id == "bootstrap_printers":
+        for printer in load_printer_config(settings):
+            db.upsert_printer(printer)
+        db.add_event(None, "AUTOPILOT_ACTION", "Printer inventory loaded from config.", {"note": note})
+    elif action_id == "ensure_storage_dirs":
+        for path in [settings.data_dir, settings.storage_dir, settings.storage_dir / "jobs", settings.storage_dir / "autopilot"]:
+            path.mkdir(parents=True, exist_ok=True)
+        db.add_event(None, "AUTOPILOT_ACTION", "Storage directories ensured.", {"note": note})
+    elif action_id == "create_pilot_job":
+        job = _create_autopilot_job(note)
+        db.add_event(job["id"], "AUTOPILOT_ACTION", "Dry-run pilot job created.", {"note": note})
+    elif action_id == "write_setup_report":
+        _write_autopilot_report()
+    elif action_id == "autopilot_next_gate":
+        job = _active_autopilot_job()
+        _autopilot_job_to_next_gate(job["id"])
+    elif action_id == "write_agent_plan":
+        job = _active_autopilot_job()
+        _write_agent_plan(job["id"], job)
+    else:
+        raise HTTPException(status_code=404, detail="Unknown autopilot action")
+    return _autopilot_status()
+
+
+@app.post("/api/jobs/{job_id}/autopilot-next-gate")
+async def autopilot_job_to_next_gate(job_id: int) -> dict[str, Any]:
+    _autopilot_job_to_next_gate(job_id)
+    return get_job(job_id)
+
+
+@app.post("/api/jobs/{job_id}/agent-plan")
+def create_agent_plan(job_id: int) -> dict[str, Any]:
+    job = get_job(job_id)
+    _write_agent_plan(job_id, job)
+    return get_job(job_id)
 
 
 @app.get("/api/settings/runtime")
@@ -270,6 +348,7 @@ def create_job(payload: JobCreate) -> dict[str, Any]:
         )
         job_id = int(cursor.lastrowid)
     db.add_event(job_id, "JOB_CREATED", "Job intake created.", payload.model_dump())
+    _write_agent_plan(job_id, get_job(job_id))
     return get_job(job_id)
 
 
@@ -320,6 +399,9 @@ async def advance_job(job_id: int, payload: AdvanceRequest | None = None) -> dic
 
     if transition.next_state == MODEL_APPROVAL and not _has_artifact(job_id, "model_evidence"):
         _generate_model_evidence(job_id, job)
+
+    if transition.next_state == "PLAN_JOB" and not _has_artifact(job_id, "agent_plan"):
+        _write_agent_plan(job_id, job)
 
     if transition.next_state == "VALIDATE_GCODE" and not _has_artifact(job_id, "gcode"):
         _run_slicer(job_id)
@@ -457,6 +539,478 @@ def _runtime_payload() -> dict[str, Any]:
     runtime["duplicate_ports"] = duplicate_ports
     runtime["config_path"] = str(settings.runtime_config_path)
     return runtime
+
+
+def _autopilot_status() -> dict[str, Any]:
+    runtime = _runtime_payload()
+    printers = _list_printers()
+    services = load_services_config(settings)
+    model_endpoint = _model_endpoint_status(services)
+    checks = [
+        _autopilot_check(
+            "runtime_config",
+            settings.runtime_config_path.exists(),
+            "Runtime Port Config",
+            "Saved runtime ports exist.",
+            "Create runtime.local.yaml so Hermes can remember auto-assigned ports.",
+            "ensure_runtime_config",
+        ),
+        _autopilot_check(
+            "storage_dirs",
+            settings.data_dir.exists() and settings.storage_dir.exists(),
+            "Storage Directories",
+            "Data and storage directories exist.",
+            "Create local data, storage, jobs, and autopilot directories.",
+            "ensure_storage_dirs",
+        ),
+        _autopilot_check(
+            "printer_config",
+            not _printer_config_is_example(),
+            "Local Printer Config",
+            "Using local printer config.",
+            "Create configs/printers.local.yaml from the pilot example before saving printer edits.",
+            None,
+            "manual",
+        ),
+        _autopilot_check(
+            "printers_loaded",
+            len(printers) > 0,
+            "Printer Inventory",
+            f"{len(printers)} printers loaded.",
+            "Load printer inventory from config into the local database.",
+            "bootstrap_printers",
+        ),
+        _autopilot_check(
+            "s1_locked",
+            _printer_locked_by_id(printers, "flsun-s1"),
+            "FLSUN S1 Safety Lock",
+            "S1 is locked and will not be probed.",
+            "S1 must remain locked until maintenance is cleared.",
+            None,
+            "safety",
+        ),
+        _autopilot_check(
+            "camera_coverage",
+            _camera_count(printers) >= max(1, _enabled_printer_count(printers)),
+            "Camera Coverage",
+            f"{_camera_count(printers)} camera URLs configured.",
+            "Add integrated or USB camera URLs for cleared printers.",
+            None,
+            "manual",
+        ),
+        _autopilot_check(
+            "no_duplicate_ports",
+            len(runtime.get("duplicate_ports", {})) == 0,
+            "Runtime Port Conflicts",
+            "No conflicting saved runtime ports.",
+            "Auto-assign open ports for local services.",
+            "auto_assign_ports",
+        ),
+        _tool_check("prusaslicer", "PrusaSlicer CLI", ["prusa-slicer", "prusa-slicer-console"]),
+        _tool_check("orcaslicer", "OrcaSlicer CLI", ["orca-slicer", "OrcaSlicer"]),
+        _tool_check("openscad", "OpenSCAD", ["openscad"]),
+        _tool_check("blender", "Blender", ["blender"]),
+        _tool_check("cadquery", "CadQuery CLI", ["cadquery", "cq-cli"]),
+        _autopilot_check(
+            "model_endpoint_configured",
+            model_endpoint["ok"],
+            "Modeling LLM Endpoint",
+            model_endpoint["detail"],
+            model_endpoint["detail"],
+            None,
+            "manual",
+        ),
+        _autopilot_check(
+            "slicer_profiles",
+            _enabled_printer_count(printers) > 0 and _enabled_printer_profiles_exist(printers),
+            "Slicer Profiles",
+            "Enabled printers have slicer profile paths that exist.",
+            "Add reviewed PrusaSlicer profiles for each cleared printer.",
+            None,
+            "manual",
+        ),
+    ]
+    ready = sum(1 for check in checks if check["ok"])
+    actions = _autopilot_actions(checks)
+    return {
+        "mode": "safe_setup",
+        "ready": ready,
+        "total": len(checks),
+        "score": round(ready / max(1, len(checks)), 2),
+        "summary": f"{ready} of {len(checks)} setup checks are ready.",
+        "checks": checks,
+        "actions": actions,
+        "guardrails": [
+            "Autopilot does not move printers.",
+            "Autopilot does not probe locked printers.",
+            "Autopilot does not upload or start prints.",
+            "FLSUN S1 remains locked until the user clears maintenance.",
+        ],
+    }
+
+
+def _autopilot_check(
+    key: str,
+    ok: bool,
+    title: str,
+    ready_detail: str,
+    missing_detail: str,
+    action_id: str | None = None,
+    kind: str = "setup",
+) -> dict[str, Any]:
+    return {
+        "key": key,
+        "title": title,
+        "ok": ok,
+        "kind": kind,
+        "detail": ready_detail if ok else missing_detail,
+        "action_id": None if ok else action_id,
+    }
+
+
+def _autopilot_actions(checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    action_titles = {
+        "ensure_runtime_config": "Create Runtime Config",
+        "ensure_storage_dirs": "Create Storage Directories",
+        "bootstrap_printers": "Load Printer Inventory",
+        "auto_assign_ports": "Auto Assign Open Ports",
+    }
+    actions = []
+    seen = set()
+    for check in checks:
+        action_id = check.get("action_id")
+        if action_id and action_id not in seen:
+            seen.add(action_id)
+            actions.append(
+                {
+                    "id": action_id,
+                    "title": action_titles.get(action_id, action_id.replace("_", " ").title()),
+                    "detail": check["detail"],
+                    "safe": True,
+                }
+            )
+    actions.extend(
+        [
+            {
+                "id": "autopilot_next_gate",
+                "title": "Autopilot To Next Safe Gate",
+                "detail": "Advance the active job through safe non-printer steps and stop at approvals or printer actions.",
+                "safe": True,
+            },
+            {
+                "id": "write_agent_plan",
+                "title": "Write Agent Plan",
+                "detail": "Create a Hermes planning artifact for the active job.",
+                "safe": True,
+            },
+            {
+                "id": "write_setup_report",
+                "title": "Write Setup Report",
+                "detail": "Create an agent-readable report in storage/autopilot.",
+                "safe": True,
+            },
+            {
+                "id": "create_pilot_job",
+                "title": "Create Dry-Run Pilot Job",
+                "detail": "Create a safe setup job record without touching hardware.",
+                "safe": True,
+            },
+        ]
+    )
+    return actions
+
+
+def _tool_check(key: str, title: str, commands: list[str]) -> dict[str, Any]:
+    found = next((command for command in commands if shutil.which(command)), None)
+    return _autopilot_check(
+        f"tool_{key}",
+        found is not None,
+        title,
+        f"Detected `{found}` on PATH.",
+        f"Install or add one of these commands to PATH: {', '.join(commands)}.",
+        None,
+        "tool",
+    )
+
+
+def _camera_count(printers: list[dict[str, Any]]) -> int:
+    return sum(1 for printer in printers if camera_url_for_printer(printer))
+
+
+def _enabled_printer_count(printers: list[dict[str, Any]]) -> int:
+    return sum(1 for printer in printers if printer.get("enabled") and not _printer_locked(printer))
+
+
+def _printer_locked_by_id(printers: list[dict[str, Any]], printer_id: str) -> bool:
+    printer = next((item for item in printers if item.get("id") == printer_id), None)
+    return bool(printer and _printer_locked(printer))
+
+
+def _printer_locked(printer: dict[str, Any]) -> bool:
+    capabilities = printer.get("capabilities", {})
+    return (
+        not printer.get("enabled")
+        or bool(capabilities.get("maintenance_lock"))
+        or bool(capabilities.get("do_not_probe"))
+    )
+
+
+def camera_url_for_printer(printer: dict[str, Any]) -> str:
+    capabilities = printer.get("capabilities", {})
+    for key in ("camera_url", "usb_camera_url", "camera"):
+        value = capabilities.get(key)
+        if isinstance(value, str) and value.startswith("http"):
+            return value
+    return ""
+
+
+def _model_endpoint_status(services: dict[str, Any]) -> dict[str, Any]:
+    hermes = services.get("hermes", {})
+    workers = services.get("workers", {})
+    modeling = workers.get("modeling", {}) if isinstance(workers, dict) else {}
+    model_name = str(modeling.get("model") or hermes.get("model_name") or "")
+    base_url = str(modeling.get("base_url") or hermes.get("model_base_url") or "")
+    configured = bool(base_url.startswith("http") and model_name and "your-" not in model_name)
+    reachable = False
+    models: list[str] = []
+    if base_url.startswith("http"):
+        try:
+            response = httpx.get(f"{base_url.rstrip('/')}/models", timeout=1.0)
+            response.raise_for_status()
+            payload = response.json()
+            models = [
+                str(item.get("id"))
+                for item in payload.get("data", [])
+                if isinstance(item, dict) and item.get("id")
+            ]
+            reachable = True
+        except (httpx.HTTPError, ValueError):
+            reachable = False
+    if configured and reachable:
+        matched = model_name in models if models else True
+        detail = f"Endpoint reachable at {base_url}; configured model is {model_name}."
+        if models and not matched:
+            detail = f"Endpoint reachable, but configured model `{model_name}` was not in /models."
+        return {"ok": matched, "detail": detail, "models": models}
+    if reachable:
+        return {
+            "ok": False,
+            "detail": f"Endpoint reachable at {base_url}, but services config still uses placeholder model names.",
+            "models": models,
+        }
+    if configured:
+        return {
+            "ok": False,
+            "detail": f"Configured as {model_name} at {base_url}, but /models did not answer.",
+            "models": models,
+        }
+    return {
+        "ok": False,
+        "detail": "Configure the downloaded modeling LLM endpoint and model name.",
+        "models": models,
+    }
+
+
+def _enabled_printer_profiles_exist(printers: list[dict[str, Any]]) -> bool:
+    enabled = [printer for printer in printers if printer.get("enabled") and not _printer_locked(printer)]
+    if not enabled:
+        return False
+    for printer in enabled:
+        profile = printer.get("slicer_profile")
+        if not profile:
+            return False
+        if not (settings.repo_root / profile).exists():
+            return False
+    return True
+
+
+def _create_autopilot_job(note: str | None) -> dict[str, Any]:
+    now = utc_now()
+    description = "Autopilot-created dry-run setup job. This job is for workflow validation only and does not touch hardware."
+    if note:
+        description = f"{description}\n\nNote: {note}"
+    with db.connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO jobs (title, description, state, target_printer_id, created_at, updated_at)
+            VALUES (?, ?, 'INTAKE', NULL, ?, ?)
+            """,
+            ("Autopilot setup dry-run", description, now, now),
+        )
+        job_id = int(cursor.lastrowid)
+    db.add_event(job_id, "JOB_CREATED", "Autopilot dry-run setup job created.", {"note": note})
+    return get_job(job_id)
+
+
+def _write_autopilot_report() -> Path:
+    status = _autopilot_status()
+    report_dir = settings.storage_dir / "autopilot"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / "setup-report.md"
+    lines = [
+        "# Hermes OS Print Factory Autopilot Report",
+        "",
+        status["summary"],
+        "",
+        "## Checks",
+    ]
+    for check in status["checks"]:
+        marker = "ready" if check["ok"] else "needs attention"
+        lines.append(f"- {check['title']}: {marker} - {check['detail']}")
+    lines.extend(["", "## Guardrails"])
+    lines.extend(f"- {item}" for item in status["guardrails"])
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    db.add_event(
+        None,
+        "AUTOPILOT_REPORT_WRITTEN",
+        "Autopilot setup report written.",
+        {"path": str(report_path)},
+    )
+    return report_path
+
+
+def _active_autopilot_job() -> dict[str, Any]:
+    jobs = _list_jobs()
+    if jobs:
+        return get_job(jobs[0]["id"])
+    return _create_autopilot_job("Autopilot created this job because no active job existed.")
+
+
+def _autopilot_job_to_next_gate(job_id: int) -> None:
+    stop_states = {
+        MODEL_APPROVAL,
+        PRINT_APPROVAL,
+        SELECT_PRINTER,
+        "UPLOAD_ONLY",
+        START_PRINT,
+        COMPLETE,
+    }
+    for _ in range(12):
+        job = get_job(job_id)
+        if job["state"] in stop_states:
+            db.add_event(
+                job_id,
+                "AUTOPILOT_STOPPED",
+                f"Autopilot stopped safely at {job['state']}.",
+                {"state": job["state"]},
+            )
+            return
+        transition = next_transition(job["state"])
+        if transition.next_state in {"UPLOAD_ONLY", START_PRINT}:
+            db.add_event(
+                job_id,
+                "AUTOPILOT_STOPPED",
+                f"Autopilot refused hardware-adjacent transition to {transition.next_state}.",
+                {"state": job["state"], "next_state": transition.next_state},
+            )
+            return
+        _advance_safe_step(job_id, job, transition.next_state)
+    db.add_event(job_id, "AUTOPILOT_STOPPED", "Autopilot stopped after maximum safe steps.")
+
+
+def _advance_safe_step(job_id: int, job: dict[str, Any], next_state: str) -> None:
+    if next_state == "PLAN_JOB" and not _has_artifact(job_id, "agent_plan"):
+        _write_agent_plan(job_id, job)
+    if next_state == MODEL_APPROVAL and not _has_artifact(job_id, "model_evidence"):
+        _generate_model_evidence(job_id, job)
+    if next_state == "VALIDATE_GCODE" and not _has_artifact(job_id, "gcode"):
+        _run_slicer(job_id)
+    if next_state == SELECT_PRINTER:
+        db.add_event(
+            job_id,
+            "AUTOPILOT_STOPPED",
+            "Autopilot stopped before printer selection.",
+            {"next_state": next_state},
+        )
+        return
+    _set_job_state(job_id, next_state)
+    db.add_event(
+        job_id,
+        "AUTOPILOT_ADVANCED",
+        f"Autopilot advanced safely from {job['state']} to {next_state}.",
+    )
+
+
+def _write_agent_plan(job_id: int, job: dict[str, Any]) -> Path:
+    plan_dir = settings.storage_dir / "jobs" / str(job_id)
+    plan_dir.mkdir(parents=True, exist_ok=True)
+    plan_path = plan_dir / "hermes-agent-plan.md"
+    printers = _list_printers()
+    runtime = _runtime_payload()
+    missing_inputs = []
+    if not any(not _printer_locked(printer) for printer in printers):
+        missing_inputs.append("No cleared printer is available.")
+    if _camera_count(printers) < _enabled_printer_count(printers):
+        missing_inputs.append("Camera URLs are missing for one or more cleared printers.")
+    if runtime.get("duplicate_ports"):
+        missing_inputs.append("Runtime port conflicts need attention.")
+    if not _enabled_printer_profiles_exist(printers):
+        missing_inputs.append("Reviewed slicer profiles are missing for cleared printers.")
+    if not missing_inputs:
+        missing_inputs.append("No blocking setup input detected by deterministic checks.")
+
+    lines = [
+        "# Hermes Agent Plan",
+        "",
+        f"Job: {job['title']}",
+        f"State: {job['state']}",
+        "",
+        "## Intent",
+        job["description"],
+        "",
+        "## Assumptions",
+        "- Printer movement and print start require explicit user action.",
+        "- FLSUN S1 remains locked while maintenance risk is present.",
+        "- Simulated slicing is allowed for dry-run workflow evidence.",
+        "",
+        "## Missing Inputs",
+        *[f"- {item}" for item in missing_inputs],
+        "",
+        "## Evidence Checklist",
+        "- Agent plan artifact",
+        "- Model evidence artifact",
+        "- Slicer or simulated G-code artifact",
+        "- Model approval",
+        "- Print approval",
+        "- Upload-only event before any start request",
+        "",
+        "## Next Safe Action",
+        _next_safe_action_for_job(job),
+        "",
+    ]
+    plan_path.write_text("\n".join(lines), encoding="utf-8")
+    existing = _latest_artifact(job_id, "agent_plan")
+    if existing and existing.get("path") == str(plan_path):
+        db.add_event(
+            job_id,
+            "AGENT_PLAN_UPDATED",
+            "Hermes agent plan artifact updated.",
+            {"path": str(plan_path)},
+        )
+        return plan_path
+    _add_artifact(
+        job_id,
+        "agent_plan",
+        plan_path,
+        {
+            "planner": "hermes3d-deterministic-autopilot",
+            "missing_inputs": missing_inputs,
+            "next_safe_action": _next_safe_action_for_job(job),
+        },
+    )
+    db.add_event(job_id, "AGENT_PLAN_CREATED", "Hermes agent plan artifact created.", {"path": str(plan_path)})
+    return plan_path
+
+
+def _next_safe_action_for_job(job: dict[str, Any]) -> str:
+    state = job["state"]
+    if state in {MODEL_APPROVAL, PRINT_APPROVAL}:
+        return f"User review is required at {state}."
+    if state in {SELECT_PRINTER, "UPLOAD_ONLY", START_PRINT}:
+        return f"User printer action is required at {state}."
+    if state == COMPLETE:
+        return "Job is complete."
+    return "Run Autopilot To Next Safe Gate."
 
 
 def _assign_open_ports(

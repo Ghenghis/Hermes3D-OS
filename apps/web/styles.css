@@ -225,6 +225,7 @@ textarea {
 .artifact-list,
 .event-list,
 .settings-list,
+.setup-list,
 .roadmap-list,
 .plugin-grid {
   display: grid;
@@ -237,6 +238,7 @@ textarea {
 .event-card,
 .approval-card,
 .plugin-card,
+.setup-card,
 .setting-row,
 .roadmap-item,
 .camera-card {
@@ -293,6 +295,14 @@ textarea {
 .port-warning small {
   color: var(--amber);
   font-weight: 700;
+}
+
+.setup-ready {
+  border-color: #b8e2ca;
+}
+
+.setup-needed {
+  border-color: #f1d2aa;
 }
 
 .locked-card {
