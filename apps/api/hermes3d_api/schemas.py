@@ -68,6 +68,18 @@ class PrinterPortUpdate(BaseModel):
     port: int = Field(ge=1, le=65535)
 
 
+class PrinterCameraUrlUpdate(BaseModel):
+    camera_url: str | None = Field(default="", max_length=2048)
+
+    @field_validator("camera_url")
+    @classmethod
+    def validate_camera_url(cls, camera_url: str | None) -> str:
+        value = (camera_url or "").strip()
+        if value and not value.startswith(("http://", "https://")):
+            raise ValueError("Camera URL must start with http:// or https://")
+        return value
+
+
 class AutopilotActionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
 

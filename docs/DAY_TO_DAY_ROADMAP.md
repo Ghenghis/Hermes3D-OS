@@ -16,7 +16,7 @@ Available now:
 - editable local printer config
 - Moonraker discovery and read-only status checks
 - gated Moonraker upload/start path
-- Observe page for integrated and USB camera URLs
+- Observe page with editable integrated and USB camera URLs
 
 Still required before unattended confidence:
 
@@ -75,7 +75,7 @@ Goal: make daily operation possible from one local screen.
 - show Autopilot readiness score, guardrails, and safe one-click setup actions
 - add pause, cancel, retry, and failure-note controls
 - separate upload, observation, and start actions
-- surface camera links and latest events per printer
+- surface and edit camera links and latest events per printer
 
 ### 3. Design Studio
 

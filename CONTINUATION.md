@@ -7,11 +7,11 @@ Use this after reboot to resume work quickly.
 - Repository: `G:\Github\Hermes3D-OS`
 - GitHub: `https://github.com/Ghenghis/Hermes3D-OS`
 - Branch: `develop`
-- Latest synced commit: `59a0cff`
-- Commit message: `feat: add safe Hermes autopilot setup`
+- Latest verified baseline before this continuation pass: `5a68b87`
+- Commit message: `feat: require user printer check before start`
 - Working tree was clean when this file was created.
 
-All tracked branches were synced to `59a0cff`:
+All tracked branches were synced to `5a68b87` before this continuation pass:
 
 - `main`
 - `develop`
@@ -113,6 +113,7 @@ Maintenance lock: do not test or move. Movement may damage the hotend.
 - Editable/savable runtime ports.
 - Auto-assign open local ports.
 - Observe page for camera URLs.
+- Settings page editor for per-printer camera URLs.
 - Autopilot OS tab.
 - Autopilot readiness checks.
 - Safe Autopilot actions.
@@ -134,19 +135,17 @@ Known missing items:
 - Real reviewed slicer profiles.
 - PrusaSlicer/OrcaSlicer/OpenSCAD/Blender/CadQuery installed or on PATH.
 - Real local modeling model name in `configs/services.local.yaml`.
-- Camera URL editor per printer.
 
 ## Next Coding Tasks
 
-1. Add camera URL editor per printer.
-2. Add model endpoint picker from `/v1/models`.
-3. Add printer geometry fields:
+1. Add model endpoint picker from `/v1/models`.
+2. Add printer geometry fields:
    - bed size
    - nozzle diameter
    - filament diameter
    - enclosure/camera state
-4. Add profile readiness UI for slicer profiles.
-5. Add structured service-health endpoint for:
+3. Add profile readiness UI for slicer profiles.
+4. Add structured service-health endpoint for:
    - model server
    - PrusaSlicer
    - OrcaSlicer
@@ -155,8 +154,8 @@ Known missing items:
    - Blender
    - FDM Monster
    - camera proxy
-6. Add safer operator notes/reject/retry workflow states.
-7. Add real mesh/G-code validation evidence.
+5. Add safer operator notes/reject/retry workflow states.
+6. Add real mesh/G-code validation evidence.
 
 ## Useful Files
 

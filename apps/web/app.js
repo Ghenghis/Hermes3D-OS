@@ -297,9 +297,9 @@ function renderSettings() {
       `,
       `
         <section class="section">
-          <h2>Printer Moonraker Ports</h2>
+          <h2>Printer Connections</h2>
           <div class="settings-grid">
-            ${state.printers.map(printerPortInput).join("")}
+            ${state.printers.map(printerConnectionInput).join("")}
           </div>
         </section>
       `,
@@ -335,9 +335,10 @@ function runtimeUrlInput(name, url) {
   `;
 }
 
-function printerPortInput(printer) {
+function printerConnectionInput(printer) {
   const port = portFromUrl(printer.base_url);
   const locked = printerLocked(printer);
+  const cameraUrl = printer.capabilities?.camera_url || "";
   return `
     <article class="setting-row">
       <div class="row">
@@ -352,6 +353,16 @@ function printerPortInput(printer) {
         </label>
         <button type="submit" ${locked ? "disabled" : ""}>Save Printer Port</button>
       </form>
+      <form class="printer-camera-form" data-printer-camera-form="${escapeAttr(printer.id)}">
+        <label>
+          <span>Camera URL</span>
+          <input name="camera_url" value="${escapeAttr(cameraUrl)}" placeholder="http://printer-or-camera:8080/?action=stream" />
+        </label>
+        <button type="submit">Save Camera URL</button>
+      </form>
+      <p class="muted">
+        Camera URLs save as local metadata. Locked printers remain hidden from Observe and are not probed.
+      </p>
     </article>
   `;
 }
@@ -759,6 +770,16 @@ document.addEventListener("submit", async (event) => {
     await api(`/api/printers/${printerPortForm.dataset.printerPortForm}/moonraker-port`, {
       method: "PATCH",
       body: JSON.stringify({ port: Number(new FormData(printerPortForm).get("port")) }),
+    });
+    await refresh();
+  }
+
+  const printerCameraForm = event.target.closest("[data-printer-camera-form]");
+  if (printerCameraForm) {
+    event.preventDefault();
+    await api(`/api/printers/${printerCameraForm.dataset.printerCameraForm}/camera-url`, {
+      method: "PATCH",
+      body: JSON.stringify({ camera_url: new FormData(printerCameraForm).get("camera_url") || "" }),
     });
     await refresh();
   }

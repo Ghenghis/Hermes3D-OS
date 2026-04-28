@@ -7,7 +7,7 @@ Hermes OS Print Factory's 2026 roadmap is organized as feature packs that improv
 | Pack | Operator outcome | Key deliverables |
 | --- | --- | --- |
 | Real Print Readiness | Known-safe jobs can move from model to real upload/start with clear gates. | Confirm Moonraker access, reviewed slicer profiles, printer dimensions, upload-only flow, first calibration print evidence. |
-| OS Control Center | The local dashboard becomes the daily command center. | Fleet readiness, Autopilot setup, dry-run/real mode, job queue, pause/cancel controls, camera links, locked-printer visibility. |
+| OS Control Center | The local dashboard becomes the daily command center. | Fleet readiness, Autopilot setup, dry-run/real mode, job queue, pause/cancel controls, editable camera links, locked-printer visibility. |
 | Design Studio | Operators can import or generate print candidates in one workflow. | Model intake, Hermes agent plans, job briefs, local modeling LLM status, CadQuery/OpenSCAD workers, parameter editor, previews. |
 | Validation/Evidence | Every safety and quality decision is reviewable later. | Mesh/G-code validation, slicer warnings, previews, approval records, event timeline, rejection and failure notes. |
 | Fleet Operations | The pilot setup scales to a managed printer fleet. | Printer inventory, FDM Monster sidecar, material/profile compatibility, maintenance reminders, reliability history. |

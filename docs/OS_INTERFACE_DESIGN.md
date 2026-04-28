@@ -26,7 +26,7 @@ Hermes OS Print Factory
 The interface should make the 2026 roadmap visible through operator workflows:
 
 - Real Print Readiness: readiness checks, profile locks, approval gates, upload-only flow
-- OS Control Center: fleet state, active jobs, locked printers, camera links, quick actions
+- OS Control Center: fleet state, active jobs, locked printers, editable camera links, quick actions
 - Design Studio: imports, prompts, Hermes agent plans, local generation workers, editable parameters, previews
 - Validation/Evidence: mesh checks, G-code checks, warnings, approvals, event ledger
 - Fleet Operations: inventory, maintenance, material/profile compatibility, reliability
@@ -151,9 +151,10 @@ Supports:
 - USB camera streams
 - MJPEG/HTTP camera URLs
 - camera slots per printer
+- editable and savable camera URLs per printer
 - locked-printer camera suppression
 
-Camera URLs live in printer config:
+Camera URLs are edited in Settings and saved to `capabilities.camera_url` in printer config:
 
 ```yaml
 capabilities:

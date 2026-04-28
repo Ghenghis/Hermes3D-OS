@@ -28,6 +28,7 @@ from .schemas import (
     AutopilotActionRequest,
     ApprovalCreate,
     JobCreate,
+    PrinterCameraUrlUpdate,
     PrinterPortUpdate,
     PrinterCheckCreate,
     RuntimeAutoPortRequest,
@@ -281,6 +282,32 @@ def update_printer_moonraker_port(printer_id: str, payload: PrinterPortUpdate) -
         "PRINTER_PORT_UPDATED",
         f"{updated_printer.get('name', printer_id)} Moonraker port saved.",
         {"printer_id": printer_id, "base_url": updated_printer.get("moonraker", {}).get("base_url")},
+    )
+    return _get_printer(printer_id) or {}
+
+
+@app.patch("/api/printers/{printer_id}/camera-url")
+def update_printer_camera_url(printer_id: str, payload: PrinterCameraUrlUpdate) -> dict[str, Any]:
+    printer = _get_printer(printer_id)
+    if not printer:
+        raise HTTPException(status_code=404, detail="Printer not found")
+    if _printer_config_is_example():
+        raise HTTPException(
+            status_code=409,
+            detail="Create configs/printers.local.yaml before saving printer camera changes.",
+        )
+
+    updated_printer = _save_printer_camera_url(printer_id, payload.camera_url or "")
+    db.upsert_printer(updated_printer)
+    db.add_event(
+        None,
+        "PRINTER_CAMERA_URL_UPDATED",
+        f"{updated_printer.get('name', printer_id)} camera URL saved.",
+        {
+            "printer_id": printer_id,
+            "camera_url_configured": bool(updated_printer.get("capabilities", {}).get("camera_url")),
+            "locked": _printer_locked(updated_printer),
+        },
     )
     return _get_printer(printer_id) or {}
 
@@ -773,7 +800,11 @@ def _tool_check(key: str, title: str, commands: list[str]) -> dict[str, Any]:
 
 
 def _camera_count(printers: list[dict[str, Any]]) -> int:
-    return sum(1 for printer in printers if camera_url_for_printer(printer))
+    return sum(
+        1
+        for printer in printers
+        if printer.get("enabled") and not _printer_locked(printer) and camera_url_for_printer(printer)
+    )
 
 
 def _enabled_printer_count(printers: list[dict[str, Any]]) -> int:
@@ -1136,6 +1167,25 @@ def _save_printer_base_url(printer_id: str, base_url: str) -> dict[str, Any]:
             moonraker = dict(printer.get("moonraker", {}) or {})
             moonraker["base_url"] = base_url
             printer["moonraker"] = moonraker
+            with settings.printers_config_path.open("w", encoding="utf-8") as handle:
+                yaml.safe_dump(config, handle, sort_keys=False)
+            return printer
+    raise HTTPException(status_code=404, detail="Printer not found in printer config")
+
+
+def _save_printer_camera_url(printer_id: str, camera_url: str) -> dict[str, Any]:
+    import yaml
+
+    with settings.printers_config_path.open("r", encoding="utf-8") as handle:
+        config = yaml.safe_load(handle) or {}
+    printers = config.get("printers", [])
+    if not isinstance(printers, list):
+        raise HTTPException(status_code=500, detail="Printer config is missing a printers list")
+    for printer in printers:
+        if isinstance(printer, dict) and printer.get("id") == printer_id:
+            capabilities = dict(printer.get("capabilities", {}) or {})
+            capabilities["camera_url"] = camera_url
+            printer["capabilities"] = capabilities
             with settings.printers_config_path.open("w", encoding="utf-8") as handle:
                 yaml.safe_dump(config, handle, sort_keys=False)
             return printer
