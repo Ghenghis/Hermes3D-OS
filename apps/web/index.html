@@ -29,7 +29,8 @@
     </header>
 
     <nav class="tabs" aria-label="Factory pages">
-      <button class="tab active" type="button" data-page="dashboard">Dashboard</button>
+      <button class="tab active" type="button" data-page="sources">Source OS</button>
+      <button class="tab" type="button" data-page="dashboard">Dashboard</button>
       <button class="tab" type="button" data-page="setup">Autopilot</button>
       <button class="tab" type="button" data-page="design">Design</button>
       <button class="tab" type="button" data-page="generation">3D Generation</button>
@@ -47,7 +48,113 @@
     </nav>
 
     <main class="page-shell">
-      <section id="page-dashboard" class="page active">
+      <section id="page-sources" class="page active">
+        <div class="source-os" id="sourceOs">
+          <header class="source-os-bar">
+            <div class="source-os-brand">
+              <strong>Hermes3D OS</strong>
+              <span>source-backed print factory</span>
+            </div>
+            <nav id="sourceGroupTabs" class="source-group-tabs" aria-label="Source software groups"></nav>
+            <div class="source-guard">S1 locked / source bench</div>
+          </header>
+
+          <div class="source-grid">
+            <aside class="source-module-list">
+              <div class="source-panel-head">
+                <strong id="sourceGroupTitle">Source Modules</strong>
+                <span id="sourceGroupCount"></span>
+              </div>
+              <div id="sourceModuleList" class="source-module-buttons"></div>
+            </aside>
+
+            <section class="source-workbench">
+              <div class="source-panel-head">
+                <div>
+                  <strong id="sourceModuleName">Loading source manifest</strong>
+                  <span id="sourceModuleRole">standalone modules</span>
+                </div>
+                <div class="source-actions">
+                  <button id="sourceOpenRepo" type="button">Repo</button>
+                  <button id="sourceBridgePlan" type="button">Bridge</button>
+                  <button id="sourceSetupPlan" type="button">Setup</button>
+                </div>
+              </div>
+
+              <div class="source-bench-grid">
+                <div class="source-viewport" id="sourceViewport">
+                  <div class="source-plate">
+                    <div class="source-part">
+                      <span id="sourcePartLabel">Hermes3D</span>
+                    </div>
+                    <div class="source-tool-flags" id="sourceToolFlags"></div>
+                  </div>
+                  <div class="source-timeline" id="sourcePipeline"></div>
+                </div>
+
+                <aside class="source-facts">
+                  <table>
+                    <tbody>
+                      <tr><th>Repo</th><td id="sourceRepoCell"></td></tr>
+                      <tr><th>Local</th><td id="sourceLocalCell"></td></tr>
+                      <tr><th>License</th><td id="sourceLicenseCell"></td></tr>
+                      <tr><th>Priority</th><td id="sourcePriorityCell"></td></tr>
+                      <tr><th>Section</th><td id="sourceSectionCell"></td></tr>
+                      <tr><th>Status</th><td id="sourceStatusCell"></td></tr>
+                    </tbody>
+                  </table>
+                  <div class="source-mini-printers">
+                    <button class="hot" type="button">T1-A<br /><span>192.168.0.10</span></button>
+                    <button type="button">T1-B<br /><span>192.168.0.11</span></button>
+                    <button type="button">V400<br /><span>192.168.0.34</span></button>
+                    <button class="locked" type="button">S1<br /><span>locked</span></button>
+                  </div>
+                </aside>
+              </div>
+            </section>
+
+            <aside class="source-right">
+              <section class="source-panel">
+                <div class="source-panel-head">
+                  <strong>Bridge Tasks</strong>
+                  <span id="sourceTaskCount"></span>
+                </div>
+                <ol id="sourceBridgeTasks"></ol>
+              </section>
+
+              <section class="source-panel">
+                <div class="source-panel-head">
+                  <strong>Included Projects</strong>
+                  <span id="sourceInventoryCount">loading</span>
+                </div>
+                <div class="source-mix" id="sourceMix"></div>
+              </section>
+
+              <section class="source-panel">
+                <div class="source-panel-head">
+                  <strong>Next Patch</strong>
+                  <span>section by section</span>
+                </div>
+                <div class="source-patch-list">
+                  <div><b>1</b><span>Prusa/Orca/FLSUN slicer adapters</span></div>
+                  <div><b>2</b><span>Moonraker/Klipper/FDM farm panel</span></div>
+                  <div><b>3</b><span>Blender/CadQuery/OpenSCAD workers</span></div>
+                  <div><b>4</b><span>LangGraph/Hermes agent gates</span></div>
+                </div>
+              </section>
+            </aside>
+
+            <footer class="source-status">
+              <span id="sourceDownloadState">Loading source software manifest...</span>
+              <span>ports editable in Settings</span>
+              <span>camera slots: USB + Moonraker</span>
+              <span>S1 movement disabled</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-dashboard" class="page">
         <div class="dashboard-grid">
           <section class="panel">
             <div class="panel-header">
@@ -409,7 +516,8 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=20260428-theme"></script>
+    <script src="/static/source-os.js?v=20260428-source"></script>
+    <script src="/static/app.js?v=20260428-source"></script>
     <script src="/static/voice-panel.js?v=20260428-theme"></script>
   </body>
 </html>
