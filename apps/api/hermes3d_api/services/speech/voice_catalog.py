@@ -8,9 +8,14 @@ import httpx
 
 AGENT_VOICE_DEFAULTS: dict[str, str] = {
     "factory_operator": "en-GB-MaisieNeural",
+    "modeling_agent": "en-US-AriaNeural",
     "print_safety_agent": "en-AU-CarlyNeural",
     "mesh_repair_agent": "en-US-AriaNeural",
+    "mesh_qa_agent": "en-AU-CarlyNeural",
+    "slicer_qa_agent": "en-US-JennyNeural",
+    "print_monitor_agent": "en-GB-RyanNeural",
     "research_agent": "en-US-GuyNeural",
+    "privacy_agent": "en-US-AvaNeural",
 }
 
 FALLBACK_ENGLISH_VOICES: list[dict[str, Any]] = [
@@ -57,6 +62,15 @@ FALLBACK_ENGLISH_VOICES: list[dict[str, Any]] = [
         "ShortName": "en-US-GuyNeural",
         "Gender": "Male",
         "Locale": "en-US",
+        "VoiceType": "Neural",
+    },
+    {
+        "Name": "en-GB-RyanNeural",
+        "DisplayName": "Ryan",
+        "LocalName": "Ryan",
+        "ShortName": "en-GB-RyanNeural",
+        "Gender": "Male",
+        "Locale": "en-GB",
         "VoiceType": "Neural",
     },
     {

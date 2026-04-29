@@ -12,6 +12,15 @@ The current queued topics are exposed through:
 
 Reports are written to `storage/learning/` and listed in the Learning page.
 
+The active work surface is exposed through:
+
+- `GET /api/agentic-work/status`
+- `POST /api/agentic-work/tick`
+
+The Agents page shows the safe work loop, active agents, queued build/research tracks, blockers, and the next tick.
+
+All Hermes agents shown there are vision-enabled. MiniMax-MCP is the required vision layer for image input, screenshots, mesh previews, slicer previews, and camera evidence. DeepSeek V4 may assist planning, CAD reasoning, research summaries, roadmaps, and markdown reports, but vision evidence is still mandatory for every agent.
+
 ## Queued Research Topics
 
 | Topic | Agent | Purpose |

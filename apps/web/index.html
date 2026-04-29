@@ -28,6 +28,7 @@
       <button class="tab" type="button" data-page="printers">Printers</button>
       <button class="tab" type="button" data-page="observe">Observe</button>
       <button class="tab" type="button" data-page="voice">Voice</button>
+      <button class="tab" type="button" data-page="agents">Agents</button>
       <button class="tab" type="button" data-page="learning">Learning</button>
       <button class="tab" type="button" data-page="artifacts">Artifacts</button>
       <button class="tab" type="button" data-page="approvals">Approvals</button>
@@ -220,6 +221,36 @@
           </div>
           <div id="voicePanel"></div>
         </section>
+      </section>
+
+      <section id="page-agents" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Agentic Work Loop</h2>
+              <span class="muted">Safe active work</span>
+            </div>
+            <div id="agenticStatus" class="settings-list"></div>
+            <div class="actions">
+              <button id="agenticTickBtn" type="button">Run Agentic Tick</button>
+            </div>
+            <section class="section">
+              <h2>Active Agents</h2>
+              <div id="agenticAgents" class="setup-list"></div>
+            </section>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Work Queue</h2>
+              <span class="muted">Research and build tracks</span>
+            </div>
+            <div id="agenticQueue" class="setup-list"></div>
+            <section class="section">
+              <h2>Blockers</h2>
+              <div id="agenticBlockers" class="setup-list"></div>
+            </section>
+          </section>
+        </div>
       </section>
 
       <section id="page-learning" class="page">

@@ -23,6 +23,8 @@ Photo / multi-photo input
   -> markdown report + diagrams
 ```
 
+All agents that touch this pipeline are vision-enabled. The modeling agent may use DeepSeek V4 for CAD/OpenSCAD/CadQuery reasoning, but MiniMax-MCP remains the required vision provider for source images, mesh previews, slicer previews, and printer/camera evidence.
+
 ## Engine Roles
 
 - `TRELLIS.2`: primary image-to-3D engine.
@@ -64,10 +66,13 @@ Until those pass, generated meshes are evidence only.
 Every run produces:
 
 - source image record
+- MiniMax-MCP vision summary
 - selected engine
 - generation parameters
+- mesh preview evidence
 - mesh stats
 - repair actions
+- slicer preview evidence
 - slicer result
 - printer compatibility score
 - final STL/3MF/GLB path fields

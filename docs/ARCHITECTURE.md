@@ -62,6 +62,8 @@ Hermes is the reasoning and coordination layer. It should:
 
 Hermes should not replace deterministic validation. Mesh checks, slicer output checks, temperature checks, and printer readiness checks should be explicit service calls.
 
+All Hermes agents are vision-enabled. MiniMax-MCP is the required primary multimodal layer for image input, screenshots, mesh previews, slicer previews, and camera evidence. DeepSeek V4 may assist with planning, CAD reasoning, code generation, research summaries, roadmaps, and markdown reports, but it does not replace the required vision layer unless the configured endpoint explicitly supports vision.
+
 ## Workflow Engine
 
 The workflow engine should encode state transitions and approval gates. LangGraph is suitable because print jobs are naturally stateful and branch on evidence.
@@ -95,4 +97,3 @@ Hermes3D OS should own:
 - audit/evidence logs
 
 FDM Monster can be used for visibility, but it should not be the only source of truth.
-

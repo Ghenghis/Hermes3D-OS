@@ -9,6 +9,7 @@ const state = {
   autopilot: {},
   generationStack: {},
   learningMode: {},
+  agenticWork: {},
   health: {},
   printerStatus: {},
   activeJobId: null,
@@ -49,10 +50,11 @@ async function apiForm(path, formData) {
 
 async function refresh() {
   try {
-    const [workspace, generationStack, learningMode] = await Promise.all([
+    const [workspace, generationStack, learningMode, agenticWork] = await Promise.all([
       api("/api/workspace"),
       api("/api/generation-stack/status").catch(() => ({})),
       api("/api/learning-mode/status").catch(() => ({})),
+      api("/api/agentic-work/status").catch(() => ({})),
     ]);
     state.health = workspace.health;
     state.settings = workspace.settings;
@@ -64,6 +66,7 @@ async function refresh() {
     state.autopilot = workspace.autopilot || {};
     state.generationStack = generationStack || {};
     state.learningMode = learningMode || {};
+    state.agenticWork = agenticWork || {};
 
     healthEl.textContent = state.health.dry_run_printers
       ? "API online. Printer actions are dry-run."
@@ -86,6 +89,7 @@ function renderAll() {
   renderSetup();
   renderDesign();
   renderGenerationStack();
+  renderAgenticWork();
   renderLearningMode();
   renderJobs();
   renderPrinters();
@@ -269,6 +273,102 @@ function renderWorkflowStatus(workflow) {
       </div>
       <p class="muted">${escapeHtml(workflow.reason || "")}</p>
       <p class="muted">${escapeHtml(workflow.workflow_path || "")}</p>
+    </article>
+  `;
+}
+
+function renderAgenticWork() {
+  const work = state.agenticWork || {};
+  const next = work.next_tick?.topic || {};
+  setHtml(
+    "#agenticStatus",
+    [
+      settingRow("Mode", work.mode || "active-safe-research-and-planning"),
+      settingRow("Summary", work.summary || "Agents research, plan, and propose changes while hardware stays gated."),
+      settingRow("Next Tick", next.title || "Next queued research report"),
+      settingRow("Latest Report", work.latest_report?.name || "No report yet"),
+      `<div class="section"><h2>Vision Contract</h2>${renderAgenticVisionContract(work.vision_contract || {})}</div>`,
+      `<div class="section"><h2>Safety Policy</h2>${renderAgenticPolicy(work.safety_policy || {})}</div>`,
+    ].join(""),
+  );
+  setHtml(
+    "#agenticAgents",
+    (work.agents || []).map(renderAgentCard).join("") || '<div class="empty-state">No active agents reported.</div>',
+  );
+  setHtml(
+    "#agenticQueue",
+    (work.work_queue || []).map(renderAgenticQueueItem).join("") || '<div class="empty-state">No work queued.</div>',
+  );
+  setHtml(
+    "#agenticBlockers",
+    (work.blockers || []).map(renderAgenticBlocker).join("") || '<div class="empty-state">No blockers reported.</div>',
+  );
+}
+
+function renderAgenticVisionContract(contract) {
+  const flags = contract.required_flags || {};
+  const rows = [
+    settingRow("Required For All Agents", contract.required_for_all_agents ? "yes" : "no"),
+    settingRow("Primary Vision", contract.primary_provider || "minimax-mcp"),
+    settingRow("Additional Reasoning", contract.additional_reasoning_provider || "deepseek-v4-pro"),
+    settingRow("DeepSeek Replaces Vision", contract.deepseek_may_replace_vision ? "yes" : "no"),
+    settingRow("Vision", flags.vision ? "yes" : "no"),
+    settingRow("Multimodal Input", flags.multimodal_input ? "yes" : "no"),
+    settingRow("Evidence Required", flags.evidence_required ? "yes" : "no"),
+  ];
+  const inputs = (contract.required_inputs || []).join(", ");
+  const outputs = (contract.required_outputs || []).join(", ");
+  return [
+    ...rows,
+    settingRow("Inputs", inputs || "image, screenshot, mesh, slicer, camera"),
+    settingRow("Outputs", outputs || "multimodal evidence summaries"),
+  ].join("");
+}
+
+function renderAgenticPolicy(policy) {
+  return Object.entries(policy)
+    .map(([key, value]) => settingRow(key.replaceAll("_", " "), value ? "yes" : "no"))
+    .join("");
+}
+
+function renderAgentCard(agent) {
+  return `
+    <article class="setup-card">
+      <div class="row">
+        <h3>${escapeHtml(agent.label || agent.id)}</h3>
+        ${stateBadge(String(agent.status || "watching").toUpperCase())}
+      </div>
+      <p class="muted">${escapeHtml(agent.current_focus || "")}</p>
+      <p class="muted">Provider: ${escapeHtml(agent.provider || "minimax")} / ${escapeHtml(agent.model || "minimax-mcp")} · Vision: ${agent.vision ? "yes" : "no"} via ${escapeHtml(agent.vision_provider || "minimax-mcp")}</p>
+      <p class="muted">Evidence: ${agent.evidence_required ? "required" : "optional"} · Multimodal: ${agent.multimodal_input ? "yes" : "no"} · Camera: ${agent.camera_required ? "required" : "as applicable"}</p>
+      <p class="muted">Vision: ${escapeHtml((agent.vision_capabilities || []).join(", "))}</p>
+      <p class="muted">Safe: ${escapeHtml((agent.safe_actions || []).join(", "))}</p>
+    </article>
+  `;
+}
+
+function renderAgenticQueueItem(item) {
+  return `
+    <article class="setup-card">
+      <div class="row">
+        <h3>${escapeHtml(item.title)}</h3>
+        ${stateBadge(String(item.status || "queued").toUpperCase())}
+      </div>
+      <p class="muted">${escapeHtml(item.type || "work")} · ${escapeHtml(item.owner || "agent")} · ${escapeHtml(item.priority || "normal")}</p>
+      <p class="muted">${escapeHtml(item.next_action || "")}</p>
+    </article>
+  `;
+}
+
+function renderAgenticBlocker(blocker) {
+  const blocked = blocker.blocked === undefined ? true : blocker.blocked;
+  return `
+    <article class="setup-card ${blocked ? "setup-needed" : "setup-ready"}">
+      <div class="row">
+        <h3>${escapeHtml(blocker.title)}</h3>
+        ${stateBadge(blocked ? String(blocker.severity || "BLOCKED").toUpperCase() : "CLEAR")}
+      </div>
+      <p class="muted">${escapeHtml(blocker.detail || "")}</p>
     </article>
   `;
 }
@@ -991,6 +1091,11 @@ document.querySelector("#bootstrapBtn").addEventListener("click", async () => {
 
 document.querySelector("#learningNextBtn")?.addEventListener("click", async () => {
   await api("/api/learning-mode/next-report", { method: "POST", body: "{}" });
+  await refresh();
+});
+
+document.querySelector("#agenticTickBtn")?.addEventListener("click", async () => {
+  await api("/api/agentic-work/tick", { method: "POST", body: "{}" });
   await refresh();
 });
 

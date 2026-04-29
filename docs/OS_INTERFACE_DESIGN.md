@@ -233,9 +233,14 @@ Default voice agents:
 
 ```text
 factory_operator -> en-GB-MaisieNeural
+modeling_agent -> en-US-AriaNeural
 print_safety_agent -> en-AU-CarlyNeural
 mesh_repair_agent -> en-US-AriaNeural
+mesh_qa_agent -> en-AU-CarlyNeural
+slicer_qa_agent -> en-US-JennyNeural
+print_monitor_agent -> en-GB-RyanNeural
 research_agent -> en-US-GuyNeural
+privacy_agent -> en-US-AvaNeural
 ```
 
 ## Materials

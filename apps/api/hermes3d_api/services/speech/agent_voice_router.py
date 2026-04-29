@@ -52,8 +52,13 @@ def resolve_agent_voice(
 def _default_role(agent_id: str) -> str:
     roles = {
         "factory_operator": "Print factory narrator and operator guide",
+        "modeling_agent": "CAD/OpenSCAD/CadQuery reasoning and vision-backed modeling critique",
         "print_safety_agent": "Short safety alerts and warnings",
         "mesh_repair_agent": "Model validation, repair, and slicing updates",
+        "mesh_qa_agent": "Mesh preview analysis, manifold evidence, repair proof, and visual QA",
+        "slicer_qa_agent": "Slicer preview analysis, support risk, overhang review, and G-code evidence",
+        "print_monitor_agent": "Printer and camera observation, first-layer checks, and live print summaries",
         "research_agent": "Idle learning reports and upgrade research",
+        "privacy_agent": "Anonymous mode, redaction, camera privacy, provider routing, and secrets policy",
     }
     return roles.get(agent_id, "Hermes3D agent")

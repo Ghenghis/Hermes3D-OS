@@ -19,6 +19,20 @@ Hermes should handle:
 
 Hermes should not directly bypass safety gates.
 
+## Vision Requirement
+
+Every Hermes agent in this project is vision-enabled. Agent configs must include:
+
+```yaml
+vision: true
+multimodal_input: true
+evidence_required: true
+```
+
+MiniMax-MCP is the primary vision/multimodal provider. DeepSeek V4 is allowed as an additional reasoning provider for planning, code generation, CAD/OpenSCAD/CadQuery reasoning, research summaries, roadmaps, and markdown reports, but it must not replace the required vision layer unless the configured DeepSeek endpoint explicitly supports vision.
+
+Every agent must be able to handle image input, screenshots, mesh previews, slicer previews, printer/camera evidence where applicable, and multimodal evidence summaries. The detailed contract lives in [VISION_AGENT_CONTRACT.md](VISION_AGENT_CONTRACT.md).
+
 ## Safe Autopilot
 
 The first built-in Hermes automation mode is safe setup and gate advancement.

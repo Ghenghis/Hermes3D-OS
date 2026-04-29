@@ -124,8 +124,10 @@ For setup and operating context, read:
 - [AI 3D Generation Research 2026](docs/AI_3D_GENERATION_RESEARCH_2026.md)
 - [OS Interface Design](docs/OS_INTERFACE_DESIGN.md)
 - [Voice Layer](docs/VOICE_LAYER.md)
+- [Vision Agent Contract](docs/VISION_AGENT_CONTRACT.md)
 - [Full-Stack 3D Generation](docs/FULL_STACK_3D_GENERATION.md)
 - [Idle Learning Mode](docs/IDLE_LEARNING_MODE.md)
+- [Agentic Work System](docs/AGENTIC_WORK_SYSTEM.md)
 
 ## Run The MVP
 

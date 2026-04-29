@@ -4,6 +4,45 @@ hermes:
   model_base_url: http://127.0.0.1:1234/v1
   model_name: your-local-hermes-or-modeling-model
 
+providers:
+  minimax_mcp:
+    provider: minimax
+    model: minimax-mcp
+    base_url: ${MINIMAX_MCP_URL}
+    command: ${MINIMAX_MCP_COMMAND}
+    vision: true
+    multimodal_input: true
+    evidence_required: true
+  deepseek_v4:
+    provider: deepseek
+    model_family: deepseek-v4
+    model: deepseek-v4-pro
+    fallback_model: deepseek-v4-flash
+    api_key: ${DEEPSEEK_API_KEY}
+    base_url: ${DEEPSEEK_BASE_URL}
+    allowed_for:
+      - planning
+      - code_generation
+      - research_summaries
+      - cadquery_reasoning
+      - openscad_reasoning
+      - roadmap_generation
+      - markdown_report_generation
+    vision: false
+    vision_provider: minimax_mcp
+
+vision:
+  required_for_all_agents: true
+  primary_provider: minimax_mcp
+  additional_reasoning_provider: deepseek_v4
+  deepseek_may_replace_vision: false
+  image_input: true
+  screenshot_analysis: true
+  mesh_preview_analysis: true
+  slicer_preview_analysis: true
+  printer_camera_observation: true
+  multimodal_evidence_summaries: true
+
 workflow:
   engine: langgraph
   require_model_approval: true
@@ -67,17 +106,85 @@ speech:
 
 agents:
   factory_operator:
+    provider: minimax
+    model: minimax-mcp
+    vision: true
+    multimodal_input: true
+    evidence_required: true
     voice: en-GB-MaisieNeural
     role: Print factory narrator and operator guide
+  modeling_agent:
+    provider: deepseek
+    model: deepseek-v4-pro
+    fallback_model: deepseek-v4-flash
+    vision: true
+    vision_provider: minimax_mcp
+    multimodal_input: true
+    evidence_required: true
+    voice: en-US-AriaNeural
+    role: CAD/OpenSCAD/CadQuery reasoning and vision-backed modeling critique
   print_safety_agent:
+    provider: minimax
+    model: minimax-mcp
+    vision: true
+    multimodal_input: true
+    evidence_required: true
+    camera_required: true
     voice: en-AU-CarlyNeural
     role: Short safety alerts and warnings
   mesh_repair_agent:
+    provider: minimax
+    model: minimax-mcp
+    vision: true
+    multimodal_input: true
+    evidence_required: true
     voice: en-US-AriaNeural
     role: Model validation, repair, and slicing updates
+  mesh_qa_agent:
+    provider: minimax
+    model: minimax-mcp
+    vision: true
+    multimodal_input: true
+    evidence_required: true
+    voice: en-AU-CarlyNeural
+    role: Mesh preview analysis, manifold evidence, repair proof, and visual QA
+  slicer_qa_agent:
+    provider: minimax
+    model: minimax-mcp
+    vision: true
+    multimodal_input: true
+    evidence_required: true
+    voice: en-US-JennyNeural
+    role: Slicer preview analysis, support risk, overhang review, and G-code evidence
+  print_monitor_agent:
+    provider: minimax
+    model: minimax-mcp
+    vision: true
+    multimodal_input: true
+    evidence_required: true
+    camera_required: true
+    voice: en-GB-RyanNeural
+    role: Printer and camera observation, first-layer checks, and live print summaries
   research_agent:
+    provider: deepseek
+    model: deepseek-v4-pro
+    fallback_model: deepseek-v4-flash
+    vision: true
+    vision_provider: minimax_mcp
+    multimodal_input: true
+    evidence_required: true
     voice: en-US-GuyNeural
     role: Idle learning reports and upgrade research
+  privacy_agent:
+    provider: deepseek
+    model: deepseek-v4-pro
+    fallback_model: deepseek-v4-flash
+    vision: true
+    vision_provider: minimax_mcp
+    multimodal_input: true
+    evidence_required: true
+    voice: en-US-AvaNeural
+    role: Anonymous mode, redaction, camera privacy, provider routing, and secrets policy
 
 learning_mode:
   enabled: true

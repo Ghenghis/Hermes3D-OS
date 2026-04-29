@@ -135,6 +135,16 @@ Maintenance lock: do not test or move. Movement may damage the hotend.
   - printability truth gate
   - markdown report and SVG pipeline diagram artifacts
   - ComfyUI workflow placeholders under `workflows/comfyui/`
+- Idle Learning Mode and Agents page:
+  - queued research topics
+  - active safe agent roster
+  - all Hermes agents marked vision-enabled
+  - MiniMax-MCP vision contract for images, screenshots, mesh previews, slicer previews, and camera evidence
+  - DeepSeek V4 allowed for planning/CAD/research/reporting while MiniMax-MCP remains the required vision layer
+  - agentic work queue
+  - safe research tick endpoint
+  - blocker tracking
+  - markdown reports in `storage/learning/`
 
 ## Current Autopilot Readiness
 
@@ -150,6 +160,8 @@ Known missing items:
 - Real reviewed slicer profiles.
 - PrusaSlicer/OrcaSlicer/OpenSCAD/Blender/CadQuery installed or on PATH.
 - Real local modeling model name in `configs/services.local.yaml`.
+- MiniMax-MCP vision provider URL or command.
+- Optional DeepSeek V4 API key for planning/CAD/research/reporting.
 - Azure Speech key and region in `.env`.
 - Real exported ComfyUI API workflows for TRELLIS.2, Hunyuan3D-2.1, and TripoSR.
 - Local ComfyUI 3D node installs and model paths.
@@ -223,7 +235,16 @@ Known missing items:
 15. Add Spoolman/material connector stub and material compatibility gate.
 16. Draft `Hermes3D Plugin Manifest v0` with permissions/trust data.
 17. Add safer operator notes/reject/retry workflow states.
-18. Add 3MF print-contract import/export design.
+18. Add visual evidence attachments for every agent:
+   - source images
+   - screenshots
+   - mesh preview renders
+   - slicer preview renders
+   - printer/camera snapshots
+   - multimodal markdown summaries
+19. Add MiniMax-MCP provider adapter and health check.
+20. Add optional DeepSeek V4 reasoning provider adapter for planning/CAD/research/reporting.
+21. Add 3MF print-contract import/export design.
 
 ## Useful Files
 

@@ -235,6 +235,8 @@ AI 3D asset generation -> print-safe geometry -> slicer-approved G-code
 
 Hermes3D-OS now includes an idle research queue so background agents can keep collecting ideas while the factory is quiet. Learning Mode is research-only and writes markdown reports to `storage/learning/`; it cannot move printers, test S1, upload G-code, start prints, change firmware, or install dependencies without operator approval.
 
+The Agentic Work System adds a visible active-work layer on top of Learning Mode. It exposes `/api/agentic-work/status` and `/api/agentic-work/tick`, shows the active agent roster in the web UI, records safe research ticks, tracks blockers, and keeps implementation-next items visible without crossing hardware boundaries. All agents are now required to be vision-enabled with MiniMax-MCP as the primary vision layer. DeepSeek V4 is allowed for extra planning, CAD reasoning, code, research summaries, roadmaps, and reports, but it does not replace MiniMax-MCP vision unless the configured endpoint explicitly supports vision.
+
 Initial watch topics:
 
 - AI 3D Generation Watch: provider router, multi-view intake, local-first TRELLIS.2/Hunyuan3D/TripoSR/SPAR3D, commercial fallback, and PBR-to-print conversion.
@@ -269,18 +271,23 @@ Initial watch topics:
 14. Add plugin trust/permissions model to the Plugins page.
 15. Add 3MF print-contract import/export design.
 16. Add Learning Mode scheduler/timer so queued reports run automatically during idle windows.
-17. Add Agentic Modeling Loop v0: clarify spec, generate CAD/mesh variants, critique, repair, slicer dry-run, and propose revisions.
-18. Add Anonymous Mode: redact shareable reports, label local/cloud provider use, and enforce plugin capability gates.
-19. Add OS Command Center: command palette, background-agent status, notifications, task queue, and project memory.
-20. Add provider scorecards for generation engines: cost, privacy, license, latency, VRAM, quality, printability, and export formats.
-21. Add DesignSpec Extractor: units, dimensions, constraints, tolerances, material, target printer, success criteria, and unresolved questions.
-22. Add Variant Board: rendered preview, numeric diff, print time, material use, risk score, changed parameters, and approval state.
-23. Add Revision Plan artifacts for failed CAD/mesh/slicer candidates.
-24. Add DFM/DFA Rule Engine: modular checks for walls, holes, bridges, supports, assemblies, fasteners, access, and post-processing burden.
-25. Add Tolerance Twin: empirical clearance tables by printer/material/nozzle/profile plus calibration expiry.
-26. Add Coupon Generator: dimensional, flow, bridge, hole, snap-fit, pressure advance, input shaping, temperature, and volumetric speed coupons.
-27. Add Provenance Ledger v1: PROV entities/activities/agents plus trace IDs for jobs, artifacts, approvals, and printer actions.
-28. Add Background Agent Dock with pause, cancel, takeover, current plan, evidence, and next-action controls.
-29. Add Triage Inbox and Daily Operations Briefing.
-30. Add Automation Builder with trigger/condition/action/approval/retry/log blocks.
-31. Add Floor Voice Mode, kiosk view, and mobile incident/approval view.
+17. Enforce Vision Agent Contract v0 across every Hermes agent config and UI status card: `vision: true`, `multimodal_input: true`, `evidence_required: true`.
+18. Add visual evidence attachments for image inputs, screenshots, mesh previews, slicer previews, and printer/camera snapshots.
+19. Add Agentic Modeling Loop v0: clarify spec, generate CAD/mesh variants, critique, repair, slicer dry-run, and propose revisions.
+20. Add Anonymous Mode: redact shareable reports, label local/cloud provider use, and enforce plugin capability gates.
+21. Add OS Command Center: command palette, background-agent status, notifications, task queue, and project memory.
+22. Add provider scorecards for generation engines: cost, privacy, license, latency, VRAM, quality, printability, and export formats.
+23. Add DesignSpec Extractor: units, dimensions, constraints, tolerances, material, target printer, success criteria, and unresolved questions.
+24. Add Variant Board: rendered preview, numeric diff, print time, material use, risk score, changed parameters, and approval state.
+25. Add Revision Plan artifacts for failed CAD/mesh/slicer candidates.
+26. Add DFM/DFA Rule Engine: modular checks for walls, holes, bridges, supports, assemblies, fasteners, access, and post-processing burden.
+27. Add Tolerance Twin: empirical clearance tables by printer/material/nozzle/profile plus calibration expiry.
+28. Add Coupon Generator: dimensional, flow, bridge, hole, snap-fit, pressure advance, input shaping, temperature, and volumetric speed coupons.
+29. Add Provenance Ledger v1: PROV entities/activities/agents plus trace IDs for jobs, artifacts, approvals, and printer actions.
+30. Add Background Agent Dock with pause, cancel, takeover, current plan, evidence, and next-action controls.
+31. Add Triage Inbox and Daily Operations Briefing.
+32. Add Automation Builder with trigger/condition/action/approval/retry/log blocks.
+33. Add Floor Voice Mode, kiosk view, and mobile incident/approval view.
+34. Convert the Agentic Work queue into implementation tickets with status, owner, links, and evidence artifacts.
+35. Add timed idle ticks so safe research reports run during configured quiet windows.
+36. Add blocker resolution actions for MiniMax-MCP, DeepSeek V4, ComfyUI workflows, Blender path, Azure Speech credentials, and provider privacy settings.

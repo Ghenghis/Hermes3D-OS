@@ -533,6 +533,26 @@ def create_next_learning_report() -> dict[str, Any]:
     return {"enabled": True, "topic": topic, "report_path": str(report)}
 
 
+@app.get("/api/agentic-work/status")
+def agentic_work_status() -> dict[str, Any]:
+    return _agentic_work_status()
+
+
+@app.post("/api/agentic-work/tick")
+def agentic_work_tick() -> dict[str, Any]:
+    topic = _next_learning_topic()
+    report = _write_learning_report(topic["id"])
+    db.add_event(
+        None,
+        "AGENTIC_WORK_TICK",
+        "Agentic work loop created the next safe research artifact.",
+        {"path": str(report), "topic": topic["id"], "agent": topic["agent"]},
+    )
+    status = _agentic_work_status()
+    status["created_report"] = {"path": str(report), "topic": topic}
+    return status
+
+
 @app.get("/api/generation-stack/status")
 def generation_stack_status() -> dict[str, Any]:
     runtime = load_runtime_config(settings)
@@ -1866,6 +1886,318 @@ def _read_transcripts(limit: int) -> list[dict[str, Any]]:
             rows.append(item)
     rows.reverse()
     return rows
+
+
+def _agentic_work_status() -> dict[str, Any]:
+    learning_dir = settings.storage_dir / "learning"
+    reports = sorted(learning_dir.glob("*.md"), key=lambda path: path.stat().st_mtime, reverse=True)
+    latest_report = None
+    if reports:
+        latest_report = {
+            "path": str(reports[0]),
+            "name": reports[0].name,
+            "updated_at": datetime.fromtimestamp(reports[0].stat().st_mtime, UTC).isoformat(),
+        }
+    next_topic = _next_learning_topic()
+    return {
+        "enabled": True,
+        "mode": "active-safe-research-and-planning",
+        "summary": (
+            "All Hermes agents are vision-enabled. They can research, plan, inspect visual evidence, "
+            "write multimodal summaries, and propose tickets while hardware actions stay gated."
+        ),
+        "vision_contract": _agentic_vision_contract(),
+        "next_tick": {
+            "action": "create_next_learning_report",
+            "topic": next_topic,
+            "hardware_safe": True,
+        },
+        "agents": _agentic_agent_roster(next_topic),
+        "work_queue": _agentic_work_queue(next_topic),
+        "blockers": _agentic_work_blockers(),
+        "latest_report": latest_report,
+        "safety_policy": {
+            "allow_research": True,
+            "allow_markdown_reports": True,
+            "allow_diagrams": True,
+            "allow_printer_movement": False,
+            "allow_upload_or_start": False,
+            "allow_s1_testing": False,
+            "require_operator_approval_for_installs": True,
+            "require_operator_approval_for_real_moonraker_actions": True,
+            "redact_shareable_reports": True,
+        },
+    }
+
+
+def _agentic_vision_contract() -> dict[str, Any]:
+    return {
+        "required_for_all_agents": True,
+        "primary_provider": "minimax-mcp",
+        "additional_reasoning_provider": "deepseek-v4-pro",
+        "deepseek_may_replace_vision": False,
+        "required_flags": {
+            "vision": True,
+            "multimodal_input": True,
+            "evidence_required": True,
+        },
+        "required_inputs": [
+            "image input",
+            "screenshot analysis",
+            "mesh preview analysis",
+            "slicer preview analysis",
+            "printer/camera observation where applicable",
+        ],
+        "required_outputs": [
+            "multimodal evidence summaries",
+            "artifact references",
+            "operator-readable markdown reports",
+        ],
+    }
+
+
+def _agentic_agent_roster(next_topic: dict[str, Any]) -> list[dict[str, Any]]:
+    agent_specs = [
+        {
+            "id": "factory_operator",
+            "provider": "minimax",
+            "model": "minimax-mcp",
+            "voice": "en-GB-MaisieNeural",
+            "current_focus": "OS command center, scheduling, provenance, privacy, visual triage, and operator handoff.",
+        },
+        {
+            "id": "modeling_agent",
+            "provider": "deepseek",
+            "model": "deepseek-v4-pro",
+            "vision_provider": "minimax-mcp",
+            "voice": "en-US-AriaNeural",
+            "current_focus": "CAD/OpenSCAD/CadQuery reasoning, variants, design specs, and vision-backed modeling critiques.",
+        },
+        {
+            "id": "mesh_repair_agent",
+            "provider": "minimax",
+            "model": "minimax-mcp",
+            "voice": "en-US-AriaNeural",
+            "current_focus": "CAD/CAM, DFM, tolerance twin, printability truth gate, and mesh preview evidence.",
+        },
+        {
+            "id": "mesh_qa_agent",
+            "provider": "minimax",
+            "model": "minimax-mcp",
+            "voice": "en-AU-CarlyNeural",
+            "current_focus": "Mesh screenshots, manifold evidence, normals, holes, wall-thickness risks, and repair proof.",
+        },
+        {
+            "id": "slicer_qa_agent",
+            "provider": "minimax",
+            "model": "minimax-mcp",
+            "voice": "en-US-JennyNeural",
+            "current_focus": "Slicer preview screenshots, supports, overhangs, estimates, and G-code evidence.",
+        },
+        {
+            "id": "print_monitor_agent",
+            "provider": "minimax",
+            "model": "minimax-mcp",
+            "voice": "en-GB-RyanNeural",
+            "camera_required": True,
+            "current_focus": "Printer and USB camera observation, first-layer checks, anomaly notes, and spoken updates.",
+        },
+        {
+            "id": "print_safety_agent",
+            "provider": "minimax",
+            "model": "minimax-mcp",
+            "voice": "en-AU-CarlyNeural",
+            "camera_required": True,
+            "current_focus": "Observer AI, first-layer evidence, anomaly policies, and voice safety alerts.",
+        },
+        {
+            "id": "research_agent",
+            "provider": "deepseek",
+            "model": "deepseek-v4-pro",
+            "vision_provider": "minimax-mcp",
+            "voice": "en-US-GuyNeural",
+            "current_focus": "Research summaries, roadmap generation, diagrams, printer mods, and visual evidence reviews.",
+        },
+        {
+            "id": "privacy_agent",
+            "provider": "deepseek",
+            "model": "deepseek-v4-pro",
+            "vision_provider": "minimax-mcp",
+            "voice": "en-US-AvaNeural",
+            "current_focus": "Anonymous mode, redaction, plugin permissions, secrets, camera privacy, and provider routing labels.",
+        },
+    ]
+    topic_agent = str(next_topic.get("agent") or "")
+    agent_aliases = {
+        "mesh_repair_agent": {"mesh_repair_agent", "mesh_qa_agent"},
+        "factory_operator": {"factory_operator", "privacy_agent"},
+        "research_agent": {"research_agent", "modeling_agent"},
+    }
+    active_agents = agent_aliases.get(topic_agent, {topic_agent})
+    agents = []
+    for spec in agent_specs:
+        agent_id = spec["id"]
+        agents.append(
+            {
+                "id": agent_id,
+                "label": agent_id.replace("_", " ").title(),
+                "status": "active" if agent_id in active_agents else "watching",
+                "provider": spec["provider"],
+                "model": spec["model"],
+                "vision_provider": spec.get("vision_provider", "minimax-mcp"),
+                "voice": spec["voice"],
+                "vision": True,
+                "multimodal_input": True,
+                "evidence_required": True,
+                "camera_required": bool(spec.get("camera_required", False)),
+                "current_focus": spec["current_focus"],
+                "vision_capabilities": [
+                    "image input",
+                    "screenshot analysis",
+                    "mesh preview analysis",
+                    "slicer preview analysis",
+                    "printer/camera observation" if spec.get("camera_required") else "visual artifact review",
+                    "multimodal evidence summaries",
+                ],
+                "safe_actions": [
+                    "research",
+                    "analyze screenshots",
+                    "analyze mesh previews",
+                    "analyze slicer previews",
+                    "write markdown",
+                    "propose tickets",
+                    "update diagrams",
+                    "request approval",
+                ],
+                "blocked_actions": [
+                    "move printers",
+                    "test S1",
+                    "upload G-code",
+                    "start prints",
+                    "install dependencies without approval",
+                ],
+            }
+        )
+    return agents
+
+
+def _agentic_work_queue(next_topic: dict[str, Any]) -> list[dict[str, Any]]:
+    topic_items = [
+        {
+            "id": topic["id"],
+            "title": topic["title"],
+            "owner": topic["agent"],
+            "priority": topic["priority"],
+            "status": "next" if topic["id"] == next_topic.get("id") else "queued",
+            "type": "research",
+            "next_action": topic["next_actions"][0] if topic.get("next_actions") else "collect sources",
+        }
+        for topic in IDLE_RESEARCH_TOPICS
+    ]
+    implementation_items = [
+        {
+            "id": "designspec-v0",
+            "title": "DesignSpec v0",
+            "owner": "factory_operator",
+            "priority": "epic",
+            "status": "implementation-next",
+            "type": "build",
+            "next_action": "Add schema fields for dimensions, constraints, tolerances, material, target printer, and unresolved questions.",
+        },
+        {
+            "id": "agentic-modeling-loop-v0",
+            "title": "Agentic Modeling Loop v0",
+            "owner": "modeling_agent",
+            "priority": "epic",
+            "status": "implementation-next",
+            "type": "build",
+            "next_action": "Create clarify, generate, critique, repair, slicer-dry-run, and revision-plan states.",
+        },
+        {
+            "id": "vision-agent-contract-v0",
+            "title": "Vision Agent Contract v0",
+            "owner": "factory_operator",
+            "priority": "epic",
+            "status": "active",
+            "type": "build",
+            "next_action": "Enforce image, screenshot, mesh preview, slicer preview, camera observation, and multimodal evidence requirements for every Hermes agent.",
+        },
+        {
+            "id": "anonymous-mode-v0",
+            "title": "Anonymous Mode v0",
+            "owner": "privacy_agent",
+            "priority": "high",
+            "status": "queued",
+            "type": "build",
+            "next_action": "Add local/cloud provider labels, report redaction, and connector privacy controls.",
+        },
+        {
+            "id": "command-center-v0",
+            "title": "OS Command Center v0",
+            "owner": "factory_operator",
+            "priority": "high",
+            "status": "queued",
+            "type": "build",
+            "next_action": "Add command palette, background-agent dock, triage inbox, and daily operations briefing.",
+        },
+    ]
+    return implementation_items + topic_items
+
+
+def _agentic_work_blockers() -> list[dict[str, Any]]:
+    services = load_services_config(settings)
+    vision_config = services.get("vision", {}) if isinstance(services.get("vision"), dict) else {}
+    providers = services.get("providers", {}) if isinstance(services.get("providers"), dict) else {}
+    minimax_config = providers.get("minimax_mcp", {}) if isinstance(providers.get("minimax_mcp"), dict) else {}
+    return [
+        {
+            "id": "minimax_mcp_vision_provider",
+            "title": "MiniMax-MCP vision provider",
+            "detail": "Every Hermes agent requires MiniMax-MCP or an equivalent configured MiniMax vision endpoint for images, screenshots, mesh previews, slicer previews, and camera evidence.",
+            "severity": "high",
+            "blocked": not bool(
+                os.getenv("MINIMAX_MCP_URL")
+                or os.getenv("MINIMAX_MCP_COMMAND")
+                or vision_config.get("minimax_mcp_url")
+                or minimax_config.get("base_url")
+                or minimax_config.get("command")
+            ),
+        },
+        {
+            "id": "deepseek_v4_optional_reasoning",
+            "title": "DeepSeek V4 optional reasoning provider",
+            "detail": "DeepSeek V4 may support planning, code generation, CAD reasoning, research summaries, roadmaps, and reports; vision still routes through MiniMax-MCP unless the endpoint is explicitly multimodal.",
+            "severity": "low",
+            "blocked": not bool(os.getenv("DEEPSEEK_API_KEY")),
+        },
+        {
+            "id": "comfyui_workflows_placeholder",
+            "title": "ComfyUI workflow exports required",
+            "detail": "TRELLIS.2, Hunyuan3D-2.1, and TripoSR workflow JSON files still need exported ComfyUI API workflows.",
+            "severity": "medium",
+        },
+        {
+            "id": "blender_missing",
+            "title": "Blender path missing",
+            "detail": "Blender is required for the repair/export worker and full printability validation.",
+            "severity": "medium",
+            "blocked": _tool_path("blender", ["blender"]) is None,
+        },
+        {
+            "id": "azure_speech_credentials",
+            "title": "Azure Speech credentials",
+            "detail": "Voice preview and spoken alerts need AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in local env.",
+            "severity": "low",
+            "blocked": not azure_is_configured(speech_config_from_services(load_services_config(settings))),
+        },
+        {
+            "id": "s1_maintenance_lock",
+            "title": "FLSUN S1 maintenance lock",
+            "detail": "S1 remains excluded from tests and motion until the user clears maintenance.",
+            "severity": "safety",
+            "blocked": True,
+        },
+    ]
 
 
 def _learning_mode_status() -> dict[str, Any]:
