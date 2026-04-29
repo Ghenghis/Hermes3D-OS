@@ -87,8 +87,15 @@ learning_mode:
     allow_printer_movement: false
     allow_s1_testing: false
     allow_upload_or_start: false
+    redact_shareable_reports: true
+    local_only_by_default: true
   queued_topics:
     - ai-3d-generation-watch
+    - agentic-modeling-automation-watch
+    - autonomous-cad-cam-watch
+    - private-anonymous-os-watch
+    - agentic-os-command-center-watch
+    - generation-ux-provider-watch
     - printability-truth-gate-watch
     - observer-ai-watch
     - fleet-os-watch

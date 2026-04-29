@@ -17,6 +17,11 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 | Topic | Agent | Purpose |
 | --- | --- | --- |
 | AI 3D Generation Watch | `research_agent` | Track TRELLIS.2, Hunyuan3D, TripoSR, SPAR3D, InstantMesh, commercial APIs, and ComfyUI workflow updates. |
+| Agentic Modeling Automation Watch | `research_agent` | Track autonomous design loops, clarification agents, variant generation, critique/repair loops, and revision UX. |
+| Autonomous CAD/CAM Watch | `mesh_repair_agent` | Track editable CAD generation, DFM checks, slicer compiler evidence, calibration coupons, and outcome learning. |
+| Private Anonymous Local OS Watch | `factory_operator` | Track local-only operation, redaction, provider privacy labels, signed plugins, permission gates, and secrets handling. |
+| Agentic OS Command Center Watch | `factory_operator` | Track command palettes, background-agent status, notifications, project memory, automations, and evidence timelines. |
+| Generation UX Provider Watch | `research_agent` | Track Meshy, Tripo, Rodin, Scenario, Kaedim-style QA, provider routing, multi-view intake, variants, and export polish. |
 | Printability Truth Gate Watch | `mesh_repair_agent` | Improve repair, validation, slicer dry-run, wall thickness, overhang, orientation, and 3MF evidence. |
 | Observer AI And Camera Evidence Watch | `print_safety_agent` | Track camera registry, first-layer checks, anomaly detection, multi-camera roles, and voice safety alerts. |
 | Fleet OS And Scheduling Watch | `factory_operator` | Track Moonraker queueing, scheduler logic, printer eligibility, maintenance blocks, spool/material matching, and printer twins. |
@@ -27,7 +32,13 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 - Provider-agnostic generation router with local-first engines and optional commercial fallback.
 - Multi-view intake studio for front/side/back/top photos, pose guidance, cleanup, and consistency scoring.
 - Two-speed generation: fast preview first, high-quality refinement after approval.
+- Agentic modeling loop with spec clarifier, CAD author, mesh critic, slicer compiler, print safety reviewer, and revision planner agents.
+- DesignSpec extractor that records units, dimensions, constraints, tolerances, material, target printer, success criteria, and unresolved questions.
+- Variant board with visual/numeric diff: bounding box, volume, support burden, ETA, material use, changed parameters, and print readiness.
+- Revision plan artifacts for failed candidates: issue, cause, proposed edit, expected metric improvement, and approval state.
 - CAD-first mode for functional brackets, mounts, jigs, adapters, fixtures, and enclosures.
+- Anonymous/local-only mode with report redaction, provider privacy labels, signed plugin permissions, and secrets-safe research notes.
+- OS command center with command palette, notifications, background-agent status, task queue, project memory, and evidence timeline.
 - Hermes PrintBench for visual quality, slicer pass rate, wall validity, support burden, material use, and actual print outcomes.
 - 3MF print contract with model, units, materials, profile hash, approvals, thumbnails, and evidence references.
 - Scheduler above Moonraker queues with printer eligibility, material/nozzle/profile match, ETA, priority, due date, and risk.
@@ -51,6 +62,15 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 - CAD-Coder: <https://arxiv.org/abs/2505.19713>
 - Text-to-CadQuery: <https://arxiv.org/abs/2505.06507>
 - lib3mf: <https://lib3mf.readthedocs.io/>
+- Agent Governance Toolkit: <https://opensource.microsoft.com/blog/2026/04/02/introducing-the-agent-governance-toolkit-open-source-runtime-security-for-ai-agents/>
+- ProCAD: <https://arxiv.org/abs/2602.03045>
+- CADSmith: <https://arxiv.org/abs/2603.26512>
+- ToolCAD: <https://arxiv.org/abs/2604.07960>
+- CADCodeVerify: <https://arxiv.org/abs/2410.05340>
+- Text-to-CadQuery: <https://github.com/Text-to-CadQuery>
+- Zoo Zookeeper: <https://docs.zoo.dev/docs/zoo-design-studio/zookeeper>
+- Zoo KCL: <https://docs.zoo.dev/research/introducing-kcl>
+- Scenario 3D model comparison: <https://help.scenario.com/en/articles/comparing-generative-3d-models/>
 
 ## Safety Boundary
 
@@ -60,6 +80,8 @@ Idle Learning Mode is allowed to:
 - update proposed roadmap tickets
 - summarize public sources
 - recommend experiments for operator review
+- create redacted/share-safe report versions
+- label local/cloud/commercial provider use before any job runs
 
 Idle Learning Mode is blocked from:
 
@@ -68,3 +90,4 @@ Idle Learning Mode is blocked from:
 - changing printer firmware or macros
 - installing dependencies without explicit operator action
 - marking generated meshes printable without validation and slicer dry-run evidence
+- leaking printer secrets, API keys, camera URLs, private IP details, or local model endpoints into shareable reports
