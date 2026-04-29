@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hermes3D UX Lab - Source Backed Sections</title>
+    <link rel="stylesheet" href="source-backed-sections-v1.css" />
+  </head>
+  <body>
+    <div class="os">
+      <header class="bar">
+        <div class="brand">Hermes3D OS</div>
+        <nav id="groupTabs" class="group-tabs"></nav>
+        <div class="guard">S1 locked / source bench</div>
+      </header>
+
+      <main class="grid">
+        <aside class="module-list">
+          <div class="panel-head">
+            <strong id="groupTitle">Slicers</strong>
+            <span id="groupCount"></span>
+          </div>
+          <div id="moduleList" class="module-buttons"></div>
+        </aside>
+
+        <section class="workbench">
+          <div class="panel-head">
+            <div>
+              <strong id="moduleName">PrusaSlicer</strong>
+              <span id="moduleRole">primary slicer</span>
+            </div>
+            <div class="actions">
+              <button id="openSource">Source</button>
+              <button id="bridgeButton">Bridge</button>
+              <button id="dryRun">Dry-run</button>
+            </div>
+          </div>
+
+          <div class="bench-grid">
+            <div class="viewport">
+              <div class="plate">
+                <div class="part">
+                  <span id="partLabel">3MF/STL</span>
+                </div>
+                <div class="tool-flags" id="toolFlags"></div>
+              </div>
+              <div class="timeline" id="pipeline"></div>
+            </div>
+
+            <aside class="facts">
+              <table>
+                <tbody>
+                  <tr><th>Repo</th><td id="repoCell"></td></tr>
+                  <tr><th>Local</th><td id="localCell"></td></tr>
+                  <tr><th>License</th><td id="licenseCell"></td></tr>
+                  <tr><th>Priority</th><td id="priorityCell"></td></tr>
+                  <tr><th>Section</th><td id="sectionCell"></td></tr>
+                  <tr><th>Status</th><td id="statusCell"></td></tr>
+                </tbody>
+              </table>
+              <div class="mini-printers">
+                <button class="hot">T1-A<br /><span>192.168.0.10</span></button>
+                <button>T1-B<br /><span>192.168.0.11</span></button>
+                <button>V400<br /><span>192.168.0.34</span></button>
+                <button class="locked">S1<br /><span>locked</span></button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <aside class="right">
+          <section class="panel compact">
+            <div class="panel-head">
+              <strong>Bridge Tasks</strong>
+              <span id="taskCount"></span>
+            </div>
+            <ol id="bridgeTasks"></ol>
+          </section>
+
+          <section class="panel compact">
+            <div class="panel-head">
+              <strong>Open Source Mix</strong>
+              <span>selectable</span>
+            </div>
+            <div class="mix">
+              <button data-jump="slicers">Slicers</button>
+              <button data-jump="modelers">Modelers</button>
+              <button data-jump="print_farm">Print Farm</button>
+              <button data-jump="firmware">Firmware</button>
+              <button data-jump="generation">3D Gen</button>
+              <button data-jump="orchestration">Agents</button>
+              <button data-jump="libraries">Library</button>
+              <button data-jump="materials">Materials</button>
+              <button data-jump="hardware">Hardware</button>
+              <button data-jump="utilities">Utilities</button>
+              <button data-jump="research">Research</button>
+            </div>
+          </section>
+
+          <section class="panel compact">
+            <div class="panel-head">
+              <strong>Next Patch</strong>
+              <span>section by section</span>
+            </div>
+            <div class="patch-list">
+              <div><b>1</b><span>Prusa/Orca/FLSUN slicer bench</span></div>
+              <div><b>2</b><span>Moonraker/FDM farm panel</span></div>
+              <div><b>3</b><span>Blender/CadQuery model dock</span></div>
+              <div><b>4</b><span>Klipper/LangGraph agent gates</span></div>
+            </div>
+          </section>
+        </aside>
+
+        <footer class="status">
+          <span id="downloadState">source-lab/sources is gitignored</span>
+          <span>ports editable later in Settings</span>
+          <span>camera slots: USB + Moonraker</span>
+          <span>S1 movement disabled</span>
+        </footer>
+      </main>
+    </div>
+    <script src="source-backed-sections-v1.js"></script>
+  </body>
+</html>

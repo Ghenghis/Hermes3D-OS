@@ -1,0 +1,580 @@
+{
+  "schema": 1,
+  "purpose": "Hermes3D-OS local source bench. Repos are cloned into source-lab/sources and kept out of git.",
+  "sourceRoot": "source-lab/sources",
+  "groups": {
+    "slicers": [
+      {
+        "id": "prusaslicer",
+        "name": "PrusaSlicer",
+        "repo": "https://github.com/prusa3d/PrusaSlicer.git",
+        "target": "slicers/PrusaSlicer",
+        "license": "AGPL-3.0",
+        "priority": "primary",
+        "uxSection": "Slicer Bench / Prusa",
+        "bridge": ["CLI slicing", "3MF import/export", "printer profiles", "G-code preview concepts", "network upload patterns"]
+      },
+      {
+        "id": "orcaslicer",
+        "name": "OrcaSlicer",
+        "repo": "https://github.com/OrcaSlicer/OrcaSlicer.git",
+        "target": "slicers/OrcaSlicer",
+        "license": "AGPL-3.0",
+        "priority": "primary",
+        "uxSection": "Slicer Bench / Orca",
+        "bridge": ["BambuStudio/PrusaSlicer lineage", "device workflow patterns", "profiles", "calibration UX", "3MF packaging"]
+      },
+      {
+        "id": "cura",
+        "name": "UltiMaker Cura",
+        "repo": "https://github.com/Ultimaker/Cura.git",
+        "target": "slicers/Cura",
+        "license": "LGPL-3.0",
+        "priority": "secondary",
+        "uxSection": "Slicer Bench / Cura",
+        "bridge": ["plugin system", "machine definitions", "marketplace-style extensions", "network print integrations"]
+      },
+      {
+        "id": "curaengine",
+        "name": "CuraEngine",
+        "repo": "https://github.com/Ultimaker/CuraEngine.git",
+        "target": "slicers/CuraEngine",
+        "license": "AGPL-3.0",
+        "priority": "secondary",
+        "uxSection": "Slicer Worker / CuraEngine",
+        "bridge": ["headless slicing engine", "profile-driven CLI", "G-code output", "engine-only dry-run"]
+      },
+      {
+        "id": "superslicer",
+        "name": "SuperSlicer",
+        "repo": "https://github.com/supermerill/SuperSlicer.git",
+        "target": "slicers/SuperSlicer",
+        "license": "AGPL-3.0",
+        "priority": "reference",
+        "uxSection": "Slicer Bench / Compare",
+        "bridge": ["Slic3r/Prusa lineage", "advanced calibration patterns", "alternate profile behaviors"]
+      },
+      {
+        "id": "slic3r",
+        "name": "Slic3r",
+        "repo": "https://github.com/slic3r/Slic3r.git",
+        "target": "slicers/Slic3r",
+        "license": "AGPL-3.0",
+        "priority": "reference",
+        "uxSection": "Slicer Bench / Heritage",
+        "bridge": ["original slicer architecture", "CLI and config ideas", "simple pipeline reference"]
+      },
+      {
+        "id": "bambustudio",
+        "name": "BambuStudio",
+        "repo": "https://github.com/bambulab/BambuStudio.git",
+        "target": "slicers/BambuStudio",
+        "license": "AGPL-3.0",
+        "priority": "reference",
+        "uxSection": "Slicer Bench / Lineage Reference",
+        "bridge": ["OrcaSlicer lineage reference", "device workflow patterns", "profile/package concepts", "calibration UX reference"]
+      },
+      {
+        "id": "mattercontrol",
+        "name": "MatterControl",
+        "repo": "https://github.com/MatterHackers/MatterControl.git",
+        "target": "slicers/MatterControl",
+        "license": "AGPL-3.0",
+        "priority": "reference",
+        "uxSection": "Slicer Bench / All-in-One Reference",
+        "bridge": ["model placement ideas", "library/slicer host flow", "printer connection concepts", "desktop tool organization"]
+      },
+      {
+        "id": "kiri-moto",
+        "name": "Kiri:Moto / GridSpace",
+        "repo": "https://github.com/GridSpace/grid-apps.git",
+        "target": "slicers/Kiri-Moto",
+        "license": "MPL-2.0",
+        "priority": "reference",
+        "uxSection": "Slicer Bench / Browser Slicer Reference",
+        "bridge": ["browser-based slicing ideas", "CNC/laser mode reference", "web preview patterns", "G-code generation reference"]
+      },
+      {
+        "id": "strecs3d",
+        "name": "Strecs3D",
+        "repo": "https://github.com/tomohiron907/Strecs3D.git",
+        "target": "slicers/Strecs3D",
+        "license": "unknown",
+        "priority": "research",
+        "uxSection": "Slicer Bench / Structural Infill Research",
+        "bridge": ["structural analysis ideas", "optimized infill research", "print-strength scoring"]
+      },
+      {
+        "id": "flsun-slicer",
+        "name": "FLSUN Slicer",
+        "repo": "https://github.com/Flsun3d/FlsunSlicer.git",
+        "target": "slicers/FLSUN-Slicer",
+        "license": "AGPL-3.0",
+        "priority": "profile-first",
+        "uxSection": "Slicer Bench / FLSUN",
+        "bridge": ["FLSUN printer profiles", "remote control/monitoring ideas", "printer definitions", "filament presets", "start/end G-code"],
+        "note": "Public source exists. Still validate against the user's installed FLSUN slicer because local vendor profiles may be newer for T1/V400."
+      }
+    ],
+    "modelers": [
+      {
+        "id": "blender",
+        "name": "Blender",
+        "repo": "https://github.com/blender/blender.git",
+        "target": "modelers/Blender",
+        "license": "GPL-3.0-or-later",
+        "priority": "primary",
+        "uxSection": "Modeling / Blender",
+        "bridge": ["background CLI", "Python repair/export scripts", "mesh analysis", "camera/render previews", "modifier stack concepts"]
+      },
+      {
+        "id": "freecad",
+        "name": "FreeCAD",
+        "repo": "https://github.com/FreeCAD/FreeCAD.git",
+        "target": "modelers/FreeCAD",
+        "license": "LGPL-2.0-or-later",
+        "priority": "secondary",
+        "uxSection": "Modeling / FreeCAD",
+        "bridge": ["parametric CAD", "STEP import/export", "Python API", "constraint/workbench patterns"]
+      },
+      {
+        "id": "cadquery",
+        "name": "CadQuery",
+        "repo": "https://github.com/CadQuery/cadquery.git",
+        "target": "modelers/CadQuery",
+        "license": "Apache-2.0",
+        "priority": "primary",
+        "uxSection": "Modeling / CadQuery",
+        "bridge": ["Python parametric CAD", "AI-generated dimensions", "STEP/STL export", "scriptable previews"]
+      },
+      {
+        "id": "openscad",
+        "name": "OpenSCAD",
+        "repo": "https://github.com/openscad/openscad.git",
+        "target": "modelers/OpenSCAD",
+        "license": "GPL-2.0-or-later",
+        "priority": "primary",
+        "uxSection": "Modeling / OpenSCAD",
+        "bridge": ["declarative parametric modeling", "CLI render/export", "AI-safe editable scripts"]
+      },
+      {
+        "id": "build123d",
+        "name": "build123d",
+        "repo": "https://github.com/gumyr/build123d.git",
+        "target": "modelers/build123d",
+        "license": "Apache-2.0",
+        "priority": "secondary",
+        "uxSection": "Modeling / build123d",
+        "bridge": ["modern Python CAD", "constraint-like scripting", "AI friendly part generation"]
+      },
+      {
+        "id": "trimesh",
+        "name": "Trimesh",
+        "repo": "https://github.com/mikedh/trimesh.git",
+        "target": "modelers/Trimesh",
+        "license": "MIT",
+        "priority": "primary",
+        "uxSection": "Truth Gate / Mesh QA",
+        "bridge": ["mesh stats", "repair helpers", "bounds and volume checks", "format conversion"]
+      },
+      {
+        "id": "manifold",
+        "name": "Manifold",
+        "repo": "https://github.com/elalish/manifold.git",
+        "target": "modelers/Manifold",
+        "license": "Apache-2.0",
+        "priority": "primary",
+        "uxSection": "Truth Gate / Manifold Repair",
+        "bridge": ["watertight mesh operations", "boolean repair", "printability gate geometry"]
+      },
+      {
+        "id": "meshlab",
+        "name": "MeshLab",
+        "repo": "https://github.com/cnr-isti-vclab/meshlab.git",
+        "target": "modelers/MeshLab",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Truth Gate / Mesh Repair",
+        "bridge": ["mesh filters", "inspection workflows", "repair operation reference"]
+      },
+      {
+        "id": "solvespace",
+        "name": "SolveSpace",
+        "repo": "https://github.com/solvespace/solvespace.git",
+        "target": "modelers/SolveSpace",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Modeling / Constraint CAD Reference",
+        "bridge": ["constraint solver UX", "small CAD workflow", "DXF/STL export concepts", "sketch constraint patterns"]
+      },
+      {
+        "id": "truck",
+        "name": "Truck",
+        "repo": "https://github.com/ricosjp/truck.git",
+        "target": "modelers/Truck",
+        "license": "Apache-2.0",
+        "priority": "research",
+        "uxSection": "Modeling / Rust CAD Kernel Research",
+        "bridge": ["Rust CAD kernel research", "geometry kernel ideas", "future native worker option"]
+      }
+    ],
+    "print_farm": [
+      {
+        "id": "klipper",
+        "name": "Klipper",
+        "repo": "https://github.com/Klipper3d/klipper.git",
+        "target": "print-farm/Klipper",
+        "license": "GPL-3.0",
+        "priority": "core-runtime",
+        "uxSection": "Printer Farm / Firmware Runtime",
+        "bridge": ["printer object model", "G-code macro patterns", "config file structure", "status/control concepts", "firmware-side safety boundaries"]
+      },
+      {
+        "id": "moonraker",
+        "name": "Moonraker",
+        "repo": "https://github.com/Arksine/moonraker.git",
+        "target": "print-farm/Moonraker",
+        "license": "GPL-3.0",
+        "priority": "primary",
+        "uxSection": "Printer Farm / Moonraker",
+        "bridge": ["Klipper HTTP/WebSocket API", "file upload", "printer status", "camera/service integration"]
+      },
+      {
+        "id": "fdm-monster",
+        "name": "FDM Monster",
+        "repo": "https://github.com/fdm-monster/fdm-monster.git",
+        "target": "print-farm/FDM-Monster",
+        "license": "AGPL-3.0",
+        "priority": "primary",
+        "uxSection": "Printer Farm / Fleet",
+        "bridge": ["fleet dashboard patterns", "multi-printer queue", "operator status", "sidecar dashboard"]
+      },
+      {
+        "id": "botqueue",
+        "name": "BotQueue",
+        "repo": "https://github.com/Hoektronics/BotQueue.git",
+        "target": "print-farm/BotQueue",
+        "license": "unknown",
+        "priority": "reference",
+        "uxSection": "Printer Farm / Queue Reference",
+        "bridge": ["older web queue concepts", "multi-printer dispatch ideas", "job scheduling reference"]
+      },
+      {
+        "id": "fluidd",
+        "name": "Fluidd",
+        "repo": "https://github.com/fluidd-core/fluidd.git",
+        "target": "print-farm/Fluidd",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Printer Farm / Device UI",
+        "bridge": ["Moonraker UI patterns", "console/files/macros", "compact telemetry"]
+      },
+      {
+        "id": "mainsail",
+        "name": "Mainsail",
+        "repo": "https://github.com/mainsail-crew/mainsail.git",
+        "target": "print-farm/Mainsail",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Printer Farm / Device UI",
+        "bridge": ["Klipper dashboard patterns", "macro UX", "status cards", "responsive layout"]
+      },
+      {
+        "id": "octoprint",
+        "name": "OctoPrint",
+        "repo": "https://github.com/OctoPrint/OctoPrint.git",
+        "target": "print-farm/OctoPrint",
+        "license": "AGPL-3.0",
+        "priority": "secondary",
+        "uxSection": "Printer Farm / Plugin Bridge",
+        "bridge": ["plugin ecosystem", "camera/control patterns", "file/job API", "legacy printer support"]
+      },
+      {
+        "id": "printrun",
+        "name": "Printrun / Pronterface",
+        "repo": "https://github.com/kliment/Printrun.git",
+        "target": "print-farm/Printrun",
+        "license": "GPL-3.0",
+        "priority": "secondary",
+        "uxSection": "Printer Farm / Serial Host",
+        "bridge": ["Pronterface controls", "printcore Python API", "USB/serial printer host", "manual jogging reference", "legacy direct G-code streaming"]
+      },
+      {
+        "id": "octofarm",
+        "name": "OctoFarm",
+        "repo": "https://github.com/OctoFarm/OctoFarm.git",
+        "target": "print-farm/OctoFarm",
+        "license": "AGPL-3.0",
+        "priority": "reference",
+        "uxSection": "Printer Farm / Fleet Reference",
+        "bridge": ["farm dashboard patterns", "queue concepts", "printer cards"]
+      },
+      {
+        "id": "klipperscreen",
+        "name": "KlipperScreen",
+        "repo": "https://github.com/KlipperScreen/KlipperScreen.git",
+        "target": "print-farm/KlipperScreen",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Printer Farm / Touch Panel",
+        "bridge": ["touch-friendly printer actions", "local controls", "state-driven controls"]
+      }
+    ],
+    "firmware": [
+      {
+        "id": "klipper",
+        "name": "Klipper",
+        "repo": "https://github.com/Klipper3d/klipper.git",
+        "target": "print-farm/Klipper",
+        "license": "GPL-3.0",
+        "priority": "core-runtime",
+        "uxSection": "Firmware / Klipper",
+        "bridge": ["printer object model", "G-code macro patterns", "config file structure", "status/control concepts", "firmware-side safety boundaries"]
+      },
+      {
+        "id": "marlin",
+        "name": "Marlin",
+        "repo": "https://github.com/MarlinFirmware/Marlin.git",
+        "target": "firmware/Marlin",
+        "license": "GPL-3.0",
+        "priority": "secondary",
+        "uxSection": "Firmware / Marlin Printers",
+        "bridge": ["Creality/Tronxy compatibility reference", "G-code behavior", "configuration options", "safety command boundaries"]
+      },
+      {
+        "id": "prusa-firmware",
+        "name": "Prusa Firmware",
+        "repo": "https://github.com/prusa3d/Prusa-Firmware.git",
+        "target": "firmware/Prusa-Firmware",
+        "license": "GPL-3.0",
+        "priority": "secondary",
+        "uxSection": "Firmware / Prusa MK3S",
+        "bridge": ["Prusa MK3S behavior reference", "Prusa G-code conventions", "safety/status concepts"]
+      },
+      {
+        "id": "reprapfirmware",
+        "name": "RepRapFirmware",
+        "repo": "https://github.com/Duet3D/RepRapFirmware.git",
+        "target": "firmware/RepRapFirmware",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Firmware / Network Firmware Reference",
+        "bridge": ["network firmware model", "macro system reference", "object model ideas"]
+      },
+      {
+        "id": "smoothieware",
+        "name": "Smoothieware",
+        "repo": "https://github.com/Smoothieware/Smoothieware.git",
+        "target": "firmware/Smoothieware",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Firmware / Motion Reference",
+        "bridge": ["motion-control reference", "config conventions", "legacy compatibility ideas"]
+      },
+      {
+        "id": "repetier-firmware",
+        "name": "Repetier Firmware",
+        "repo": "https://github.com/repetier/Repetier-Firmware.git",
+        "target": "firmware/Repetier-Firmware",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "Firmware / Legacy Reference",
+        "bridge": ["legacy firmware behavior", "network/control reference", "compatibility map"]
+      }
+    ],
+    "generation": [
+      {
+        "id": "comfyui",
+        "name": "ComfyUI",
+        "repo": "https://github.com/comfyanonymous/ComfyUI.git",
+        "target": "generation/ComfyUI",
+        "license": "GPL-3.0",
+        "priority": "primary",
+        "uxSection": "3D Generation / Workflow Runner",
+        "bridge": ["node workflow runner", "API queue", "image-to-3D backend", "workflow JSON"]
+      },
+      {
+        "id": "comfyui-frontend",
+        "name": "ComfyUI Frontend",
+        "repo": "https://github.com/Comfy-Org/ComfyUI_frontend.git",
+        "target": "generation/ComfyUI-Frontend",
+        "license": "GPL-3.0",
+        "priority": "reference",
+        "uxSection": "3D Generation / Node UI Reference",
+        "bridge": ["node canvas patterns", "workflow library", "compact graph UX"]
+      },
+      {
+        "id": "trellis2",
+        "name": "Microsoft TRELLIS.2",
+        "repo": "https://github.com/microsoft/TRELLIS.2.git",
+        "target": "generation/TRELLIS.2",
+        "license": "MIT",
+        "priority": "primary",
+        "uxSection": "3D Generation / TRELLIS.2",
+        "bridge": ["primary image-to-3D engine", "multiview stages", "mesh export path", "PBR asset generation"]
+      },
+      {
+        "id": "comfyui-trellis2",
+        "name": "ComfyUI TRELLIS.2 Wrapper",
+        "repo": "https://github.com/visualbruno/ComfyUI-Trellis2.git",
+        "target": "generation/ComfyUI-Trellis2",
+        "license": "unknown",
+        "priority": "primary",
+        "uxSection": "3D Generation / TRELLIS.2 Node Bridge",
+        "bridge": ["ComfyUI node integration", "Windows-oriented TRELLIS.2 route", "workflow packaging"]
+      },
+      {
+        "id": "hunyuan3d21",
+        "name": "Hunyuan3D-2.1",
+        "repo": "https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1.git",
+        "target": "generation/Hunyuan3D-2.1",
+        "license": "Tencent Hunyuan community license",
+        "priority": "secondary",
+        "uxSection": "3D Generation / Fallback Compare",
+        "bridge": ["fallback image-to-3D", "PBR texture path", "comparison engine", "research extension"]
+      },
+      {
+        "id": "triposr",
+        "name": "TripoSR",
+        "repo": "https://github.com/VAST-AI-Research/TripoSR.git",
+        "target": "generation/TripoSR",
+        "license": "MIT",
+        "priority": "fast-preview",
+        "uxSection": "3D Generation / Fast Preview",
+        "bridge": ["fast preview mesh", "early reject/accept UX", "fallback path before expensive generation"]
+      }
+    ],
+    "orchestration": [
+      {
+        "id": "langgraph",
+        "name": "LangGraph",
+        "repo": "https://github.com/langchain-ai/langgraph.git",
+        "target": "orchestration/LangGraph",
+        "license": "MIT",
+        "priority": "primary",
+        "uxSection": "Agents / Workflow Gates",
+        "bridge": ["workflow state machine", "human approval gates", "agent routing", "recoverable jobs"]
+      },
+      {
+        "id": "langchain",
+        "name": "LangChain",
+        "repo": "https://github.com/langchain-ai/langchain.git",
+        "target": "orchestration/LangChain",
+        "license": "MIT",
+        "priority": "reference",
+        "uxSection": "Agents / Tool Layer",
+        "bridge": ["tool calling patterns", "retrieval/connectors", "agent abstractions"]
+      },
+      {
+        "id": "azure-speech-sdk-js",
+        "name": "Azure Speech SDK JS",
+        "repo": "https://github.com/microsoft/cognitive-services-speech-sdk-js.git",
+        "target": "orchestration/Azure-Speech-SDK-JS",
+        "license": "MIT",
+        "priority": "primary",
+        "uxSection": "Agents / Voice",
+        "bridge": ["TTS/STT browser bridge", "voice preview", "wake/listen controls", "agent voice assignment"]
+      },
+      {
+        "id": "model-context-protocol",
+        "name": "Model Context Protocol",
+        "repo": "https://github.com/modelcontextprotocol/modelcontextprotocol.git",
+        "target": "orchestration/Model-Context-Protocol",
+        "license": "MIT",
+        "priority": "primary",
+        "uxSection": "Agents / Tool Protocol",
+        "bridge": ["tool server conventions", "vision/media MCP pattern", "Hermes service connectors"]
+      },
+      {
+        "id": "kiln",
+        "name": "Kiln",
+        "repo": "https://github.com/codeofaxel/Kiln.git",
+        "target": "orchestration/Kiln",
+        "license": "unknown",
+        "priority": "research",
+        "uxSection": "Agents / 3D Printer MCP Reference",
+        "bridge": ["AI printer-control MCP ideas", "tool safety patterns", "agent-to-printer command boundary"]
+      }
+    ],
+    "libraries": [
+      {
+        "id": "manyfold",
+        "name": "Manyfold",
+        "repo": "https://github.com/manyfold3d/manyfold.git",
+        "target": "libraries/Manyfold",
+        "license": "AGPL-3.0",
+        "priority": "primary",
+        "uxSection": "Files / Model Library",
+        "bridge": ["self-hosted model library", "tagging and collections", "file metadata", "local asset vault patterns"]
+      }
+    ],
+    "materials": [
+      {
+        "id": "open-filament-database",
+        "name": "Open Filament Database",
+        "repo": "https://github.com/OpenFilamentCollective/open-filament-database.git",
+        "target": "materials/Open-Filament-Database",
+        "license": "unknown",
+        "priority": "primary",
+        "uxSection": "Materials / Filament Profiles",
+        "bridge": ["filament profile data", "material settings reference", "temperature/speed suggestions", "profile comparison"]
+      }
+    ],
+    "hardware": [
+      {
+        "id": "boxturtle",
+        "name": "BoxTurtle",
+        "repo": "https://github.com/ArmoredTurtle/BoxTurtle.git",
+        "target": "hardware/BoxTurtle",
+        "license": "GPL-3.0",
+        "priority": "future",
+        "uxSection": "Hardware / Filament Changer",
+        "bridge": ["multi-material workflow ideas", "filament changer state", "future AMS-style control"]
+      },
+      {
+        "id": "enraged-rabbit",
+        "name": "EnragedRabbitProject",
+        "repo": "https://github.com/EtteGit/EnragedRabbitProject.git",
+        "target": "hardware/EnragedRabbitProject",
+        "license": "GPL-3.0",
+        "priority": "future",
+        "uxSection": "Hardware / Filament Changer",
+        "bridge": ["multi-material Klipper ecosystem", "filament path concepts", "future toolchanger UI"]
+      },
+      {
+        "id": "awesome-extruders",
+        "name": "Awesome Extruders",
+        "repo": "https://github.com/SartorialGrunt0/Awesome-Extruders.git",
+        "target": "hardware/Awesome-Extruders",
+        "license": "unknown",
+        "priority": "catalog",
+        "uxSection": "Hardware / Upgrade Research",
+        "bridge": ["extruder upgrade discovery", "learning-mode research source", "hardware mod catalog"]
+      }
+    ],
+    "utilities": [
+      {
+        "id": "box-stl-generator",
+        "name": "3D Box Generator",
+        "repo": "https://github.com/javisperez/box-stl-generator.git",
+        "target": "utilities/Box-STL-Generator",
+        "license": "unknown",
+        "priority": "reference",
+        "uxSection": "Modeling / Quick Generators",
+        "bridge": ["parametric utility generator pattern", "fast printable box workflow", "template-driven part generation"]
+      }
+    ],
+    "research": [
+      {
+        "id": "awesome-3d-printing",
+        "name": "Awesome 3D Printing",
+        "repo": "https://github.com/ad-si/awesome-3d-printing.git",
+        "target": "research/Awesome-3D-Printing",
+        "license": "CC0-1.0",
+        "priority": "catalog",
+        "uxSection": "Research / Cherry-pick Index",
+        "bridge": ["discover additional slicers", "discover printer host tools", "discover calibration utilities", "discover mesh repair tools", "feed idle learning mode"]
+      }
+    ]
+  }
+}

@@ -8,8 +8,12 @@ Goal: design the Hermes OS Print Factory interface first, then port only the use
 
 - [print-factory-os-v1.html](print-factory-os-v1.html)
 - [proof/print-factory-os-v1.png](proof/print-factory-os-v1.png)
+- [source-backed-sections-v1.html](source-backed-sections-v1.html)
+- [proof/source-backed-sections-v1.png](proof/source-backed-sections-v1.png)
 
 Open it directly in a browser. It is a single-page static prototype with compact mock telemetry.
+
+`source-backed-sections-v1.html` is the source picker design: slicers, modelers, print-farm tools, firmware, 3D generation, agents, libraries, materials, hardware, utilities, and research catalogs. Each selectable module shows the repo, local source path, license boundary, Hermes section, and bridge tasks.
 
 ## Design Rules For This Lab
 
