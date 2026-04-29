@@ -16,6 +16,8 @@ Hermes OS Print Factory
 ├─ Printers
 ├─ Observe
 ├─ Voice
+├─ Agents
+├─ Learning
 ├─ Artifacts
 ├─ Approvals
 ├─ Plugins
@@ -47,6 +49,17 @@ The interface should make the 2026 roadmap visible through operator workflows:
 - Fleet Digital Twin: inventory, telemetry, maintenance, material/profile compatibility, reliability
 - Agentic OS: plugin permissions, trust panel, signed updates, local-first export/import
 - Advanced Generation: repair automation, production planning, calibration intelligence, optional photo-to-3D inputs
+
+## Theme System
+
+The interface must avoid plain white backgrounds. It ships with a dark default and saved operator themes:
+
+- Midnight: deep command-center dark with blue and teal accents
+- Alloy: neutral graphite workshop theme
+- Ember: warm dark theme for long shop sessions
+- Forest: green dark theme for calmer monitoring
+
+Themes are available from the topbar and the Settings page. The selected theme is saved in the browser and applied to the full OS shell, cards, forms, badges, evidence surfaces, voice panels, and printer pages.
 
 ## Dashboard
 

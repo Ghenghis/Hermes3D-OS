@@ -1,5 +1,31 @@
+const THEME_OPTIONS = [
+  ["midnight", "Midnight", "Deep command-center dark with blue and teal accents"],
+  ["alloy", "Alloy", "Neutral graphite workshop theme"],
+  ["ember", "Ember", "Warm dark theme for long shop sessions"],
+  ["forest", "Forest", "Green dark theme for calmer monitoring"],
+];
+const DEFAULT_THEME = "midnight";
+const PAGE_IDS = [
+  "dashboard",
+  "setup",
+  "design",
+  "generation",
+  "jobs",
+  "printers",
+  "observe",
+  "voice",
+  "agents",
+  "learning",
+  "artifacts",
+  "approvals",
+  "plugins",
+  "settings",
+  "roadmap",
+];
+
 const state = {
-  activePage: "dashboard",
+  activePage: pageFromHash(),
+  theme: savedTheme(),
   jobs: [],
   printers: [],
   artifacts: [],
@@ -16,7 +42,10 @@ const state = {
   activeJobId: null,
 };
 
+applyTheme(state.theme);
+
 const healthEl = document.querySelector("#health");
+const themeSelect = document.querySelector("#themeSelect");
 const printerSelect = document.querySelector("#printerSelect");
 const advanceBtn = document.querySelector("#advanceBtn");
 const approveModelBtn = document.querySelector("#approveModelBtn");
@@ -87,6 +116,7 @@ async function refresh() {
 
 function renderAll() {
   renderTabs();
+  renderThemeSelect();
   renderPrinterSelect();
   renderDashboard();
   renderSetup();
@@ -189,6 +219,38 @@ function renderDesign() {
       settingRow("Safety Gate", "Generated models require validation and approval before printing"),
     ].join(""),
   );
+}
+
+function savedTheme() {
+  const stored = localStorage.getItem("hermes3d-theme");
+  return THEME_OPTIONS.some(([id]) => id === stored) ? stored : DEFAULT_THEME;
+}
+
+function applyTheme(theme) {
+  const nextTheme = THEME_OPTIONS.some(([id]) => id === theme) ? theme : DEFAULT_THEME;
+  state.theme = nextTheme;
+  document.body.dataset.theme = nextTheme;
+  localStorage.setItem("hermes3d-theme", nextTheme);
+}
+
+function renderThemeSelect() {
+  if (!themeSelect) {
+    return;
+  }
+  themeSelect.value = state.theme;
+}
+
+function pageFromHash() {
+  const page = window.location.hash.replace(/^#/, "");
+  return PAGE_IDS.includes(page) ? page : "dashboard";
+}
+
+function setActivePage(page) {
+  state.activePage = PAGE_IDS.includes(page) ? page : "dashboard";
+  const nextHash = `#${state.activePage}`;
+  if (window.location.hash !== nextHash) {
+    window.history.replaceState(null, "", nextHash);
+  }
 }
 
 function renderGenerationStack() {
@@ -544,6 +606,7 @@ function renderSettings() {
   setHtml(
     "#settingsPage",
     [
+      renderAppearanceSettings(),
       `
         <form id="runtimeSettingsForm" class="settings-form">
           <div class="settings-toolbar">
@@ -693,6 +756,7 @@ function renderPlugins() {
 function renderRoadmap() {
   const items = [
     "Confirm safe printer set: T1-A, T1-B, and V400 only while S1 is locked",
+    "Complete OS shell navigation and visual proof: themes, page deep links, responsive layout, UI screenshots",
     "Add model endpoint picker from /v1/models",
     "Add DesignSpec fields for dimensions, constraints, tolerances, material, and target printer",
     "Add executable CAD worker with source, preview, bounding box, volume, and export validation",
@@ -781,6 +845,29 @@ function renderJobArtifacts(artifacts) {
       .map((artifact) => renderArtifactCard(artifact, false))
       .join("") || '<div class="empty-state">No artifacts yet.</div>'
   );
+}
+
+function renderAppearanceSettings() {
+  return `
+    <section class="section">
+      <div class="settings-toolbar">
+        <div>
+          <h3>Appearance</h3>
+          <p class="muted">Saved in this browser for the Hermes OS shell.</p>
+        </div>
+      </div>
+      <div class="theme-grid">
+        ${THEME_OPTIONS.map(
+          ([id, label, description]) => `
+            <button type="button" class="theme-choice ${state.theme === id ? "active" : ""}" data-theme-choice="${escapeAttr(id)}">
+              <strong>${escapeHtml(label)}</strong>
+              <span>${escapeHtml(description)}</span>
+            </button>
+          `,
+        ).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderVisualEvidence(artifacts) {
@@ -1022,16 +1109,21 @@ function escapeAttr(value) {
 
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    state.activePage = tab.dataset.page;
+    setActivePage(tab.dataset.page);
     renderTabs();
   });
+});
+
+window.addEventListener("hashchange", () => {
+  state.activePage = pageFromHash();
+  renderTabs();
 });
 
 document.addEventListener("click", async (event) => {
   const jobCard = event.target.closest(".job-card");
   if (jobCard) {
     state.activeJobId = Number(jobCard.dataset.jobId);
-    state.activePage = "jobs";
+    setActivePage("jobs");
     renderAll();
   }
 
@@ -1071,6 +1163,12 @@ document.addEventListener("click", async (event) => {
       body: JSON.stringify({ note: "Triggered from Hermes OS Autopilot page." }),
     });
     await refresh();
+  }
+
+  const themeChoice = event.target.closest("[data-theme-choice]");
+  if (themeChoice) {
+    applyTheme(themeChoice.dataset.themeChoice);
+    renderAll();
   }
 });
 
@@ -1115,7 +1213,7 @@ document.addEventListener("submit", async (event) => {
     }
     await apiForm(`/api/jobs/${jobId}/generate-3d-from-image`, formData);
     state.activeJobId = Number(jobId);
-    state.activePage = "jobs";
+    setActivePage("jobs");
     await refresh();
   }
 
@@ -1129,7 +1227,7 @@ document.addEventListener("submit", async (event) => {
     }
     await apiForm(`/api/jobs/${jobId}/visual-evidence`, formData);
     state.activeJobId = Number(jobId);
-    state.activePage = "jobs";
+    setActivePage("jobs");
     visualEvidenceForm.reset();
     await refresh();
   }
@@ -1145,9 +1243,15 @@ document.addEventListener("submit", async (event) => {
     learningReportForm.reset();
     await refresh();
   }
+
 });
 
 document.querySelector("#refreshBtn").addEventListener("click", refresh);
+
+themeSelect?.addEventListener("change", () => {
+  applyTheme(themeSelect.value);
+  renderAll();
+});
 
 document.querySelector("#bootstrapBtn").addEventListener("click", async () => {
   await api("/api/bootstrap", { method: "POST", body: "{}" });
@@ -1176,7 +1280,7 @@ document.querySelector("#jobForm").addEventListener("submit", async (event) => {
     }),
   });
   state.activeJobId = created.id;
-  state.activePage = "jobs";
+  setActivePage("jobs");
   await refresh();
 });
 

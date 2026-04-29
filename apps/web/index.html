@@ -4,16 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes OS Print Factory</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-    <link rel="stylesheet" href="/static/voice-settings.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260428-theme" />
+    <link rel="stylesheet" href="/static/voice-settings.css?v=20260428-theme" />
   </head>
-  <body>
+  <body data-theme="midnight">
     <header class="topbar">
       <div>
         <h1>Hermes OS Print Factory</h1>
         <p id="health">Connecting...</p>
       </div>
       <div class="top-actions">
+        <label class="theme-control" for="themeSelect">
+          <span>Theme</span>
+          <select id="themeSelect" aria-label="Theme">
+            <option value="midnight">Midnight</option>
+            <option value="alloy">Alloy</option>
+            <option value="ember">Ember</option>
+            <option value="forest">Forest</option>
+          </select>
+        </label>
         <button id="bootstrapBtn" type="button">Load Printers</button>
         <button id="refreshBtn" type="button">Refresh</button>
       </div>
@@ -400,7 +409,7 @@
       </section>
     </main>
 
-    <script src="/static/app.js"></script>
-    <script src="/static/voice-panel.js"></script>
+    <script src="/static/app.js?v=20260428-theme"></script>
+    <script src="/static/voice-panel.js?v=20260428-theme"></script>
   </body>
 </html>

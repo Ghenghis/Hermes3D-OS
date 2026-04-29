@@ -31,6 +31,9 @@ The deeper research-backed action plan is tracked in [2026 Research Action Plan]
 ### OS Control Center
 
 - show safe, locked, idle, busy, and unreachable printers
+- provide modern non-white OS themes with saved operator preference
+- support deep-linked tabs for every major screen in the factory UI
+- maintain screenshot proof for the daily-use navigation shell
 - show Autopilot readiness, guardrails, and safe setup actions
 - show active jobs, pending approvals, and recent evidence
 - add operator controls for pause, cancel, retry, and notes

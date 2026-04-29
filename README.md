@@ -126,6 +126,7 @@ For setup and operating context, read:
 - [Voice Layer](docs/VOICE_LAYER.md)
 - [Vision Agent Contract](docs/VISION_AGENT_CONTRACT.md)
 - [Visual Evidence](docs/VISUAL_EVIDENCE.md)
+- [UI Visual Proof](docs/UI_VISUAL_PROOF.md)
 - [Full-Stack 3D Generation](docs/FULL_STACK_3D_GENERATION.md)
 - [Idle Learning Mode](docs/IDLE_LEARNING_MODE.md)
 - [Agentic Work System](docs/AGENTIC_WORK_SYSTEM.md)
