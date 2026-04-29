@@ -255,6 +255,13 @@ Initial watch topics:
 
 ## Immediate Next Tasks
 
+Completed in the current vision/evidence phase:
+
+- Added MiniMax-MCP and DeepSeek V4 provider readiness status.
+- Added Visual Evidence upload and artifact file serving.
+- Added UI visual evidence strip on active jobs and visual artifact thumbnails.
+- Recorded S1 as known at `192.168.0.12` while keeping the maintenance lock.
+
 1. Replace ComfyUI placeholder workflow JSON with exported TRELLIS.2, Hunyuan3D-2.1, and TripoSR API workflows.
 2. Extend ComfyUI runner with `/ws` progress, artifact type mapping, and interrupt support.
 3. Add model endpoint picker from `/v1/models`.
@@ -271,8 +278,8 @@ Initial watch topics:
 14. Add plugin trust/permissions model to the Plugins page.
 15. Add 3MF print-contract import/export design.
 16. Add Learning Mode scheduler/timer so queued reports run automatically during idle windows.
-17. Enforce Vision Agent Contract v0 across every Hermes agent config and UI status card: `vision: true`, `multimodal_input: true`, `evidence_required: true`.
-18. Add visual evidence attachments for image inputs, screenshots, mesh previews, slicer previews, and printer/camera snapshots.
+17. Connect MiniMax-MCP analysis runtime to visual evidence artifacts and write provider analysis summaries.
+18. Add camera snapshot capture buttons for live Observe cards and gate-specific printer-check evidence.
 19. Add Agentic Modeling Loop v0: clarify spec, generate CAD/mesh variants, critique, repair, slicer dry-run, and propose revisions.
 20. Add Anonymous Mode: redact shareable reports, label local/cloud provider use, and enforce plugin capability gates.
 21. Add OS Command Center: command palette, background-agent status, notifications, task queue, and project memory.

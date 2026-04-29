@@ -10,6 +10,7 @@ const state = {
   generationStack: {},
   learningMode: {},
   agenticWork: {},
+  providerStatus: {},
   health: {},
   printerStatus: {},
   activeJobId: null,
@@ -50,11 +51,12 @@ async function apiForm(path, formData) {
 
 async function refresh() {
   try {
-    const [workspace, generationStack, learningMode, agenticWork] = await Promise.all([
+    const [workspace, generationStack, learningMode, agenticWork, providerStatus] = await Promise.all([
       api("/api/workspace"),
       api("/api/generation-stack/status").catch(() => ({})),
       api("/api/learning-mode/status").catch(() => ({})),
       api("/api/agentic-work/status").catch(() => ({})),
+      api("/api/providers/status").catch(() => ({})),
     ]);
     state.health = workspace.health;
     state.settings = workspace.settings;
@@ -67,6 +69,7 @@ async function refresh() {
     state.generationStack = generationStack || {};
     state.learningMode = learningMode || {};
     state.agenticWork = agenticWork || {};
+    state.providerStatus = providerStatus || {};
 
     healthEl.textContent = state.health.dry_run_printers
       ? "API online. Printer actions are dry-run."
@@ -288,6 +291,7 @@ function renderAgenticWork() {
       settingRow("Next Tick", next.title || "Next queued research report"),
       settingRow("Latest Report", work.latest_report?.name || "No report yet"),
       `<div class="section"><h2>Vision Contract</h2>${renderAgenticVisionContract(work.vision_contract || {})}</div>`,
+      `<div class="section"><h2>Provider Readiness</h2>${renderProviderReadiness(work.provider_readiness || state.providerStatus || {})}</div>`,
       `<div class="section"><h2>Safety Policy</h2>${renderAgenticPolicy(work.safety_policy || {})}</div>`,
     ].join(""),
   );
@@ -303,6 +307,25 @@ function renderAgenticWork() {
     "#agenticBlockers",
     (work.blockers || []).map(renderAgenticBlocker).join("") || '<div class="empty-state">No blockers reported.</div>',
   );
+}
+
+function renderProviderReadiness(status) {
+  const providers = status.providers || {};
+  const cards = Object.values(providers)
+    .map(
+      (provider) => `
+        <article class="setup-card ${provider.ready ? "setup-ready" : provider.required ? "setup-needed" : "status-pending"}">
+          <div class="row">
+            <strong>${escapeHtml(provider.label || provider.id)}</strong>
+            ${stateBadge(provider.ready ? "READY" : provider.required ? "REQUIRED" : "OPTIONAL")}
+          </div>
+          <p class="muted">${escapeHtml(provider.detail || "")}</p>
+          <p class="muted">${escapeHtml(provider.model || provider.model_family || "")} · ${escapeHtml(provider.transport || provider.base_url || "")}</p>
+        </article>
+      `,
+    )
+    .join("");
+  return cards || '<div class="empty-state">No provider readiness reported.</div>';
 }
 
 function renderAgenticVisionContract(contract) {
@@ -458,19 +481,15 @@ function renderObserve() {
 }
 
 function renderArtifactsPage() {
+  const visualEvidenceJobSelect = document.querySelector("#visualEvidenceJobSelect");
+  if (visualEvidenceJobSelect) {
+    const jobOptions = state.jobs
+      .map((job) => `<option value="${escapeAttr(job.id)}">${escapeHtml(job.title)} (#${job.id})</option>`)
+      .join("");
+    visualEvidenceJobSelect.innerHTML = jobOptions || '<option value="">Create a job first</option>';
+  }
   const rows = state.artifacts
-    .map(
-      (artifact) => `
-        <article class="artifact-card">
-          <div class="row">
-            <strong>${escapeHtml(artifact.kind)}</strong>
-            <span class="muted">Job #${artifact.job_id}</span>
-          </div>
-          <p>${escapeHtml(artifact.job_title || "Untitled job")}</p>
-          <p class="muted">${escapeHtml(artifact.path)}</p>
-        </article>
-      `,
-    )
+    .map((artifact) => renderArtifactCard(artifact, true))
     .join("");
   setHtml("#artifactPageList", rows || '<div class="empty-state">No artifacts yet.</div>');
 }
@@ -644,6 +663,9 @@ function renderPlugins() {
     ["TripoSR", "Fast preview fallback for early shape review", "planned"],
     ["Blender / Trimesh", "Mesh repair, validation, previews, exports", "planned"],
     ["Azure Voice", "Agent TTS/STT, safety alerts, preview, and transcripts", "active"],
+    ["MiniMax-MCP Vision", "Required multimodal layer for image, screenshot, mesh, slicer, and camera evidence", "active"],
+    ["DeepSeek V4", "Optional planning, CAD reasoning, research summaries, roadmaps, and reports", "ready"],
+    ["Visual Evidence", "Job-scoped evidence uploads, local file serving, and thumbnails", "active"],
     ["Local Modeling LLM", "Hermes design assistant through local model endpoint", "planned"],
     ["FDM Monster", "Fleet sidecar dashboard integration", "planned"],
     ["Maintenance", "Locks, service notes, nozzle/hotend safety, reminders", "active"],
@@ -717,6 +739,10 @@ async function renderActiveJob() {
       <div class="workflow-line">${renderWorkflow(job.state)}</div>
     </section>
     <section class="section">
+      <h2>Visual Evidence</h2>
+      <div class="artifact-list">${renderVisualEvidence(job.artifacts)}</div>
+    </section>
+    <section class="section">
       <h2>Artifacts</h2>
       <div class="artifact-list">${renderJobArtifacts(job.artifacts)}</div>
     </section>
@@ -752,19 +778,43 @@ function renderWorkflow(currentState) {
 function renderJobArtifacts(artifacts) {
   return (
     artifacts
-      .map(
-        (artifact) => `
-          <article class="artifact-card">
-            <div class="row">
-              <strong>${escapeHtml(artifact.kind)}</strong>
-              <span class="muted">#${artifact.id}</span>
-            </div>
-            <p class="muted">${escapeHtml(artifact.path)}</p>
-          </article>
-        `,
-      )
+      .map((artifact) => renderArtifactCard(artifact, false))
       .join("") || '<div class="empty-state">No artifacts yet.</div>'
   );
+}
+
+function renderVisualEvidence(artifacts) {
+  return (
+    artifacts
+      .filter((artifact) => artifact.is_visual || artifact.metadata?.evidence)
+      .map((artifact) => renderArtifactCard(artifact, false))
+      .join("") || '<div class="empty-state">No visual evidence attached yet.</div>'
+  );
+}
+
+function renderArtifactCard(artifact, includeJob) {
+  const evidence = artifact.metadata?.evidence || {};
+  return `
+    <article class="artifact-card">
+      <div class="row">
+        <strong>${escapeHtml(evidence.label || artifact.kind)}</strong>
+        <span class="muted">${includeJob ? `Job #${escapeHtml(artifact.job_id)}` : `#${escapeHtml(artifact.id)}`}</span>
+      </div>
+      ${renderEvidenceAttachment(artifact)}
+      ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
+      <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
+      <p class="muted">${escapeHtml(artifact.path)}</p>
+    </article>
+  `;
+}
+
+function renderEvidenceAttachment(artifact) {
+  if (!artifact.is_visual || !artifact.file_url) {
+    return "";
+  }
+  const evidence = artifact.metadata?.evidence || {};
+  const role = evidence.role || artifact.kind;
+  return `<img class="evidence-thumb" src="${escapeAttr(artifact.file_url)}" alt="${escapeAttr(role)}" loading="lazy" />`;
 }
 
 function renderPrinterCards(printers, compact) {
@@ -1066,6 +1116,21 @@ document.addEventListener("submit", async (event) => {
     await apiForm(`/api/jobs/${jobId}/generate-3d-from-image`, formData);
     state.activeJobId = Number(jobId);
     state.activePage = "jobs";
+    await refresh();
+  }
+
+  const visualEvidenceForm = event.target.closest("#visualEvidenceForm");
+  if (visualEvidenceForm) {
+    event.preventDefault();
+    const formData = new FormData(visualEvidenceForm);
+    const jobId = formData.get("job_id");
+    if (!jobId) {
+      throw new Error("Create or select a job before attaching visual evidence.");
+    }
+    await apiForm(`/api/jobs/${jobId}/visual-evidence`, formData);
+    state.activeJobId = Number(jobId);
+    state.activePage = "jobs";
+    visualEvidenceForm.reset();
     await refresh();
   }
 

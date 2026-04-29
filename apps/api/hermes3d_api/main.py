@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 import shutil
 import socket
 from datetime import UTC, datetime
@@ -41,7 +42,7 @@ from .schemas import (
     SpeechSynthesizeRequest,
     VoicePreviewRequest,
 )
-from .services.artifacts import write_text_artifact
+from .services.artifacts import job_dir, write_text_artifact
 from .services.generation.pipeline import (
     GENERATION_ENGINES,
     PIPELINE_STEPS,
@@ -50,6 +51,7 @@ from .services.generation.pipeline import (
 )
 from .services.generation.comfyui import ComfyUIClient, workflow_statuses
 from .services.moonraker import MoonrakerClient
+from .services.providers import provider_readiness
 from .services.slicer import SlicerWorker
 from .services.speech.agent_voice_router import list_agent_voices, resolve_agent_voice
 from .services.speech.azure_stt import AzureSpeechStt
@@ -78,6 +80,17 @@ db = Database(settings.database_path)
 app = FastAPI(title="Hermes3D OS", version="0.1.0")
 slicer = SlicerWorker(settings.storage_dir)
 moonraker = MoonrakerClient(dry_run=settings.dry_run_printers)
+
+VISUAL_EVIDENCE_KINDS = {
+    "source_image",
+    "screenshot",
+    "mesh_preview",
+    "slicer_preview",
+    "gcode_preview",
+    "camera_snapshot",
+    "diagram",
+}
+VISUAL_FILE_SUFFIXES = {".gif", ".jpg", ".jpeg", ".png", ".svg", ".webp"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -553,6 +566,11 @@ def agentic_work_tick() -> dict[str, Any]:
     return status
 
 
+@app.get("/api/providers/status")
+def providers_status() -> dict[str, Any]:
+    return provider_readiness(load_services_config(settings))
+
+
 @app.get("/api/generation-stack/status")
 def generation_stack_status() -> dict[str, Any]:
     runtime = load_runtime_config(settings)
@@ -756,7 +774,7 @@ def get_job(job_id: int) -> dict[str, Any]:
         ).fetchall()
 
     result = row_to_dict(job)
-    result["artifacts"] = [row_to_dict(row) for row in artifacts]
+    result["artifacts"] = [_enrich_artifact(row_to_dict(row)) for row in artifacts]
     result["approvals"] = [row_to_dict(row) for row in approvals]
     result["events"] = [row_to_dict(row) for row in events]
     return result
@@ -774,6 +792,73 @@ async def upload_model(job_id: int, file: UploadFile = File(...)) -> dict[str, A
     _set_job_state(job_id, "VALIDATE_MODEL")
     db.add_event(job_id, "MODEL_UPLOADED", "Model artifact uploaded.", {"path": str(destination)})
     return get_job(job["id"])
+
+
+@app.post("/api/jobs/{job_id}/visual-evidence")
+async def upload_visual_evidence(
+    job_id: int,
+    evidence: UploadFile = File(...),
+    evidence_kind: str = Form("screenshot"),
+    agent_id: str = Form("factory_operator"),
+    stage: str = Form("INTAKE"),
+    gate: str | None = Form(None),
+    label: str | None = Form(None),
+    notes: str | None = Form(None),
+) -> dict[str, Any]:
+    job = get_job(job_id)
+    normalized_kind = evidence_kind.strip().lower().replace("-", "_")
+    if normalized_kind not in VISUAL_EVIDENCE_KINDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"evidence_kind must be one of: {', '.join(sorted(VISUAL_EVIDENCE_KINDS))}",
+        )
+
+    evidence_dir = job_dir(settings.storage_dir, job_id) / "visual-evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    filename = _safe_upload_name(evidence.filename, normalized_kind)
+    destination = evidence_dir / filename
+    destination.write_bytes(await evidence.read())
+
+    metadata = _visual_evidence_metadata(
+        normalized_kind,
+        destination,
+        evidence.content_type,
+        agent_id,
+        stage,
+        gate,
+        label,
+        notes,
+    )
+    _add_artifact(job_id, f"visual_{normalized_kind}", destination, metadata)
+    summary_path = _write_visual_evidence_summary(
+        job_id=job_id,
+        job=job,
+        evidence_path=destination,
+        metadata=metadata,
+    )
+    summary_metadata = _visual_summary_metadata(metadata)
+    _add_artifact(job_id, "visual_evidence_summary", summary_path, summary_metadata)
+    db.add_event(
+        job_id,
+        "VISUAL_EVIDENCE_ATTACHED",
+        "Vision evidence was attached to the job ledger.",
+        {
+            "kind": normalized_kind,
+            "agent_id": agent_id,
+            "stage": stage,
+            "gate": gate,
+            "path": str(destination),
+            "evidence_required": True,
+        },
+    )
+    return get_job(job_id)
+
+
+@app.get("/api/artifacts/{artifact_id}/file")
+def artifact_file(artifact_id: int) -> FileResponse:
+    artifact = _get_artifact(artifact_id)
+    path = _artifact_storage_path(artifact)
+    return FileResponse(path)
 
 
 @app.post("/api/jobs/{job_id}/advance")
@@ -964,6 +1049,7 @@ def _autopilot_status() -> dict[str, Any]:
     services = load_services_config(settings)
     model_endpoint = _model_endpoint_status(services)
     speech = speech_config_from_services(services)
+    providers = provider_readiness(services)["providers"]
     generation_stack = (services.get("workers", {}) or {}).get("generation_stack", {})
     runtime_urls = runtime.get("service_urls", {})
     checks = [
@@ -1039,6 +1125,24 @@ def _autopilot_status() -> dict[str, Any]:
             model_endpoint["detail"],
             None,
             "manual",
+        ),
+        _autopilot_check(
+            "minimax_mcp_configured",
+            bool(providers["minimax_mcp"]["ready"]),
+            "MiniMax-MCP Vision",
+            providers["minimax_mcp"]["detail"],
+            providers["minimax_mcp"]["detail"],
+            None,
+            "manual",
+        ),
+        _autopilot_check(
+            "deepseek_v4_configured",
+            bool(providers["deepseek_v4"]["ready"]),
+            "DeepSeek V4 Reasoning",
+            providers["deepseek_v4"]["detail"],
+            providers["deepseek_v4"]["detail"],
+            None,
+            "optional",
         ),
         _autopilot_check(
             "azure_speech_configured",
@@ -1615,7 +1719,7 @@ def _list_artifacts() -> list[dict[str, Any]]:
             LIMIT 200
             """
         ).fetchall()
-    return [row_to_dict(row) for row in rows]
+    return [_enrich_artifact(row_to_dict(row)) for row in rows]
 
 
 def _list_approvals() -> list[dict[str, Any]]:
@@ -1671,6 +1775,165 @@ def _add_artifact(job_id: int, kind: str, path: Path, metadata: dict[str, Any] |
             """,
             (job_id, kind, str(path), json.dumps(metadata or {}, sort_keys=True), utc_now()),
         )
+
+
+def _get_artifact(artifact_id: int) -> dict[str, Any]:
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM artifacts WHERE id = ?", (artifact_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return _enrich_artifact(row_to_dict(row))
+
+
+def _enrich_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
+    path = Path(str(artifact.get("path") or ""))
+    metadata = artifact.get("metadata", {}) if isinstance(artifact.get("metadata"), dict) else {}
+    evidence = metadata.get("evidence", {}) if isinstance(metadata.get("evidence"), dict) else {}
+    role = evidence.get("role") or _evidence_role_for_artifact(artifact, path)
+    is_visual = role in VISUAL_EVIDENCE_KINDS or path.suffix.lower() in VISUAL_FILE_SUFFIXES
+    file_url = f"/api/artifacts/{artifact['id']}/file"
+    artifact["file_url"] = file_url
+    artifact["is_visual"] = is_visual
+    if is_visual:
+        metadata = dict(metadata)
+        evidence = dict(evidence)
+        evidence.setdefault("role", role or "screenshot")
+        evidence.setdefault("url", file_url)
+        evidence.setdefault("thumbnail_url", file_url)
+        evidence.setdefault("privacy", "local")
+        metadata["evidence"] = evidence
+        artifact["metadata"] = metadata
+    return artifact
+
+
+def _evidence_role_for_artifact(artifact: dict[str, Any], path: Path) -> str:
+    kind = str(artifact.get("kind") or "")
+    if kind.startswith("visual_"):
+        return kind.removeprefix("visual_")
+    if "source_image" in kind:
+        return "source_image"
+    if "preview" in kind and path.suffix.lower() in VISUAL_FILE_SUFFIXES:
+        return "mesh_preview"
+    if path.suffix.lower() == ".svg":
+        return "diagram"
+    if path.suffix.lower() in VISUAL_FILE_SUFFIXES:
+        return "screenshot"
+    return ""
+
+
+def _artifact_storage_path(artifact: dict[str, Any]) -> Path:
+    storage_root = settings.storage_dir.resolve()
+    path = Path(str(artifact.get("path") or "")).resolve()
+    try:
+        path.relative_to(storage_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Artifact is outside Hermes storage") from exc
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Artifact file not found")
+    return path
+
+
+def _safe_upload_name(filename: str | None, prefix: str) -> str:
+    original = Path(filename or prefix).name
+    suffix = Path(original).suffix or ".bin"
+    stem = Path(original).stem or prefix
+    safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip(".-")[:80] or prefix
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    return f"{timestamp}-{prefix}-{safe_stem}{suffix}"
+
+
+def _visual_evidence_metadata(
+    evidence_kind: str,
+    path: Path,
+    content_type: str | None,
+    agent_id: str,
+    stage: str,
+    gate: str | None,
+    label: str | None,
+    notes: str | None,
+) -> dict[str, Any]:
+    return {
+        "evidence": {
+            "role": evidence_kind,
+            "media_type": content_type or _media_type_for_path(path),
+            "label": label or evidence_kind.replace("_", " ").title(),
+            "stage": stage,
+            "gate": gate or "",
+            "captured_at": utc_now(),
+            "privacy": "local",
+            "agent_id": agent_id,
+            "evidence_required": True,
+        },
+        "vision": {
+            "provider": "minimax-mcp",
+            "analysis_status": "pending_provider_runtime",
+            "summary": "Visual evidence attached. MiniMax-MCP analysis should be run before using this as a safety or printability claim.",
+        },
+        "notes": notes or "",
+    }
+
+
+def _visual_summary_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    summary = dict(metadata)
+    evidence = dict(summary.get("evidence", {}))
+    evidence["role"] = "report"
+    evidence["media_type"] = "text/markdown"
+    evidence["label"] = f"{evidence.get('label', 'Visual evidence')} summary"
+    summary["evidence"] = evidence
+    return summary
+
+
+def _media_type_for_path(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".svg":
+        return "image/svg+xml"
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".png":
+        return "image/png"
+    if suffix == ".gif":
+        return "image/gif"
+    if suffix == ".webp":
+        return "image/webp"
+    return "application/octet-stream"
+
+
+def _write_visual_evidence_summary(
+    *,
+    job_id: int,
+    job: dict[str, Any],
+    evidence_path: Path,
+    metadata: dict[str, Any],
+) -> Path:
+    evidence = metadata["evidence"]
+    summary_dir = job_dir(settings.storage_dir, job_id) / "visual-evidence"
+    summary_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = summary_dir / f"{evidence['captured_at'].replace(':', '').replace('+', '-')}-summary.md"
+    summary_path.write_text(
+        "\n".join(
+            [
+                "# Visual Evidence Summary",
+                "",
+                f"- Job: {job['title']}",
+                f"- Role: {evidence['role']}",
+                f"- Agent: {evidence['agent_id']}",
+                f"- Stage: {evidence['stage']}",
+                f"- Gate: {evidence['gate'] or 'none'}",
+                f"- File: {evidence_path}",
+                f"- Media type: {evidence['media_type']}",
+                f"- Captured at: {evidence['captured_at']}",
+                "- Vision provider: minimax-mcp",
+                "- Analysis status: pending_provider_runtime",
+                "",
+                "This artifact is local evidence for a vision-enabled Hermes agent. It must be analyzed before it is used to justify a printability, safety, or printer-observation decision.",
+                "",
+                f"Notes: {metadata.get('notes') or 'none'}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return summary_path
 
 
 def _has_artifact(job_id: int, kind: str) -> bool:
@@ -1890,6 +2153,8 @@ def _read_transcripts(limit: int) -> list[dict[str, Any]]:
 
 def _agentic_work_status() -> dict[str, Any]:
     learning_dir = settings.storage_dir / "learning"
+    services = load_services_config(settings)
+    providers = provider_readiness(services)
     reports = sorted(learning_dir.glob("*.md"), key=lambda path: path.stat().st_mtime, reverse=True)
     latest_report = None
     if reports:
@@ -1907,6 +2172,7 @@ def _agentic_work_status() -> dict[str, Any]:
             "write multimodal summaries, and propose tickets while hardware actions stay gated."
         ),
         "vision_contract": _agentic_vision_contract(),
+        "provider_readiness": providers,
         "next_tick": {
             "action": "create_next_learning_report",
             "topic": next_topic,
@@ -2146,29 +2412,23 @@ def _agentic_work_queue(next_topic: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _agentic_work_blockers() -> list[dict[str, Any]]:
     services = load_services_config(settings)
-    vision_config = services.get("vision", {}) if isinstance(services.get("vision"), dict) else {}
-    providers = services.get("providers", {}) if isinstance(services.get("providers"), dict) else {}
-    minimax_config = providers.get("minimax_mcp", {}) if isinstance(providers.get("minimax_mcp"), dict) else {}
+    provider_status = provider_readiness(services)["providers"]
+    minimax_status = provider_status["minimax_mcp"]
+    deepseek_status = provider_status["deepseek_v4"]
     return [
         {
             "id": "minimax_mcp_vision_provider",
             "title": "MiniMax-MCP vision provider",
             "detail": "Every Hermes agent requires MiniMax-MCP or an equivalent configured MiniMax vision endpoint for images, screenshots, mesh previews, slicer previews, and camera evidence.",
             "severity": "high",
-            "blocked": not bool(
-                os.getenv("MINIMAX_MCP_URL")
-                or os.getenv("MINIMAX_MCP_COMMAND")
-                or vision_config.get("minimax_mcp_url")
-                or minimax_config.get("base_url")
-                or minimax_config.get("command")
-            ),
+            "blocked": not bool(minimax_status.get("ready")),
         },
         {
             "id": "deepseek_v4_optional_reasoning",
             "title": "DeepSeek V4 optional reasoning provider",
             "detail": "DeepSeek V4 may support planning, code generation, CAD reasoning, research summaries, roadmaps, and reports; vision still routes through MiniMax-MCP unless the endpoint is explicitly multimodal.",
             "severity": "low",
-            "blocked": not bool(os.getenv("DEEPSEEK_API_KEY")),
+            "blocked": not bool(deepseek_status.get("ready")),
         },
         {
             "id": "comfyui_workflows_placeholder",

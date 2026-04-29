@@ -475,6 +475,16 @@ textarea {
   object-fit: cover;
 }
 
+.evidence-thumb {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #eef1f5;
+  object-fit: contain;
+}
+
 .camera-placeholder {
   display: grid;
   place-items: center;

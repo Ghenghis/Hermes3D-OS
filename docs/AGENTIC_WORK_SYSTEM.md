@@ -8,11 +8,15 @@ All active Hermes agents are vision-enabled. Each agent reports `vision: true`, 
 
 - `GET /api/agentic-work/status`
 - `POST /api/agentic-work/tick`
+- `GET /api/providers/status`
+- `POST /api/jobs/{job_id}/visual-evidence`
+- `GET /api/artifacts/{artifact_id}/file`
 
 The status endpoint exposes:
 
 - active agent roster
 - vision contract and provider routing
+- MiniMax-MCP and DeepSeek V4 readiness
 - queued research and build tracks
 - current blockers
 - latest learning report

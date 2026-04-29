@@ -63,7 +63,7 @@ If they do not know, collect it from the printer screen, the router connected-de
 
 Keep guessed values in `configs\printers.local.yaml` and update them as soon as the real values are known.
 
-Current note: S1 is in maintenance and must not be tested or moved because movement may damage the hotend. V400 is reachable through Moonraker on both port `80` and direct port `7125`.
+Current note: S1 is online at `192.168.0.12` when powered and may turn off when inactive. It is still in maintenance and must not be tested or moved because movement may damage the hotend. V400 is reachable through Moonraker on both port `80` and direct port `7125`.
 
 ## Safety Locks
 

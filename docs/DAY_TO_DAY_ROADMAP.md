@@ -19,6 +19,9 @@ Available now:
 - Moonraker discovery and read-only status checks
 - gated Moonraker upload/start path
 - Observe page with editable integrated and USB camera URLs
+- MiniMax-MCP/DeepSeek provider readiness panel
+- visual evidence uploader for screenshots, source images, mesh previews, slicer previews, camera snapshots, and diagrams
+- Active Job visual evidence strip and local artifact file serving
 
 Still required before unattended confidence:
 
@@ -26,6 +29,7 @@ Still required before unattended confidence:
 - reviewed slicer profiles for each real printer
 - bed/nozzle dimensions and profile locks
 - camera stream and snapshot URLs for cleared printers
+- MiniMax-MCP runtime analysis connected to visual evidence artifacts
 - G-code validation reports before real upload/start
 - material/spool records for each real print
 - clear S1 maintenance lock before any test or movement

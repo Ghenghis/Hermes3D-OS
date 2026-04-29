@@ -10,7 +10,7 @@ The goal is to replace every guessed or mocked value with user-confirmed data be
 | --- | --- | --- |
 | FLSUN T1-A | `http://192.168.0.10` | yes |
 | FLSUN T1-B | `http://192.168.0.11` | yes |
-| FLSUN S1 | `http://192.168.0.12` | maintenance locked, do not test |
+| FLSUN S1 | `http://192.168.0.12` | maintenance locked, do not test; may turn off when inactive |
 | FLSUN V400 | `http://192.168.0.34` | confirmed reachable |
 | FLSUN V400 alternate | `http://192.168.0.36` | maybe |
 | FLSUN V400 Speeder Pad history | `http://192.168.1.146` | old network |

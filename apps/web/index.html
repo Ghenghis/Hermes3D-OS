@@ -287,13 +287,76 @@
       </section>
 
       <section id="page-artifacts" class="page">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Artifacts</h2>
-            <span class="muted">Models, evidence, G-code, and logs</span>
-          </div>
-          <div id="artifactPageList" class="artifact-list"></div>
-        </section>
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Attach Visual Evidence</h2>
+              <span class="muted">Images, previews, screenshots</span>
+            </div>
+            <form id="visualEvidenceForm" class="job-form">
+              <label>
+                <span>Job</span>
+                <select name="job_id" id="visualEvidenceJobSelect"></select>
+              </label>
+              <div class="settings-grid">
+                <label>
+                  <span>Evidence Type</span>
+                  <select name="evidence_kind">
+                    <option value="screenshot">Screenshot</option>
+                    <option value="source_image">Source Image</option>
+                    <option value="mesh_preview">Mesh Preview</option>
+                    <option value="slicer_preview">Slicer Preview</option>
+                    <option value="gcode_preview">G-code Preview</option>
+                    <option value="camera_snapshot">Camera Snapshot</option>
+                    <option value="diagram">Diagram</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Agent</span>
+                  <select name="agent_id">
+                    <option value="factory_operator">Factory Operator</option>
+                    <option value="modeling_agent">Modeling Agent</option>
+                    <option value="mesh_qa_agent">Mesh QA Agent</option>
+                    <option value="slicer_qa_agent">Slicer QA Agent</option>
+                    <option value="print_monitor_agent">Print Monitor Agent</option>
+                    <option value="print_safety_agent">Print Safety Agent</option>
+                    <option value="research_agent">Research Agent</option>
+                  </select>
+                </label>
+              </div>
+              <div class="settings-grid">
+                <label>
+                  <span>Stage</span>
+                  <input name="stage" value="INTAKE" />
+                </label>
+                <label>
+                  <span>Gate</span>
+                  <input name="gate" placeholder="MODEL_APPROVAL or PRINT_APPROVAL" />
+                </label>
+              </div>
+              <label>
+                <span>Label</span>
+                <input name="label" placeholder="Trellis preview, slicer layer 1, camera snapshot" />
+              </label>
+              <label>
+                <span>File</span>
+                <input name="evidence" type="file" accept="image/*,.svg" required />
+              </label>
+              <label>
+                <span>Notes</span>
+                <textarea name="notes" rows="3" placeholder="What this evidence shows"></textarea>
+              </label>
+              <button type="submit">Attach Evidence</button>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Artifacts</h2>
+              <span class="muted">Models, evidence, G-code, and logs</span>
+            </div>
+            <div id="artifactPageList" class="artifact-list"></div>
+          </section>
+        </div>
       </section>
 
       <section id="page-approvals" class="page">

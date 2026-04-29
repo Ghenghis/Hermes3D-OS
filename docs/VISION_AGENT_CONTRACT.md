@@ -39,6 +39,26 @@ DeepSeek V4 may be used for planning, code generation, research summaries, CadQu
 deepseek_may_replace_vision: false
 ```
 
+Provider readiness is exposed through:
+
+- `GET /api/providers/status`
+- the Agents page Provider Readiness panel
+- Autopilot setup checks
+
+Configure MiniMax-MCP with one of:
+
+```text
+MINIMAX_MCP_URL=
+MINIMAX_MCP_COMMAND=
+```
+
+Configure optional DeepSeek V4 reasoning with:
+
+```text
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
+
 ## Default Agents
 
 ```yaml

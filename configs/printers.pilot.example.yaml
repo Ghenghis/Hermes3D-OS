@@ -55,6 +55,8 @@ printers:
       enclosure: unknown
       maintenance_lock: true
       do_not_probe: true
+      known_online_ip: 192.168.0.12
+      power_policy: turns_off_when_inactive
       lock_reason: "Maintenance lock: do not test or move. Movement may damage the hotend."
 
   - id: flsun-v400

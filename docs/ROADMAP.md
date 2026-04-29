@@ -12,6 +12,7 @@ The deeper research-backed action plan is tracked in [2026 Research Action Plan]
 | OS Control Center | The local dashboard becomes the daily command center. | Fleet readiness, Autopilot setup, dry-run/real mode, job queue, pause/cancel controls, editable camera links, locked-printer visibility. |
 | Design Studio | Operators can import or generate editable, validated print candidates in one workflow. | DesignSpec, model endpoint picker, executable CAD worker loop, geometry validation, parameter editor, CAD evidence. |
 | Compiler/Evidence | Slicing and G-code become auditable compiler outputs. | Slicer provenance, profile hashes, G-code analyzer, 3MF print contracts, thumbnails, warnings, approval records. |
+| Vision Evidence | Every agent claim can point to visual proof. | MiniMax-MCP readiness, visual evidence upload, artifact file serving, mesh/slicer/camera thumbnails, multimodal summaries. |
 | Observer AI | Cameras become evidence and anomaly sensors, not just live video. | Moonraker webcam discovery, snapshots at gates, first-layer evidence, anomaly policies, optional PrintGuard/Obico/Anomalib adapters. |
 | Fleet Digital Twin | The pilot setup scales to a managed printer and material fleet. | Moonraker telemetry, printer twins, Spoolman/OpenPrintTag material state, maintenance intervals, reliability history. |
 | Agentic OS | Hermes becomes a safe local OS for extensible factory tools. | Plugin manifest, MCP-style tool contracts, permission scopes, trust panel, signed updates, local-first export/import. |
@@ -54,6 +55,15 @@ The deeper research-backed action plan is tracked in [2026 Research Action Plan]
 - treat 3MF as the long-term print contract for model, profile, material, approvals, and evidence references
 - persist approvals and operator decisions in the ledger
 - make job history searchable by printer, material, result, and notes
+
+### Vision Evidence
+
+- require every Hermes agent to support image input, screenshots, mesh previews, slicer previews, and camera evidence where applicable
+- expose MiniMax-MCP and optional DeepSeek V4 provider readiness
+- attach source images, screenshots, mesh previews, slicer previews, G-code previews, camera snapshots, and diagrams to jobs
+- serve artifacts through narrow local file endpoints
+- show visual evidence before approvals and inside active jobs
+- write local multimodal summary artifacts before safety or printability claims
 
 ### Observer AI
 

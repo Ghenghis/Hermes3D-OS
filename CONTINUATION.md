@@ -61,6 +61,8 @@ maintenance_lock: true
 do_not_probe: true
 ```
 
+Latest note: S1 is online at `192.168.0.12` when powered, but it may turn off when inactive. This does not clear the maintenance lock.
+
 Current testable printers:
 
 ```text
@@ -145,6 +147,14 @@ Maintenance lock: do not test or move. Movement may damage the hotend.
   - safe research tick endpoint
   - blocker tracking
   - markdown reports in `storage/learning/`
+- Provider readiness and visual evidence:
+  - `GET /api/providers/status`
+  - MiniMax-MCP required vision provider readiness
+  - optional DeepSeek V4 reasoning provider readiness
+  - `POST /api/jobs/{job_id}/visual-evidence`
+  - `GET /api/artifacts/{artifact_id}/file`
+  - Active Job visual evidence strip
+  - Artifacts page visual evidence uploader and thumbnails
 
 ## Current Autopilot Readiness
 
@@ -235,15 +245,15 @@ Known missing items:
 15. Add Spoolman/material connector stub and material compatibility gate.
 16. Draft `Hermes3D Plugin Manifest v0` with permissions/trust data.
 17. Add safer operator notes/reject/retry workflow states.
-18. Add visual evidence attachments for every agent:
+18. Connect MiniMax-MCP runtime analysis to visual evidence artifacts:
    - source images
    - screenshots
    - mesh preview renders
    - slicer preview renders
    - printer/camera snapshots
    - multimodal markdown summaries
-19. Add MiniMax-MCP provider adapter and health check.
-20. Add optional DeepSeek V4 reasoning provider adapter for planning/CAD/research/reporting.
+19. Add Observe-page camera snapshot capture for cleared printers only.
+20. Add optional DeepSeek V4 reasoning calls for planning/CAD/research/reporting.
 21. Add 3MF print-contract import/export design.
 
 ## Useful Files
