@@ -19,6 +19,8 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 | AI 3D Generation Watch | `research_agent` | Track TRELLIS.2, Hunyuan3D, TripoSR, SPAR3D, InstantMesh, commercial APIs, and ComfyUI workflow updates. |
 | Agentic Modeling Automation Watch | `research_agent` | Track autonomous design loops, clarification agents, variant generation, critique/repair loops, and revision UX. |
 | Autonomous CAD/CAM Watch | `mesh_repair_agent` | Track editable CAD generation, DFM checks, slicer compiler evidence, calibration coupons, and outcome learning. |
+| Tolerance Twin And Calibration Watch | `mesh_repair_agent` | Track empirical clearances, fit classes, calibration coupons, calibration expiry, and printer/material/profile confidence. |
+| Provenance Ledger And Telemetry Watch | `factory_operator` | Track PROV-style job lineage, trace IDs, telemetry, failure taxonomy, outcome labels, and print learning records. |
 | Private Anonymous Local OS Watch | `factory_operator` | Track local-only operation, redaction, provider privacy labels, signed plugins, permission gates, and secrets handling. |
 | Agentic OS Command Center Watch | `factory_operator` | Track command palettes, background-agent status, notifications, project memory, automations, and evidence timelines. |
 | Generation UX Provider Watch | `research_agent` | Track Meshy, Tripo, Rodin, Scenario, Kaedim-style QA, provider routing, multi-view intake, variants, and export polish. |
@@ -37,10 +39,19 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 - Variant board with visual/numeric diff: bounding box, volume, support burden, ETA, material use, changed parameters, and print readiness.
 - Revision plan artifacts for failed candidates: issue, cause, proposed edit, expected metric improvement, and approval state.
 - CAD-first mode for functional brackets, mounts, jigs, adapters, fixtures, and enclosures.
+- Modular DFM/DFA rules for walls, holes, bridges, supports, assemblies, fasteners, access, post-processing, and process-specific material extrusion limits.
+- Tolerance twin with measured clearance tables per printer/material/nozzle/profile, fit classes, and automatic expiry after maintenance or calibration drift.
+- Coupon generator for dimensional, bridge, hole, snap-fit, flow, pressure advance, input shaping, temperature, and max volumetric speed checks.
 - Anonymous/local-only mode with report redaction, provider privacy labels, signed plugin permissions, and secrets-safe research notes.
 - OS command center with command palette, notifications, background-agent status, task queue, project memory, and evidence timeline.
+- Background Agent Dock for slicer, QA, maintenance, inventory, scheduling, customer ops, and failure detection agents with pause/cancel/takeover controls.
+- Triage Inbox with severity, owner, snooze, escalate, mute category, deep links, and “needs human approval” filtering.
+- Daily Operations Briefing with bottlenecks, material shortages, maintenance due, overdue jobs, risky prints, and end-of-shift handoff.
+- Floor Voice Mode, shop-floor kiosk view, and mobile incident/approval mode with readback and confirmation for risky actions.
+- Automation Builder with natural-language plus block editor: triggers, conditions, actions, approvals, retries, and logs.
 - Hermes PrintBench for visual quality, slicer pass rate, wall validity, support burden, material use, and actual print outcomes.
 - 3MF print contract with model, units, materials, profile hash, approvals, thumbnails, and evidence references.
+- PROV/OpenTelemetry-style lineage so every autonomous action, artifact, approval, command, and outcome is replayable.
 - Scheduler above Moonraker queues with printer eligibility, material/nozzle/profile match, ETA, priority, due date, and risk.
 - Observer policy engine: observe only, alert, pause recommended, and approval-gated auto-pause.
 - First-layer gate using nozzle/bed camera evidence before unattended continuation.
@@ -62,6 +73,12 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 - CAD-Coder: <https://arxiv.org/abs/2505.19713>
 - Text-to-CadQuery: <https://arxiv.org/abs/2505.06507>
 - lib3mf: <https://lib3mf.readthedocs.io/>
+- 3MF spec: <https://3mf.io/spec/>
+- NIST modular AM design rules: <https://www.nist.gov/publications/design-rules-modularity-additive-manufacturing>
+- NIST AM test artifact: <https://www.nist.gov/topics/additive-manufacturing/resources/additive-manufacturing-test-artifact>
+- AM-Bench: <https://www.nist.gov/ambench>
+- W3C PROV: <https://www.w3.org/TR/prov-overview/>
+- OpenTelemetry semantic conventions: <https://opentelemetry.io/docs/concepts/semantic-conventions/>
 - Agent Governance Toolkit: <https://opensource.microsoft.com/blog/2026/04/02/introducing-the-agent-governance-toolkit-open-source-runtime-security-for-ai-agents/>
 - ProCAD: <https://arxiv.org/abs/2602.03045>
 - CADSmith: <https://arxiv.org/abs/2603.26512>
@@ -71,6 +88,12 @@ Reports are written to `storage/learning/` and listed in the Learning page.
 - Zoo Zookeeper: <https://docs.zoo.dev/docs/zoo-design-studio/zookeeper>
 - Zoo KCL: <https://docs.zoo.dev/research/introducing-kcl>
 - Scenario 3D model comparison: <https://help.scenario.com/en/articles/comparing-generative-3d-models/>
+- GitHub Command Palette: <https://docs.github.com/en/get-started/accessibility/github-command-palette>
+- GitHub Copilot coding agent: <https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent>
+- Prusa Connect: <https://connect.prusa3d.com/>
+- 3DQue AutoFarm3D dashboard: <https://docs.3dque.com/docs/features/dashboard/overview/>
+- LM Studio offline mode: <https://lmstudio.ai/docs/app/offline>
+- Ollama FAQ: <https://docs.ollama.com/faq>
 
 ## Safety Boundary
 

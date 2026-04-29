@@ -240,8 +240,11 @@ Initial watch topics:
 - AI 3D Generation Watch: provider router, multi-view intake, local-first TRELLIS.2/Hunyuan3D/TripoSR/SPAR3D, commercial fallback, and PBR-to-print conversion.
 - Agentic Modeling Automation Watch: autonomous design loops, spec clarification, multi-agent CAD/mesh/slicer critique, variant boards, and revision planning.
 - Autonomous CAD/CAM Watch: editable CadQuery/build123d/OpenSCAD generation, DFM checks, calibration coupons, slicer compiler evidence, and print outcome learning.
+- Tolerance Twin And Calibration Watch: empirical clearances, fit classes, calibration coupons, calibration expiry, and printer/material/profile confidence.
+- Provenance Ledger And Telemetry Watch: PROV-style job lineage, OpenTelemetry trace IDs, typed artifacts, failure taxonomy, and outcome labels.
 - Private Anonymous Local OS Watch: local-only mode, report redaction, provider privacy labels, signed plugin permissions, and secrets-safe research notes.
 - Agentic OS Command Center Watch: command palette, background-agent status, notifications, project memory, automations, and evidence timelines.
+- Operations Console Watch: triage inbox, daily briefing, floor voice mode, kiosk/mobile views, plugin marketplace permissions, and automation builder.
 - Generation UX Provider Watch: Meshy/Tripo/Rodin/Scenario/Kaedim-style UX, multi-view intake, revision history, PBR-to-print conversion, and provider scorecards.
 - Printability Truth Gate Watch: mesh repair, wall thickness, slicer dry-run, 3MF evidence, part splitting, and Hermes PrintBench.
 - Observer AI Watch: camera registry, first-layer gate, multi-camera roles, failure detection adapters, and safety voice alerts.
@@ -273,3 +276,11 @@ Initial watch topics:
 21. Add DesignSpec Extractor: units, dimensions, constraints, tolerances, material, target printer, success criteria, and unresolved questions.
 22. Add Variant Board: rendered preview, numeric diff, print time, material use, risk score, changed parameters, and approval state.
 23. Add Revision Plan artifacts for failed CAD/mesh/slicer candidates.
+24. Add DFM/DFA Rule Engine: modular checks for walls, holes, bridges, supports, assemblies, fasteners, access, and post-processing burden.
+25. Add Tolerance Twin: empirical clearance tables by printer/material/nozzle/profile plus calibration expiry.
+26. Add Coupon Generator: dimensional, flow, bridge, hole, snap-fit, pressure advance, input shaping, temperature, and volumetric speed coupons.
+27. Add Provenance Ledger v1: PROV entities/activities/agents plus trace IDs for jobs, artifacts, approvals, and printer actions.
+28. Add Background Agent Dock with pause, cancel, takeover, current plan, evidence, and next-action controls.
+29. Add Triage Inbox and Daily Operations Briefing.
+30. Add Automation Builder with trigger/condition/action/approval/retry/log blocks.
+31. Add Floor Voice Mode, kiosk view, and mobile incident/approval view.

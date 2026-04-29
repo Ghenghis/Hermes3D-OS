@@ -96,6 +96,8 @@ learning_mode:
     - private-anonymous-os-watch
     - agentic-os-command-center-watch
     - generation-ux-provider-watch
+    - tolerance-twin-calibration-watch
+    - provenance-ledger-watch
     - printability-truth-gate-watch
     - observer-ai-watch
     - fleet-os-watch
