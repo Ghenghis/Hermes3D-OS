@@ -47,8 +47,10 @@ const SOURCE_PREFERRED_ORDER = {
 
 const sourceState = {
   manifest: null,
+  sourceAppsStatus: null,
   groupKey: "slicers",
   selectedIndex: 0,
+  layout: localStorage.getItem("hermes3d.sourceLayout") || "wide",
 };
 
 loadSourceManifest();
@@ -62,12 +64,30 @@ async function loadSourceManifest() {
     sourceState.manifest = await response.json();
     sourceState.groupKey = firstSourceGroup();
     renderSourceOs();
+    loadSourceAppsStatus();
   } catch (error) {
     setSourceHtml(
       "#sourceModuleList",
       `<div class="empty-state">Source manifest could not load: ${sourceEscape(error.message)}</div>`,
     );
     setSourceHtml("#sourceDownloadState", "Source manifest unavailable");
+  }
+}
+
+async function loadSourceAppsStatus() {
+  try {
+    const response = await fetch("/api/source-apps/status", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(response.statusText);
+    }
+    sourceState.sourceAppsStatus = await response.json();
+    renderSourceModuleDetails();
+  } catch (error) {
+    sourceState.sourceAppsStatus = {
+      error: error.message,
+      apps: [],
+    };
+    renderSourceModuleDetails();
   }
 }
 
@@ -93,10 +113,32 @@ function renderSourceOs() {
   if (!sourceState.manifest) {
     return;
   }
+  const root = document.querySelector("#sourceOs");
+  if (root) {
+    root.dataset.sourceLayout = sourceState.layout;
+  }
+  renderSourceLayoutControls();
   renderSourceGroupTabs();
   renderSourceMix();
   renderSourceModuleList();
   renderSourceModuleDetails();
+}
+
+function renderSourceLayoutControls() {
+  const options = [
+    ["dock", "Dock"],
+    ["wide", "Wide"],
+    ["full", "Full"],
+  ];
+  setSourceHtml(
+    "#sourceLayoutControls",
+    options
+      .map(
+        ([value, label]) =>
+          `<button class="${sourceState.layout === value ? "active" : ""}" type="button" data-source-layout="${value}">${label}</button>`,
+      )
+      .join(""),
+  );
 }
 
 function renderSourceGroupTabs() {
@@ -178,12 +220,21 @@ function renderSourceViewport(module, bridge, pipeline) {
 
 function renderSlicerViewport(module, bridge, pipeline) {
   const slicer = slicerUiProfile(module);
+  const appStatus = sourceAppStatus(module);
   return `
+    <div class="source-app-hostbar">
+      <strong>${sourceEscape(module.name)} app host</strong>
+      <span class="${appStatus.source_exists ? "ok" : "warn"}">source ${appStatus.source_exists ? "ready" : "missing"}</span>
+      <span class="${appStatus.installed_executable ? "ok" : "warn"}">app ${appStatus.installed_executable ? "detected" : "not built/installed"}</span>
+      <span>CLI ${appStatus.cli_executable ? "ready" : "pending"}</span>
+      <button type="button" data-source-layout="wide">wide</button>
+      <button type="button" data-source-layout="full">maximize</button>
+    </div>
     <div class="source-native-window source-slicer-window">
       <div class="source-native-title">
         <span class="source-app-dot"></span>
         <strong>*Untitled - ${sourceEscape(slicer.title)}</strong>
-        <span class="source-window-controls">- □ ×</span>
+        <span class="source-window-controls"><button type="button" data-source-layout="dock">-</button><button type="button" data-source-layout="full">□</button><button type="button">×</button></span>
       </div>
       <div class="source-native-menu">
         <span>File</span><span>Edit</span><span>Window</span><span>View</span><span>Configuration</span><span>Help</span>
@@ -352,6 +403,16 @@ function allSourceModules() {
   return Object.values(sourceState.manifest?.groups || {}).flat();
 }
 
+function sourceAppStatus(module) {
+  const empty = {
+    source_exists: false,
+    installed_executable: "",
+    cli_executable: "",
+  };
+  const apps = sourceState.sourceAppsStatus?.apps || [];
+  return apps.find((item) => item.id === module.id || item.name === module.name) || empty;
+}
+
 function sourcePreferredRank(module) {
   const order = SOURCE_PREFERRED_ORDER[sourceState.groupKey] || [];
   const rank = order.indexOf(module.name);
@@ -372,6 +433,15 @@ function localSourcePath(module) {
 function sourceStatus(module) {
   if (!module.repo) {
     return "needs user source/profile";
+  }
+  if (sourceState.groupKey === "slicers") {
+    const status = sourceAppStatus(module);
+    if (status.source_exists && status.installed_executable) {
+      return "source ready / installed app detected";
+    }
+    if (status.source_exists) {
+      return "source checkout ready / native app bridge required";
+    }
   }
   if (module.priority === "catalog") {
     return "catalog source downloaded";
@@ -421,6 +491,14 @@ document.addEventListener("click", (event) => {
   const groupButton = event.target.closest("[data-source-group]");
   if (groupButton) {
     setSourceGroup(groupButton.dataset.sourceGroup);
+    return;
+  }
+
+  const layoutButton = event.target.closest("[data-source-layout]");
+  if (layoutButton) {
+    sourceState.layout = layoutButton.dataset.sourceLayout;
+    localStorage.setItem("hermes3d.sourceLayout", sourceState.layout);
+    renderSourceOs();
     return;
   }
 
