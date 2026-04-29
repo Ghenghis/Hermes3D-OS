@@ -5,6 +5,7 @@ import os
 import random
 import shutil
 import socket
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -509,7 +510,7 @@ def learning_mode_status() -> dict[str, Any]:
 
 @app.post("/api/learning-mode/report")
 def create_learning_mode_report(payload: LearningModeRequest) -> dict[str, Any]:
-    report = _write_learning_report(payload.topic or "Hermes3D-OS research and printability improvements")
+    report = _write_learning_report(payload.topic or _next_learning_topic()["id"])
     db.add_event(
         None,
         "LEARNING_MODE_REPORT",
@@ -517,6 +518,19 @@ def create_learning_mode_report(payload: LearningModeRequest) -> dict[str, Any]:
         {"path": str(report), "enabled": payload.enabled, "topic": payload.topic},
     )
     return {"enabled": payload.enabled, "report_path": str(report)}
+
+
+@app.post("/api/learning-mode/next-report")
+def create_next_learning_report() -> dict[str, Any]:
+    topic = _next_learning_topic()
+    report = _write_learning_report(topic["id"])
+    db.add_event(
+        None,
+        "LEARNING_MODE_REPORT",
+        "Idle Learning Mode created the next queued research report.",
+        {"path": str(report), "topic": topic["id"], "agent": topic["agent"]},
+    )
+    return {"enabled": True, "topic": topic, "report_path": str(report)}
 
 
 @app.get("/api/generation-stack/status")
@@ -1858,16 +1872,29 @@ def _learning_mode_status() -> dict[str, Any]:
     learning_dir = settings.storage_dir / "learning"
     learning_dir.mkdir(parents=True, exist_ok=True)
     reports = sorted(learning_dir.glob("*.md"), key=lambda path: path.stat().st_mtime, reverse=True)
+    latest_reports = [
+        {
+            "path": str(path),
+            "name": path.name,
+            "updated_at": datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat(),
+        }
+        for path in reports[:10]
+    ]
     return {
         "enabled": True,
         "mode": "idle-research-reporting",
+        "cadence": "on-idle or operator-triggered",
         "reports_dir": str(learning_dir),
-        "latest_reports": [str(path) for path in reports[:10]],
+        "latest_reports": latest_reports,
+        "next_topic": _next_learning_topic(),
+        "topics": IDLE_RESEARCH_TOPICS,
+        "agents": sorted({topic["agent"] for topic in IDLE_RESEARCH_TOPICS}),
         "safe_scope": [
             "research public workflows and papers",
             "write markdown reports and diagrams",
             "never move or test locked printers",
             "propose changes for approval before hardware actions",
+            "never upload or start a print from learning mode",
         ],
     }
 
@@ -1875,35 +1902,219 @@ def _learning_mode_status() -> dict[str, Any]:
 def _write_learning_report(topic: str) -> Path:
     learning_dir = settings.storage_dir / "learning"
     learning_dir.mkdir(parents=True, exist_ok=True)
+    topic_record = _learning_topic(topic)
     stamp = utc_now().replace(":", "").replace("-", "").replace(".", "")
-    safe_topic = "".join(ch if ch.isalnum() else "-" for ch in topic.lower()).strip("-")[:60]
+    safe_topic_base = f"{topic_record['id']}-{topic_record['title']}"
+    safe_topic = "".join(ch if ch.isalnum() else "-" for ch in safe_topic_base.lower()).strip("-")[:80]
     path = learning_dir / f"{stamp}-{safe_topic or 'learning-report'}.md"
+    source_lines = "\n".join(f"- {source}" for source in topic_record["sources"])
+    action_lines = "\n".join(f"- {action}" for action in topic_record["next_actions"])
+    output_lines = "\n".join(f"- {output}" for output in topic_record["outputs"])
     path.write_text(
         "\n".join(
             [
                 "# Hermes3D-OS Learning Mode Report",
                 "",
                 f"- Created: {utc_now()}",
-                f"- Topic: {topic}",
+                f"- Topic: {topic_record['title']}",
+                f"- Topic ID: `{topic_record['id']}`",
+                f"- Agent: `{topic_record['agent']}`",
+                f"- Priority: `{topic_record['priority']}`",
                 "- Mode: research-only idle learning",
                 "- Hardware policy: no printer movement, no S1 testing, no upload/start actions",
                 "",
+                "## Why This Matters",
+                "",
+                topic_record["why"],
+                "",
                 "## Research Targets",
                 "",
-                "- TRELLIS.2, Hunyuan3D-2.1, TripoSR, and ComfyUI 3D workflow improvements",
-                "- printer-specific notes for FLSUN T1 and V400",
-                "- printability validation, repair, and slicer dry-run patterns",
-                "- Moonraker telemetry, camera observation, and safety voice alert improvements",
+                output_lines,
+                "",
+                "## Watch Sources",
+                "",
+                source_lines,
                 "",
                 "## Next Agent Actions",
                 "",
-                "- collect sources",
-                "- summarize findings",
-                "- propose roadmap changes",
-                "- create diagrams and implementation tickets",
+                action_lines,
+                "",
+                "## Safe Automation Boundary",
+                "",
+                "- Allowed: public research, markdown reports, diagrams, proposed tickets, local readiness checks",
+                "- Blocked: moving printers, testing S1, uploading G-code, starting prints, changing firmware",
+                "- Required approval: dependency installs, workflow imports, printer profile changes, real Moonraker actions",
+                "",
+                "## Diagram",
+                "",
+                "```mermaid",
+                "flowchart LR",
+                '  A["Idle trigger"] --> B["Research agent"]',
+                '  B --> C["Source notes"]',
+                '  C --> D["Feature proposal"]',
+                '  D --> E["Roadmap ticket"]',
+                '  E --> F["Operator approval"]',
+                '  F --> G["Implementation"]',
+                "```",
                 "",
             ]
         ),
         encoding="utf-8",
     )
     return path
+
+
+def _next_learning_topic() -> dict[str, Any]:
+    learning_dir = settings.storage_dir / "learning"
+    reports = " ".join(path.name for path in learning_dir.glob("*.md")) if learning_dir.exists() else ""
+    for topic in IDLE_RESEARCH_TOPICS:
+        if topic["id"] not in reports:
+            return topic
+    return IDLE_RESEARCH_TOPICS[0]
+
+
+def _learning_topic(topic: str) -> dict[str, Any]:
+    normalized = topic.strip().lower()
+    for item in IDLE_RESEARCH_TOPICS:
+        if normalized in {item["id"].lower(), item["title"].lower()}:
+            return item
+    return {
+        "id": "custom-research",
+        "title": topic,
+        "agent": "research_agent",
+        "priority": "operator-requested",
+        "why": "The operator requested a custom learning-mode research topic.",
+        "outputs": [
+            "source collection",
+            "feature recommendations",
+            "implementation tickets",
+        ],
+        "sources": [
+            "Operator-provided context",
+            "Public project documentation and official upstream docs",
+        ],
+        "next_actions": [
+            "collect trustworthy sources",
+            "write an evidence-backed summary",
+            "turn findings into safe implementation tickets",
+        ],
+    }
+
+
+IDLE_RESEARCH_TOPICS: list[dict[str, Any]] = [
+    {
+        "id": "ai-3d-generation-watch",
+        "title": "AI 3D Generation Watch",
+        "agent": "research_agent",
+        "priority": "high",
+        "why": "The AI 3D space is moving quickly; Hermes should track engines that improve image-to-print success without losing local control.",
+        "outputs": [
+            "TRELLIS.2, Hunyuan3D, TripoSR, Stable Fast 3D, InstantMesh, and ComfyUI node updates",
+            "quality, VRAM, license, install, and output-format notes",
+            "workflow import tasks for Hermes3D generation runners",
+        ],
+        "sources": [
+            "https://github.com/microsoft/TRELLIS.2",
+            "https://github.com/tencent-hunyuan/Hunyuan3D-2.1",
+            "https://arxiv.org/abs/2403.02151",
+            "https://docs.comfy.org/development/comfyui-server/comms_routes",
+        ],
+        "next_actions": [
+            "watch for runnable ComfyUI workflows that expose image input and mesh output",
+            "rank engines by printability, not visual appeal only",
+            "propose one import ticket per validated workflow",
+        ],
+    },
+    {
+        "id": "printability-truth-gate-watch",
+        "title": "Printability Truth Gate Watch",
+        "agent": "mesh_repair_agent",
+        "priority": "high",
+        "why": "Hermes becomes useful when it proves generated geometry can survive repair, slicing, and real printer constraints.",
+        "outputs": [
+            "mesh repair libraries and CLI probes",
+            "wall-thickness, manifold, normals, overhang, and bed-fit checks",
+            "slicer dry-run evidence bundle improvements",
+        ],
+        "sources": [
+            "https://trimesh.org/",
+            "https://github.com/elalish/manifold",
+            "https://github.com/prusa3d/PrusaSlicer/wiki/Command-Line-Interface",
+            "https://github.com/3MFConsortium/spec_core",
+        ],
+        "next_actions": [
+            "propose a mesh validator worker contract",
+            "add slicer warning extraction fields",
+            "define pass/fail thresholds per printer family",
+        ],
+    },
+    {
+        "id": "observer-ai-watch",
+        "title": "Observer AI And Camera Evidence Watch",
+        "agent": "print_safety_agent",
+        "priority": "high",
+        "why": "Camera observation should create actionable evidence and safety voice alerts instead of passive video only.",
+        "outputs": [
+            "Moonraker webcam discovery and snapshot events",
+            "local failure detection candidates",
+            "first-layer and anomaly evidence report patterns",
+        ],
+        "sources": [
+            "https://moonraker.readthedocs.io/en/latest/external_api/webcams/",
+            "https://www.obico.io/failure-detection.html",
+            "https://github.com/open-edge-platform/anomalib",
+            "https://arxiv.org/abs/2111.02703",
+        ],
+        "next_actions": [
+            "map each printer camera URL to snapshot and stream modes",
+            "propose observer policies from alert-only to approval-gated pause",
+            "add evidence snapshots for print gates",
+        ],
+    },
+    {
+        "id": "fleet-os-watch",
+        "title": "Fleet OS And Scheduling Watch",
+        "agent": "factory_operator",
+        "priority": "medium",
+        "why": "A print factory OS needs printer eligibility, materials, maintenance, queue pressure, and risk scoring in one place.",
+        "outputs": [
+            "Moonraker telemetry and printer-object fields",
+            "FDM Monster and fleet dashboard patterns",
+            "material/spool/profile compatibility fields",
+        ],
+        "sources": [
+            "https://moonraker.readthedocs.io/en/stable/web_api/",
+            "https://docs.fdm-monster.net/",
+            "https://github.com/Donkie/Spoolman",
+            "https://reference.opcfoundation.org/AdditiveManufacturing/v100/docs/4",
+        ],
+        "next_actions": [
+            "propose printer digital twin fields",
+            "add queue scheduler scoring inputs",
+            "keep S1 excluded while maintenance lock is active",
+        ],
+    },
+    {
+        "id": "printer-mods-watch",
+        "title": "Printer Mods And Calibration Watch",
+        "agent": "research_agent",
+        "priority": "medium",
+        "why": "Hermes should learn safe upgrades and calibration patterns for the active FLSUN T1 and V400 printers without touching locked hardware.",
+        "outputs": [
+            "safe Klipper macro ideas",
+            "printer profile and calibration checklist updates",
+            "camera, lighting, and enclosure observations",
+        ],
+        "sources": [
+            "https://www.klipper3d.org/",
+            "https://moonraker.readthedocs.io/",
+            "https://github.com/prusa3d/PrusaSlicer",
+            "https://github.com/SoftFever/OrcaSlicer",
+        ],
+        "next_actions": [
+            "collect T1 and V400 profile evidence",
+            "draft calibration checklist tickets",
+            "never test or move FLSUN S1 until lock is cleared",
+        ],
+    },
+]

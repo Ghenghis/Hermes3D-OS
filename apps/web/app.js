@@ -8,6 +8,7 @@ const state = {
   settings: {},
   autopilot: {},
   generationStack: {},
+  learningMode: {},
   health: {},
   printerStatus: {},
   activeJobId: null,
@@ -48,9 +49,10 @@ async function apiForm(path, formData) {
 
 async function refresh() {
   try {
-    const [workspace, generationStack] = await Promise.all([
+    const [workspace, generationStack, learningMode] = await Promise.all([
       api("/api/workspace"),
       api("/api/generation-stack/status").catch(() => ({})),
+      api("/api/learning-mode/status").catch(() => ({})),
     ]);
     state.health = workspace.health;
     state.settings = workspace.settings;
@@ -61,6 +63,7 @@ async function refresh() {
     state.events = workspace.events;
     state.autopilot = workspace.autopilot || {};
     state.generationStack = generationStack || {};
+    state.learningMode = learningMode || {};
 
     healthEl.textContent = state.health.dry_run_printers
       ? "API online. Printer actions are dry-run."
@@ -83,6 +86,7 @@ function renderAll() {
   renderSetup();
   renderDesign();
   renderGenerationStack();
+  renderLearningMode();
   renderJobs();
   renderPrinters();
   renderObserve();
@@ -265,6 +269,58 @@ function renderWorkflowStatus(workflow) {
       </div>
       <p class="muted">${escapeHtml(workflow.reason || "")}</p>
       <p class="muted">${escapeHtml(workflow.workflow_path || "")}</p>
+    </article>
+  `;
+}
+
+function renderLearningMode() {
+  const learning = state.learningMode || {};
+  const topics = learning.topics || [];
+  const reports = learning.latest_reports || [];
+  const nextTopic = learning.next_topic || {};
+  setHtml(
+    "#learningStatus",
+    [
+      settingRow("Mode", learning.mode || "idle-research-reporting"),
+      settingRow("Cadence", learning.cadence || "operator-triggered"),
+      settingRow("Reports Directory", learning.reports_dir || "storage/learning"),
+      settingRow("Next Topic", nextTopic.title || "AI 3D Generation Watch"),
+      settingRow("Agents", (learning.agents || []).join(", ") || "research_agent"),
+      `<div class="section"><h2>Safety Scope</h2>${(learning.safe_scope || []).map((item) => settingRow("Scope", item)).join("")}</div>`,
+    ].join(""),
+  );
+  setHtml(
+    "#learningTopics",
+    topics.map(renderLearningTopic).join("") || '<div class="empty-state">No learning topics configured.</div>',
+  );
+  setHtml(
+    "#learningReports",
+    reports
+      .map(
+        (report) => `
+          <article class="artifact-card">
+            <div class="row">
+              <strong>${escapeHtml(report.name || "learning report")}</strong>
+              ${stateBadge("MD")}
+            </div>
+            <p class="muted">${escapeHtml(report.path || "")}</p>
+            <p class="muted">${escapeHtml(report.updated_at || "")}</p>
+          </article>
+        `,
+      )
+      .join("") || '<div class="empty-state">No learning reports yet.</div>',
+  );
+}
+
+function renderLearningTopic(topic) {
+  return `
+    <article class="setup-card">
+      <div class="row">
+        <h3>${escapeHtml(topic.title)}</h3>
+        ${stateBadge(String(topic.priority || "queued").toUpperCase())}
+      </div>
+      <p class="muted">${escapeHtml(topic.why || "")}</p>
+      <p class="muted">Agent: ${escapeHtml(topic.agent || "research_agent")}</p>
     </article>
   `;
 }
@@ -912,12 +968,29 @@ document.addEventListener("submit", async (event) => {
     state.activePage = "jobs";
     await refresh();
   }
+
+  const learningReportForm = event.target.closest("#learningReportForm");
+  if (learningReportForm) {
+    event.preventDefault();
+    const form = new FormData(learningReportForm);
+    await api("/api/learning-mode/report", {
+      method: "POST",
+      body: JSON.stringify({ enabled: true, topic: form.get("topic") || null }),
+    });
+    learningReportForm.reset();
+    await refresh();
+  }
 });
 
 document.querySelector("#refreshBtn").addEventListener("click", refresh);
 
 document.querySelector("#bootstrapBtn").addEventListener("click", async () => {
   await api("/api/bootstrap", { method: "POST", body: "{}" });
+  await refresh();
+});
+
+document.querySelector("#learningNextBtn")?.addEventListener("click", async () => {
+  await api("/api/learning-mode/next-report", { method: "POST", body: "{}" });
   await refresh();
 });
 

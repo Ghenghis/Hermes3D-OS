@@ -79,6 +79,21 @@ agents:
     voice: en-US-GuyNeural
     role: Idle learning reports and upgrade research
 
+learning_mode:
+  enabled: true
+  cadence: on-idle-or-operator-triggered
+  reports_dir: storage/learning
+  hardware_policy:
+    allow_printer_movement: false
+    allow_s1_testing: false
+    allow_upload_or_start: false
+  queued_topics:
+    - ai-3d-generation-watch
+    - printability-truth-gate-watch
+    - observer-ai-watch
+    - fleet-os-watch
+    - printer-mods-watch
+
 slicers:
   prusaslicer:
     enabled: true

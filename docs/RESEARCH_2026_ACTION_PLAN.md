@@ -231,10 +231,22 @@ The durable product moat is:
 AI 3D asset generation -> print-safe geometry -> slicer-approved G-code
 ```
 
+## Idle Learning Mode Addendum
+
+Hermes3D-OS now includes an idle research queue so background agents can keep collecting ideas while the factory is quiet. Learning Mode is research-only and writes markdown reports to `storage/learning/`; it cannot move printers, test S1, upload G-code, start prints, change firmware, or install dependencies without operator approval.
+
+Initial watch topics:
+
+- AI 3D Generation Watch: provider router, multi-view intake, local-first TRELLIS.2/Hunyuan3D/TripoSR/SPAR3D, commercial fallback, and PBR-to-print conversion.
+- Printability Truth Gate Watch: mesh repair, wall thickness, slicer dry-run, 3MF evidence, part splitting, and Hermes PrintBench.
+- Observer AI Watch: camera registry, first-layer gate, multi-camera roles, failure detection adapters, and safety voice alerts.
+- Fleet OS Watch: Moonraker job queue, WebSocket printer twins, scheduler scoring, material/nozzle/profile matching, maintenance blockers, and Spoolman/OpenPrintTag readiness.
+- Printer Mods Watch: safe FLSUN T1/V400 profile and calibration research while S1 remains locked.
+
 ## Immediate Next Tasks
 
 1. Replace ComfyUI placeholder workflow JSON with exported TRELLIS.2, Hunyuan3D-2.1, and TripoSR API workflows.
-2. Add ComfyUI runner: `/prompt`, `/ws`, `/history`, artifact copy, and interrupt support.
+2. Extend ComfyUI runner with `/ws` progress, artifact type mapping, and interrupt support.
 3. Add model endpoint picker from `/v1/models`.
 4. Add `DesignSpec` schema and Design page fields.
 5. Add CAD worker v1 with executable source and validation artifacts.
@@ -248,3 +260,4 @@ AI 3D asset generation -> print-safe geometry -> slicer-approved G-code
 13. Draft `Hermes3D Plugin Manifest v0`.
 14. Add plugin trust/permissions model to the Plugins page.
 15. Add 3MF print-contract import/export design.
+16. Add Learning Mode scheduler/timer so queued reports run automatically during idle windows.

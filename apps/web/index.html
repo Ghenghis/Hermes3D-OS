@@ -28,6 +28,7 @@
       <button class="tab" type="button" data-page="printers">Printers</button>
       <button class="tab" type="button" data-page="observe">Observe</button>
       <button class="tab" type="button" data-page="voice">Voice</button>
+      <button class="tab" type="button" data-page="learning">Learning</button>
       <button class="tab" type="button" data-page="artifacts">Artifacts</button>
       <button class="tab" type="button" data-page="approvals">Approvals</button>
       <button class="tab" type="button" data-page="plugins">Plugins</button>
@@ -219,6 +220,39 @@
           </div>
           <div id="voicePanel"></div>
         </section>
+      </section>
+
+      <section id="page-learning" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Idle Learning Mode</h2>
+              <span class="muted">Research-only agents</span>
+            </div>
+            <div id="learningStatus" class="settings-list"></div>
+            <section class="section">
+              <h2>Research Queue</h2>
+              <div id="learningTopics" class="setup-list"></div>
+            </section>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Research Reports</h2>
+              <span class="muted">Markdown evidence</span>
+            </div>
+            <div class="actions">
+              <button id="learningNextBtn" type="button">Create Next Report</button>
+            </div>
+            <form id="learningReportForm" class="job-form">
+              <label>
+                <span>Custom Topic</span>
+                <textarea name="topic" rows="4" placeholder="Research a new 3D printing or modeling feature"></textarea>
+              </label>
+              <button type="submit">Create Custom Report</button>
+            </form>
+            <div id="learningReports" class="artifact-list"></div>
+          </section>
+        </div>
       </section>
 
       <section id="page-artifacts" class="page">
