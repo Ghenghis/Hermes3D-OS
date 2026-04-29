@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hermes3D UX Lab - Print Factory OS V1</title>
+    <link rel="stylesheet" href="print-factory-os-v1.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="titlebar">
+        <div class="brand">
+          <strong>Hermes3D OS</strong>
+          <span>UX Lab / compact one-page print factory</span>
+        </div>
+        <nav class="menu">
+          <button>Project</button>
+          <button>Import</button>
+          <button>Slice</button>
+          <button>Print Farm</button>
+          <button>Agents</button>
+          <button>Settings</button>
+        </nav>
+        <div class="system-chip">Dry-run guarded</div>
+      </header>
+
+      <main class="workspace">
+        <aside class="left-rail">
+          <button class="rail-app active">Factory</button>
+          <button class="rail-app">Slicer</button>
+          <button class="rail-app">Model</button>
+          <button class="rail-app">Camera</button>
+          <button class="rail-app">Files</button>
+          <button class="rail-app">Queue</button>
+        </aside>
+
+        <section class="printer-farm window">
+          <div class="window-head">
+            <strong>Printer Farm</strong>
+            <span>3 active / 1 locked</span>
+          </div>
+          <div id="printerGrid" class="printer-grid"></div>
+        </section>
+
+        <section class="slicer-bench window">
+          <div class="window-head">
+            <strong>Slicer Bench</strong>
+            <div class="tabs" id="slicerTabs">
+              <button data-tab="prusa" class="active">Prusa</button>
+              <button data-tab="orca">Orca</button>
+              <button data-tab="flsun">FLSUN</button>
+              <button data-tab="cura">Cura</button>
+            </div>
+          </div>
+          <div class="tool-row">
+            <button>Import STL</button>
+            <button>Import 3MF</button>
+            <button>Auto arrange</button>
+            <button>Slice dry-run</button>
+            <button>Upload package</button>
+            <select id="profileSelect">
+              <option>FLSUN T1 - PLA 0.4</option>
+              <option>FLSUN V400 - PLA 0.4</option>
+              <option>Prusa MK3S - PETG 0.4</option>
+              <option>CR-6 Max - PLA 0.4</option>
+            </select>
+          </div>
+          <div class="slicer-layout">
+            <div class="plate">
+              <div class="plate-grid"></div>
+              <div id="partGhost" class="part-ghost">bracket.stl</div>
+              <span class="axis x">X</span>
+              <span class="axis y">Y</span>
+            </div>
+            <aside class="slicer-side">
+              <div class="mini-tabs" id="modeTabs">
+                <button class="active" data-mode="prepare">Prepare</button>
+                <button data-mode="preview">Preview</button>
+                <button data-mode="device">Device</button>
+              </div>
+              <table class="compact-table">
+                <tbody>
+                  <tr><th>Engine</th><td id="activeSlicer">PrusaSlicer CLI</td></tr>
+                  <tr><th>Profile</th><td>FLSUN T1 PLA</td></tr>
+                  <tr><th>Layer</th><td>0.20 mm</td></tr>
+                  <tr><th>Infill</th><td>15%</td></tr>
+                  <tr><th>ETA</th><td id="etaCell">2h 18m</td></tr>
+                  <tr><th>G-code</th><td>not generated</td></tr>
+                </tbody>
+              </table>
+              <div class="transform-grid">
+                <label>X <input id="scaleX" type="range" min="25" max="200" value="100" /></label>
+                <label>Y <input id="scaleY" type="range" min="25" max="200" value="100" /></label>
+                <label>Z <input id="scaleZ" type="range" min="25" max="200" value="100" /></label>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="modeling window">
+          <div class="window-head">
+            <strong>Modeling Stack</strong>
+            <span>AI usable source tools</span>
+          </div>
+          <div class="model-tabs" id="modelTabs">
+            <button class="active" data-model="cadquery">CadQuery</button>
+            <button data-model="openscad">OpenSCAD</button>
+            <button data-model="blender">Blender</button>
+            <button data-model="trellis">TRELLIS</button>
+          </div>
+          <div class="code-panel">
+            <div class="code-head">
+              <span id="modelTitle">CadQuery parametric source</span>
+              <button>Run preview</button>
+            </div>
+            <pre id="modelCode">box = cq.Workplane("XY").box(80, 30, 12)
+holes = box.faces("&gt;Z").workplane().pushPoints([(-25,0),(25,0)]).hole(5)</pre>
+          </div>
+          <div class="truth-gate">
+            <span class="pass">Watertight</span>
+            <span class="pass">Bounds fit T1</span>
+            <span class="warn">Wall check</span>
+            <span class="idle">Slice pending</span>
+          </div>
+        </section>
+
+        <section class="right-stack">
+          <div class="window inspector">
+            <div class="window-head">
+              <strong>Inspector</strong>
+              <button id="toggleEvents">Events</button>
+            </div>
+            <table class="compact-table">
+              <tbody>
+                <tr><th>Selected</th><td id="selectedPrinter">FLSUN T1-A</td></tr>
+                <tr><th>Nozzle</th><td id="nozzleTemp">211 C</td></tr>
+                <tr><th>Bed</th><td id="bedTemp">60 C</td></tr>
+                <tr><th>Progress</th><td id="printProgress">38%</td></tr>
+                <tr><th>Camera</th><td>not linked</td></tr>
+                <tr><th>Action</th><td>safe observe</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="window camera-wall">
+            <div class="window-head">
+              <strong>Camera Wall</strong>
+              <span>USB / Moonraker slots</span>
+            </div>
+            <div class="camera-grid">
+              <div>T1-A</div>
+              <div>T1-B</div>
+              <div>V400</div>
+              <div>S1 locked</div>
+            </div>
+          </div>
+
+          <div class="window queue">
+            <div class="window-head">
+              <strong>Batch Queue</strong>
+              <button>Plan</button>
+            </div>
+            <table class="compact-table queue-table">
+              <tbody>
+                <tr><th>#31</th><td>bracket.stl</td><td>T1-A</td><td>ready</td></tr>
+                <tr><th>#32</th><td>gearbox.3mf</td><td>V400</td><td>slice</td></tr>
+                <tr><th>#33</th><td>camera-mount.step</td><td>T1-B</td><td>cad</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bottom-strip">
+          <div class="status-line">
+            <span>Moonraker scan: 80, 7125</span>
+            <span>PrusaSlicer CLI ready</span>
+            <span>Orca source bridge planned</span>
+            <span>S1 movement blocked</span>
+          </div>
+          <div id="eventDrawer" class="event-drawer collapsed">
+            <button id="closeEvents">minimize</button>
+            <span>PRINTER_PROBE_OK T1-A</span>
+            <span>PROFILE_CHECK FLSUN T1 PLA</span>
+            <span>TRUTH_GATE wall thickness pending</span>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="print-factory-os-v1.js"></script>
+  </body>
+</html>
