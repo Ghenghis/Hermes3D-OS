@@ -596,6 +596,9 @@ function renderApprovalsPage() {
 }
 
 function renderSettings() {
+  if (window.hermesSettingsPanel) {
+    window.hermesSettingsPanel.render();
+  }
   const runtime = state.settings.runtime || {};
   const ports = runtime.ports || {};
   const serviceUrls = runtime.service_urls || {};
@@ -607,7 +610,6 @@ function renderSettings() {
   setHtml(
     "#settingsPage",
     [
-      renderAppearanceSettings(),
       `
         <form id="runtimeSettingsForm" class="settings-form">
           <div class="settings-toolbar">
@@ -1337,3 +1339,7 @@ startPrintBtn.addEventListener("click", async () => {
 });
 
 refresh();
+
+if (window.hermesSettingsPanel) {
+  window.hermesSettingsPanel.load();
+}
