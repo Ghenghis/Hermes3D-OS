@@ -130,6 +130,14 @@ SOURCE_APP_REGISTRY = [
         "cli_commands": ["cura"],
         "gui_commands": ["cura"],
     },
+    {
+        "id": "triposr",
+        "name": "TripoSR",
+        "target": Path("generation") / "TripoSR",
+        "tool_key": "triposr",
+        "cli_commands": [],
+        "gui_commands": [],
+    },
 ]
 
 app.add_middleware(
@@ -668,7 +676,7 @@ def generation_stack_status() -> dict[str, Any]:
 
 @app.get("/api/source-apps/status")
 def source_apps_status() -> dict[str, Any]:
-    source_root = settings.repo_root / "source-lab" / "sources"
+    source_root = source_install.resolve_apps_root(settings.repo_root)
     apps = []
     for item in SOURCE_APP_REGISTRY:
         source_path = source_root / item["target"]
@@ -677,8 +685,8 @@ def source_apps_status() -> dict[str, Any]:
         manifest_entry = source_install.find_app(settings.repo_root, item["id"]) or {}
         install_state = source_install.install_state_payload(item["id"])
         if manifest_entry.get("install") and install_state["status"] == "not_installed":
-            if source_install.probe_installed(item["id"], manifest_entry):
-                install_state = {**install_state, "status": "installed", "log_tail": ["probed via importlib"]}
+            if source_install.probe_installed(item["id"], manifest_entry, settings.repo_root):
+                install_state = {**install_state, "status": "installed", "log_tail": ["probed installation target"]}
         apps.append(
             {
                 "id": item["id"],
