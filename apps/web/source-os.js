@@ -408,9 +408,17 @@ function sourceAppStatus(module) {
     source_exists: false,
     installed_executable: "",
     cli_executable: "",
+    install_method: module.install?.method || null,
+    install_status: "not_installed",
+    install_state: { status: "not_installed", log_tail: [] },
   };
   const apps = sourceState.sourceAppsStatus?.apps || [];
-  return apps.find((item) => item.id === module.id || item.name === module.name) || empty;
+  const status = apps.find((item) => item.id === module.id || item.name === module.name) || empty;
+  return {
+    ...status,
+    install_method: status.install_method || module.install?.method || null,
+    install_state: status.install_state || empty.install_state,
+  };
 }
 
 function sourcePreferredRank(module) {
@@ -426,6 +434,10 @@ function sourceGroupLabel(group) {
 function localSourcePath(module) {
   if (!module.target) {
     return "source-lab/sources";
+  }
+  const status = sourceAppStatus(module);
+  if (status.source_path) {
+    return status.source_path.replaceAll("\\", "/");
   }
   return `${sourceState.manifest?.sourceRoot || "source-lab/sources"}/${module.target}`.replaceAll("\\", "/");
 }
@@ -473,6 +485,38 @@ function dispatchSourceModuleToActionWindow() {
     primary.push({ id: "install-app", label: installStatus === "installing" ? "Installing…" : "Install", endpoint: `/api/source-apps/${module.id}/install`, method: "POST" });
   }
   primary.push({ id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" });
+  const logTail = status.install_state?.log_tail || [];
+  const installNote = module.install?.note || "Local open-source install; no cloud service required.";
+  const launcherText = module.id === "triposr"
+    ? "N/A; TripoSR is prepared as a local research module and probed through its Python setup."
+    : "Native or service launch wiring depends on this app's adapter.";
+  const triposrPanels = module.id === "triposr"
+    ? [
+        {
+          id: "install",
+          label: "Install",
+          body_html: `
+            <ul style="margin:0;padding-left:1.1rem;line-height:1.55;">
+              <li><b>Target:</b> ${localSourcePath(module)}</li>
+              <li><b>Method:</b> ${installMethod || "none"}</li>
+              <li><b>Status:</b> ${installStatus}</li>
+              <li><b>Note:</b> ${sourceEscape(installNote)}</li>
+            </ul>
+            ${logTail.length ? `<pre style="white-space:pre-wrap;margin:.75rem 0 0;">${sourceEscape(logTail.join("\n"))}</pre>` : ""}`,
+        },
+        {
+          id: "readme",
+          label: "README",
+          body_html: `
+            <p style="margin:0;line-height:1.55;">TripoSR is the MIT-licensed VAST-AI-Research single-image 3D reconstruction codebase. Hermes installs it locally as source plus a Python venv, then probes the runnable scripts without starting a cloud service.</p>`,
+        },
+        {
+          id: "license",
+          label: "License",
+          body_html: `<p style="margin:0;line-height:1.55;">${sourceEscape(module.license || "unknown")}</p>`,
+        },
+      ]
+    : [];
   const payload = {
     tab_id: "sources",
     kind: "app",
@@ -495,8 +539,10 @@ function dispatchSourceModuleToActionWindow() {
             <li><b>Priority:</b> ${module.priority || "candidate"}</li>
             <li><b>Section:</b> ${module.uxSection || "Hermes3D module"}</li>
             <li><b>Install:</b> ${installMethod ? `${installMethod} → ${installStatus}` : "no install block"}</li>
+            <li><b>Launcher:</b> ${sourceEscape(launcherText)}</li>
           </ul>`,
       },
+      ...triposrPanels,
     ],
   };
   if (window.HermesActionWindow && typeof window.HermesActionWindow.dispatch === "function") {
@@ -548,7 +594,7 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const layoutButton = event.target.closest("[data-source-layout]");
+  const layoutButton = event.target.closest("button[data-source-layout]");
   if (layoutButton) {
     sourceState.layout = layoutButton.dataset.sourceLayout;
     localStorage.setItem("hermes3d.sourceLayout", sourceState.layout);
@@ -624,12 +670,25 @@ async function installSourceModule(module) {
       return;
     }
     setSourceHtml("#sourceDownloadState", `${module.name}: install ${payload.status || "running"}`);
-    // Reflect into Action Window if it's currently showing this app.
+    await pollSourceInstall(module);
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: install error — ${err}`);
+  }
+}
+
+async function pollSourceInstall(module) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    await loadSourceAppsStatus();
+    const status = sourceAppStatus(module);
+    setSourceHtml("#sourceDownloadState", `${module.name}: install ${status.install_status || "not_installed"}`);
     const aw = document.getElementById("actionWindow");
     if (aw && aw.dataset.itemId === module.id) {
       dispatchSourceModuleToActionWindow();
     }
-  } catch (err) {
-    setSourceHtml("#sourceDownloadState", `${module.name}: install error — ${err}`);
+    if (status.install_status === "installed" || status.install_status === "failed") {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
