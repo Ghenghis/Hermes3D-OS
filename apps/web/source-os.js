@@ -588,7 +588,7 @@ function sourceEscapeAttr(value) {
 }
 
 document.addEventListener("click", (event) => {
-  const groupButton = event.target.closest("[data-source-group]");
+  const groupButton = event.target.closest("button[data-source-group]");
   if (groupButton) {
     setSourceGroup(groupButton.dataset.sourceGroup);
     return;
@@ -602,7 +602,7 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const moduleButton = event.target.closest("[data-source-index]");
+  const moduleButton = event.target.closest("button[data-source-index]");
   if (moduleButton) {
     sourceState.selectedIndex = Number(moduleButton.dataset.sourceIndex);
     renderSourceOs();
