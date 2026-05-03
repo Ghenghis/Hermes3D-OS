@@ -515,6 +515,12 @@ function renderJobs() {
   setHtml("#jobs", renderJobCards(state.jobs));
 }
 
+function renderDashboard(summary) {
+  setHtml("#dashboardFleet", renderPrinterCards(summary.fleet || state.printers, false));
+  setHtml("#dashboardJobs", renderJobCards(summary.queue || state.jobs));
+  setHtml("#dashboardEvents", (summary.events || state.events).map(renderEvent).join("") || '<div class="empty-state">No events yet.</div>');
+}
+
 function renderPrinters() {
   setHtml("#printers", renderPrinterCards(state.printers, false));
 }
@@ -1291,6 +1297,27 @@ advanceBtn.addEventListener("click", async () => {
     body: JSON.stringify({ target_printer_id: printerSelect.value || null }),
   });
   await refresh();
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const summary = await api("/api/dashboard/summary");
+  renderDashboard(summary);
+});
+
+document.querySelector("#jobsClearCompletedBtn")?.addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to clear all completed jobs? This action cannot be undone.")) {
+    return;
+  }
+  const result = await api("/api/jobs/clear-completed", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#jobsExportCsvBtn")?.addEventListener("click", async () => {
+  if (!confirm("Export all jobs to CSV? This will download a file with current job data.")) {
+    return;
+  }
+  window.location.href = "/api/jobs/export.csv";
 });
 
 approveModelBtn.addEventListener("click", async () => {

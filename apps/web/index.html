@@ -1,524 +1,552 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hermes OS Print Factory</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260428-theme" />
-    <link rel="stylesheet" href="/static/voice-settings.css?v=20260428-theme" />
-  </head>
-  <body data-theme="midnight">
-    <header class="topbar">
-      <div>
-        <h1>Hermes OS Print Factory</h1>
-        <p id="health">Connecting...</p>
-      </div>
-      <div class="top-actions">
-        <label class="theme-control" for="themeSelect">
-          <span>Theme</span>
-          <select id="themeSelect" aria-label="Theme">
-            <option value="midnight">Midnight</option>
-            <option value="alloy">Alloy</option>
-            <option value="ember">Ember</option>
-            <option value="forest">Forest</option>
-          </select>
-        </label>
-        <button id="bootstrapBtn" type="button">Load Printers</button>
-        <button id="refreshBtn" type="button">Refresh</button>
-      </div>
-    </header>
 
-    <nav class="tabs" aria-label="Factory pages">
-      <button class="tab active" type="button" data-page="sources">Source OS</button>
-      <button class="tab" type="button" data-page="dashboard">Dashboard</button>
-      <button class="tab" type="button" data-page="setup">Autopilot</button>
-      <button class="tab" type="button" data-page="design">Design</button>
-      <button class="tab" type="button" data-page="generation">3D Generation</button>
-      <button class="tab" type="button" data-page="jobs">Jobs</button>
-      <button class="tab" type="button" data-page="printers">Printers</button>
-      <button class="tab" type="button" data-page="observe">Observe</button>
-      <button class="tab" type="button" data-page="voice">Voice</button>
-      <button class="tab" type="button" data-page="agents">Agents</button>
-      <button class="tab" type="button" data-page="learning">Learning</button>
-      <button class="tab" type="button" data-page="artifacts">Artifacts</button>
-      <button class="tab" type="button" data-page="approvals">Approvals</button>
-      <button class="tab" type="button" data-page="plugins">Plugins</button>
-      <button class="tab" type="button" data-page="settings">Settings</button>
-      <button class="tab" type="button" data-page="roadmap">Roadmap</button>
-    </nav>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hermes OS Print Factory</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260428-theme" />
+  <link rel="stylesheet" href="/static/voice-settings.css?v=20260428-theme" />
+</head>
 
-    <main class="page-shell">
-      <section id="page-sources" class="page active">
-        <div class="source-os" id="sourceOs">
-          <header class="source-os-bar">
-            <div class="source-os-brand">
-              <strong>Hermes3D OS</strong>
-              <span>source-backed print factory</span>
+<body data-theme="midnight">
+  <header class="topbar">
+    <div>
+      <h1>Hermes OS Print Factory</h1>
+      <p id="health">Connecting...</p>
+    </div>
+    <div class="top-actions">
+      <label class="theme-control" for="themeSelect">
+        <span>Theme</span>
+        <select id="themeSelect" aria-label="Theme">
+          <option value="midnight">Midnight</option>
+          <option value="alloy">Alloy</option>
+          <option value="ember">Ember</option>
+          <option value="forest">Forest</option>
+        </select>
+      </label>
+      <button id="bootstrapBtn" type="button">Load Printers</button>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Factory pages">
+    <button class="tab active" type="button" data-page="sources">Source OS</button>
+    <button class="tab" type="button" data-page="dashboard">Dashboard</button>
+    <button class="tab" type="button" data-page="setup">Autopilot</button>
+    <button class="tab" type="button" data-page="design">Design</button>
+    <button class="tab" type="button" data-page="generation">3D Generation</button>
+    <button class="tab" type="button" data-page="jobs">Jobs</button>
+    <button class="tab" type="button" data-page="printers">Printers</button>
+    <button class="tab" type="button" data-page="observe">Observe</button>
+    <button class="tab" type="button" data-page="voice">Voice</button>
+    <button class="tab" type="button" data-page="agents">Agents</button>
+    <button class="tab" type="button" data-page="learning">Learning</button>
+    <button class="tab" type="button" data-page="artifacts">Artifacts</button>
+    <button class="tab" type="button" data-page="approvals">Approvals</button>
+    <button class="tab" type="button" data-page="plugins">Plugins</button>
+    <button class="tab" type="button" data-page="settings">Settings</button>
+    <button class="tab" type="button" data-page="roadmap">Roadmap</button>
+  </nav>
+
+  <main class="page-shell">
+    <section id="page-sources" class="page active">
+      <div class="source-os" id="sourceOs">
+        <header class="source-os-bar">
+          <div class="source-os-brand">
+            <strong>Hermes3D OS</strong>
+            <span>source-backed print factory</span>
+          </div>
+          <nav id="sourceGroupTabs" class="source-group-tabs" aria-label="Source software groups"></nav>
+          <div class="source-guard">S1 locked / source bench</div>
+        </header>
+
+        <div class="source-grid">
+          <aside class="source-module-list">
+            <div class="source-panel-head">
+              <strong id="sourceGroupTitle">Source Modules</strong>
+              <span id="sourceGroupCount"></span>
             </div>
-            <nav id="sourceGroupTabs" class="source-group-tabs" aria-label="Source software groups"></nav>
-            <div class="source-guard">S1 locked / source bench</div>
-          </header>
+            <div id="sourceModuleList" class="source-module-buttons"></div>
+          </aside>
 
-          <div class="source-grid">
-            <aside class="source-module-list">
-              <div class="source-panel-head">
-                <strong id="sourceGroupTitle">Source Modules</strong>
-                <span id="sourceGroupCount"></span>
+          <section class="source-workbench">
+            <div class="source-panel-head">
+              <div>
+                <strong id="sourceModuleName">Loading source manifest</strong>
+                <span id="sourceModuleRole">standalone modules</span>
               </div>
-              <div id="sourceModuleList" class="source-module-buttons"></div>
-            </aside>
-
-            <section class="source-workbench">
-              <div class="source-panel-head">
-                <div>
-                  <strong id="sourceModuleName">Loading source manifest</strong>
-                  <span id="sourceModuleRole">standalone modules</span>
-                </div>
-                <div class="source-actions">
-                  <div id="sourceLayoutControls" class="source-layout-controls" aria-label="Source workbench size"></div>
-                  <button id="sourceOpenRepo" type="button">Repo</button>
-                  <button id="sourceBridgePlan" type="button">Bridge</button>
-                  <button id="sourceSetupPlan" type="button">Setup</button>
-                </div>
+              <div class="source-actions">
+                <div id="sourceLayoutControls" class="source-layout-controls" aria-label="Source workbench size"></div>
+                <button id="sourceOpenRepo" type="button">Repo</button>
+                <button id="sourceBridgePlan" type="button">Bridge</button>
+                <button id="sourceSetupPlan" type="button">Setup</button>
               </div>
+            </div>
 
-              <div class="source-bench-grid">
-                <div class="source-viewport" id="sourceViewport">
-                  <div class="source-plate">
-                    <div class="source-part">
-                      <span id="sourcePartLabel">Hermes3D</span>
-                    </div>
-                    <div class="source-tool-flags" id="sourceToolFlags"></div>
+            <div class="source-bench-grid">
+              <div class="source-viewport" id="sourceViewport">
+                <div class="source-plate">
+                  <div class="source-part">
+                    <span id="sourcePartLabel">Hermes3D</span>
                   </div>
-                  <div class="source-timeline" id="sourcePipeline"></div>
+                  <div class="source-tool-flags" id="sourceToolFlags"></div>
                 </div>
-
-                <aside class="source-facts">
-                  <table>
-                    <tbody>
-                      <tr><th>Repo</th><td id="sourceRepoCell"></td></tr>
-                      <tr><th>Local</th><td id="sourceLocalCell"></td></tr>
-                      <tr><th>License</th><td id="sourceLicenseCell"></td></tr>
-                      <tr><th>Priority</th><td id="sourcePriorityCell"></td></tr>
-                      <tr><th>Section</th><td id="sourceSectionCell"></td></tr>
-                      <tr><th>Status</th><td id="sourceStatusCell"></td></tr>
-                    </tbody>
-                  </table>
-                  <div class="source-mini-printers">
-                    <button class="hot" type="button">T1-A<br /><span>192.168.0.10</span></button>
-                    <button type="button">T1-B<br /><span>192.168.0.11</span></button>
-                    <button type="button">V400<br /><span>192.168.0.34</span></button>
-                    <button class="locked" type="button">S1<br /><span>locked</span></button>
-                  </div>
-                </aside>
+                <div class="source-timeline" id="sourcePipeline"></div>
               </div>
+
+              <aside class="source-facts">
+                <table>
+                  <tbody>
+                    <tr>
+                      <th>Repo</th>
+                      <td id="sourceRepoCell"></td>
+                    </tr>
+                    <tr>
+                      <th>Local</th>
+                      <td id="sourceLocalCell"></td>
+                    </tr>
+                    <tr>
+                      <th>License</th>
+                      <td id="sourceLicenseCell"></td>
+                    </tr>
+                    <tr>
+                      <th>Priority</th>
+                      <td id="sourcePriorityCell"></td>
+                    </tr>
+                    <tr>
+                      <th>Section</th>
+                      <td id="sourceSectionCell"></td>
+                    </tr>
+                    <tr>
+                      <th>Status</th>
+                      <td id="sourceStatusCell"></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="source-mini-printers">
+                  <button class="hot" type="button">T1-A<br /><span>192.168.0.10</span></button>
+                  <button type="button">T1-B<br /><span>192.168.0.11</span></button>
+                  <button type="button">V400<br /><span>192.168.0.34</span></button>
+                  <button class="locked" type="button">S1<br /><span>locked</span></button>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <aside class="source-right">
+            <section class="source-panel">
+              <div class="source-panel-head">
+                <strong>Bridge Tasks</strong>
+                <span id="sourceTaskCount"></span>
+              </div>
+              <ol id="sourceBridgeTasks"></ol>
             </section>
 
-            <aside class="source-right">
-              <section class="source-panel">
-                <div class="source-panel-head">
-                  <strong>Bridge Tasks</strong>
-                  <span id="sourceTaskCount"></span>
-                </div>
-                <ol id="sourceBridgeTasks"></ol>
-              </section>
-
-              <section class="source-panel">
-                <div class="source-panel-head">
-                  <strong>Included Projects</strong>
-                  <span id="sourceInventoryCount">loading</span>
-                </div>
-                <div class="source-mix" id="sourceMix"></div>
-              </section>
-
-              <section class="source-panel">
-                <div class="source-panel-head">
-                  <strong>Next Patch</strong>
-                  <span>section by section</span>
-                </div>
-                <div class="source-patch-list">
-                  <div><b>1</b><span>Prusa/Orca/FLSUN slicer adapters</span></div>
-                  <div><b>2</b><span>Moonraker/Klipper/FDM farm panel</span></div>
-                  <div><b>3</b><span>Blender/CadQuery/OpenSCAD workers</span></div>
-                  <div><b>4</b><span>LangGraph/Hermes agent gates</span></div>
-                </div>
-              </section>
-            </aside>
-
-            <footer class="source-status">
-              <span id="sourceDownloadState">Loading source software manifest...</span>
-              <span>ports editable in Settings</span>
-              <span>camera slots: USB + Moonraker</span>
-              <span>S1 movement disabled</span>
-            </footer>
-          </div>
-        </div>
-      </section>
-
-      <section id="page-dashboard" class="page">
-        <div class="dashboard-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Fleet</h2>
-              <span class="muted">Safe printer status</span>
-            </div>
-            <div id="dashboardFleet" class="printers"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Queue</h2>
-              <span class="muted">Current jobs</span>
-            </div>
-            <div id="dashboardJobs" class="jobs"></div>
-          </section>
-          <section class="panel wide-panel">
-            <div class="panel-header">
-              <h2>Evidence Feed</h2>
-              <span class="muted">Latest system events</span>
-            </div>
-            <div id="dashboardEvents" class="event-list"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="page-setup" class="page">
-        <div class="split-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Autopilot Readiness</h2>
-              <span id="autopilotScore" class="muted">Checking setup</span>
-            </div>
-            <div id="setupChecks" class="setup-list"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Safe Actions</h2>
-              <span class="muted">No printer movement</span>
-            </div>
-            <div id="setupActions" class="setup-list"></div>
-            <section class="section">
-              <h2>Guardrails</h2>
-              <div id="setupGuardrails" class="settings-list"></div>
+            <section class="source-panel">
+              <div class="source-panel-head">
+                <strong>Included Projects</strong>
+                <span id="sourceInventoryCount">loading</span>
+              </div>
+              <div class="source-mix" id="sourceMix"></div>
             </section>
-          </section>
-        </div>
-      </section>
 
-      <section id="page-design" class="page">
-        <div class="split-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Design Intake</h2>
-              <span class="muted">Create or import a print job</span>
-            </div>
-            <form id="jobForm" class="job-form">
-              <label>
-                <span>Title</span>
-                <input name="title" value="Pilot calibration cube" required maxlength="120" />
-              </label>
-              <label>
-                <span>Description / Design Prompt</span>
-                <textarea name="description" required rows="6">Create a safe pilot job record for Hermes OS Print Factory and move it through workflow gates in dry-run mode.</textarea>
-              </label>
-              <label>
-                <span>Target Printer</span>
-                <select name="target_printer_id" id="printerSelect"></select>
-              </label>
-              <button type="submit">Create Job</button>
-            </form>
-          </section>
-          <section class="panel">
-            <h2>Design Toolchain</h2>
-            <div id="designToolchain" class="settings-list"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="page-generation" class="page">
-        <div class="split-grid generation-layout">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>3D Generation Stack</h2>
-              <span class="muted">TRELLIS.2 primary</span>
-            </div>
-            <div id="generationStackStatus" class="settings-list"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Image To Print Run</h2>
-              <span class="muted">Creates evidence only</span>
-            </div>
-            <form id="generationForm" class="job-form">
-              <label>
-                <span>Job</span>
-                <select name="job_id" id="generationJobSelect"></select>
-              </label>
-              <label>
-                <span>Source Image</span>
-                <input name="image" type="file" accept="image/*" required />
-              </label>
-              <label>
-                <span>Object Intent</span>
-                <textarea name="object_intent" rows="5" required>Generate a printable object candidate from this image, estimate scale, repair mesh, validate printability, and stop before print approval.</textarea>
-              </label>
-              <div class="settings-grid">
-                <label>
-                  <span>Engine</span>
-                  <select name="requested_engine" id="generationEngineSelect"></select>
-                </label>
-                <label>
-                  <span>Scale Estimate</span>
-                  <input name="scale_estimate_mm" placeholder="example: 80 mm tall" />
-                </label>
+            <section class="source-panel">
+              <div class="source-panel-head">
+                <strong>Next Patch</strong>
+                <span>section by section</span>
               </div>
-              <button type="submit">Create Generation Evidence</button>
-            </form>
-          </section>
-          <section class="panel wide-panel">
-            <div class="panel-header">
-              <h2>Printability Truth Gate</h2>
-              <span class="muted">Required before slicing</span>
-            </div>
-            <div id="generationTruthGate" class="roadmap-list"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="page-jobs" class="page">
-        <div class="split-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Job Queue</h2>
-              <span class="muted">Select a job</span>
-            </div>
-            <div id="jobs" class="jobs"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Active Job</h2>
-              <div class="actions">
-                <button id="advanceBtn" type="button" disabled>Advance</button>
-                <button id="approveModelBtn" type="button" disabled>Approve Model</button>
-                <button id="approvePrintBtn" type="button" disabled>Approve Print</button>
-                <button id="uploadOnlyBtn" type="button" disabled>Upload Only</button>
-                <button id="userPrinterCheckBtn" type="button" disabled>User Checked Printer UI</button>
-                <button id="startPrintBtn" type="button" disabled>Start Print</button>
+              <div class="source-patch-list">
+                <div><b>1</b><span>Prusa/Orca/FLSUN slicer adapters</span></div>
+                <div><b>2</b><span>Moonraker/Klipper/FDM farm panel</span></div>
+                <div><b>3</b><span>Blender/CadQuery/OpenSCAD workers</span></div>
+                <div><b>4</b><span>LangGraph/Hermes agent gates</span></div>
               </div>
-            </div>
-            <div id="activeJob" class="empty-state">No job selected.</div>
-          </section>
+            </section>
+          </aside>
+
+          <footer class="source-status">
+            <span id="sourceDownloadState">Loading source software manifest...</span>
+            <span>ports editable in Settings</span>
+            <span>camera slots: USB + Moonraker</span>
+            <span>S1 movement disabled</span>
+          </footer>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section id="page-printers" class="page">
+    <section id="page-dashboard" class="page">
+      <div class="dashboard-grid">
         <section class="panel">
           <div class="panel-header">
-            <h2>Printers</h2>
-            <span class="muted">Moonraker fleet inventory</span>
+            <h2>Fleet</h2>
+            <span class="muted">Safe printer status</span>
+            <button id="dashboardRefreshBtn" type="button" title="Refresh Dashboard">↻</button>
           </div>
-          <div id="printers" class="printers printer-grid"></div>
+          <div id="dashboardFleet" class="printers"></div>
         </section>
-      </section>
-
-      <section id="page-observe" class="page">
         <section class="panel">
           <div class="panel-header">
-            <h2>Observe Prints</h2>
-            <span class="muted">Integrated and USB camera slots</span>
+            <h2>Queue</h2>
+            <span class="muted">Current jobs</span>
           </div>
-          <div id="observeGrid" class="camera-grid"></div>
+          <div id="dashboardJobs" class="jobs"></div>
         </section>
-      </section>
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <h2>Evidence Feed</h2>
+            <span class="muted">Latest system events</span>
+          </div>
+          <div id="dashboardEvents" class="event-list"></div>
+        </section>
+      </div>
+    </section>
 
-      <section id="page-voice" class="page">
+    <section id="page-setup" class="page">
+      <div class="split-grid">
         <section class="panel">
           <div class="panel-header">
-            <h2>Hermes Voice Layer</h2>
-            <span class="muted">Azure Speech for agents</span>
+            <h2>Autopilot Readiness</h2>
+            <span id="autopilotScore" class="muted">Checking setup</span>
           </div>
-          <div id="voicePanel"></div>
+          <div id="setupChecks" class="setup-list"></div>
         </section>
-      </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Safe Actions</h2>
+            <span class="muted">No printer movement</span>
+          </div>
+          <div id="setupActions" class="setup-list"></div>
+          <section class="section">
+            <h2>Guardrails</h2>
+            <div id="setupGuardrails" class="settings-list"></div>
+          </section>
+        </section>
+      </div>
+    </section>
 
-      <section id="page-agents" class="page">
-        <div class="split-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Agentic Work Loop</h2>
-              <span class="muted">Safe active work</span>
+    <section id="page-design" class="page">
+      <div class="split-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Design Intake</h2>
+            <span class="muted">Create or import a print job</span>
+          </div>
+          <form id="jobForm" class="job-form">
+            <label>
+              <span>Title</span>
+              <input name="title" value="Pilot calibration cube" required maxlength="120" />
+            </label>
+            <label>
+              <span>Description / Design Prompt</span>
+              <textarea name="description" required
+                rows="6">Create a safe pilot job record for Hermes OS Print Factory and move it through workflow gates in dry-run mode.</textarea>
+            </label>
+            <label>
+              <span>Target Printer</span>
+              <select name="target_printer_id" id="printerSelect"></select>
+            </label>
+            <button type="submit">Create Job</button>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>Design Toolchain</h2>
+          <div id="designToolchain" class="settings-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="page-generation" class="page">
+      <div class="split-grid generation-layout">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>3D Generation Stack</h2>
+            <span class="muted">TRELLIS.2 primary</span>
+          </div>
+          <div id="generationStackStatus" class="settings-list"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Image To Print Run</h2>
+            <span class="muted">Creates evidence only</span>
+          </div>
+          <form id="generationForm" class="job-form">
+            <label>
+              <span>Job</span>
+              <select name="job_id" id="generationJobSelect"></select>
+            </label>
+            <label>
+              <span>Source Image</span>
+              <input name="image" type="file" accept="image/*" required />
+            </label>
+            <label>
+              <span>Object Intent</span>
+              <textarea name="object_intent" rows="5"
+                required>Generate a printable object candidate from this image, estimate scale, repair mesh, validate printability, and stop before print approval.</textarea>
+            </label>
+            <div class="settings-grid">
+              <label>
+                <span>Engine</span>
+                <select name="requested_engine" id="generationEngineSelect"></select>
+              </label>
+              <label>
+                <span>Scale Estimate</span>
+                <input name="scale_estimate_mm" placeholder="example: 80 mm tall" />
+              </label>
             </div>
-            <div id="agenticStatus" class="settings-list"></div>
+            <button type="submit">Create Generation Evidence</button>
+          </form>
+        </section>
+        <section class="panel wide-panel">
+          <div class="panel-header">
+            <h2>Printability Truth Gate</h2>
+            <span class="muted">Required before slicing</span>
+          </div>
+          <div id="generationTruthGate" class="roadmap-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="page-jobs" class="page">
+      <div class="split-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Job Queue</h2>
+            <span class="muted">Select a job</span>
             <div class="actions">
-              <button id="agenticTickBtn" type="button">Run Agentic Tick</button>
+              <button id="jobsClearCompletedBtn" type="button" title="Clear Completed Jobs">Clear Completed</button>
+              <button id="jobsExportCsvBtn" type="button" title="Export Jobs as CSV">Export CSV</button>
             </div>
-            <section class="section">
-              <h2>Active Agents</h2>
-              <div id="agenticAgents" class="setup-list"></div>
-            </section>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Work Queue</h2>
-              <span class="muted">Research and build tracks</span>
-            </div>
-            <div id="agenticQueue" class="setup-list"></div>
-            <section class="section">
-              <h2>Blockers</h2>
-              <div id="agenticBlockers" class="setup-list"></div>
-            </section>
-          </section>
-        </div>
-      </section>
-
-      <section id="page-learning" class="page">
-        <div class="split-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Idle Learning Mode</h2>
-              <span class="muted">Research-only agents</span>
-            </div>
-            <div id="learningStatus" class="settings-list"></div>
-            <section class="section">
-              <h2>Research Queue</h2>
-              <div id="learningTopics" class="setup-list"></div>
-            </section>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Research Reports</h2>
-              <span class="muted">Markdown evidence</span>
-            </div>
+          </div>
+          <div id="jobs" class="jobs"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Active Job</h2>
             <div class="actions">
-              <button id="learningNextBtn" type="button">Create Next Report</button>
+              <button id="advanceBtn" type="button" disabled>Advance</button>
+              <button id="approveModelBtn" type="button" disabled>Approve Model</button>
+              <button id="approvePrintBtn" type="button" disabled>Approve Print</button>
+              <button id="uploadOnlyBtn" type="button" disabled>Upload Only</button>
+              <button id="userPrinterCheckBtn" type="button" disabled>User Checked Printer UI</button>
+              <button id="startPrintBtn" type="button" disabled>Start Print</button>
             </div>
-            <form id="learningReportForm" class="job-form">
-              <label>
-                <span>Custom Topic</span>
-                <textarea name="topic" rows="4" placeholder="Research a new 3D printing or modeling feature"></textarea>
-              </label>
-              <button type="submit">Create Custom Report</button>
-            </form>
-            <div id="learningReports" class="artifact-list"></div>
-          </section>
+          </div>
+          <div id="activeJob" class="empty-state">No job selected.</div>
+        </section>
+      </div>
+    </section>
+
+    <section id="page-printers" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Printers</h2>
+          <span class="muted">Moonraker fleet inventory</span>
         </div>
+        <div id="printers" class="printers printer-grid"></div>
       </section>
+    </section>
 
-      <section id="page-artifacts" class="page">
-        <div class="split-grid">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Attach Visual Evidence</h2>
-              <span class="muted">Images, previews, screenshots</span>
-            </div>
-            <form id="visualEvidenceForm" class="job-form">
-              <label>
-                <span>Job</span>
-                <select name="job_id" id="visualEvidenceJobSelect"></select>
-              </label>
-              <div class="settings-grid">
-                <label>
-                  <span>Evidence Type</span>
-                  <select name="evidence_kind">
-                    <option value="screenshot">Screenshot</option>
-                    <option value="source_image">Source Image</option>
-                    <option value="mesh_preview">Mesh Preview</option>
-                    <option value="slicer_preview">Slicer Preview</option>
-                    <option value="gcode_preview">G-code Preview</option>
-                    <option value="camera_snapshot">Camera Snapshot</option>
-                    <option value="diagram">Diagram</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Agent</span>
-                  <select name="agent_id">
-                    <option value="factory_operator">Factory Operator</option>
-                    <option value="modeling_agent">Modeling Agent</option>
-                    <option value="mesh_qa_agent">Mesh QA Agent</option>
-                    <option value="slicer_qa_agent">Slicer QA Agent</option>
-                    <option value="print_monitor_agent">Print Monitor Agent</option>
-                    <option value="print_safety_agent">Print Safety Agent</option>
-                    <option value="research_agent">Research Agent</option>
-                  </select>
-                </label>
-              </div>
-              <div class="settings-grid">
-                <label>
-                  <span>Stage</span>
-                  <input name="stage" value="INTAKE" />
-                </label>
-                <label>
-                  <span>Gate</span>
-                  <input name="gate" placeholder="MODEL_APPROVAL or PRINT_APPROVAL" />
-                </label>
-              </div>
-              <label>
-                <span>Label</span>
-                <input name="label" placeholder="Trellis preview, slicer layer 1, camera snapshot" />
-              </label>
-              <label>
-                <span>File</span>
-                <input name="evidence" type="file" accept="image/*,.svg" required />
-              </label>
-              <label>
-                <span>Notes</span>
-                <textarea name="notes" rows="3" placeholder="What this evidence shows"></textarea>
-              </label>
-              <button type="submit">Attach Evidence</button>
-            </form>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Artifacts</h2>
-              <span class="muted">Models, evidence, G-code, and logs</span>
-            </div>
-            <div id="artifactPageList" class="artifact-list"></div>
-          </section>
+    <section id="page-observe" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Observe Prints</h2>
+          <span class="muted">Integrated and USB camera slots</span>
         </div>
+        <div id="observeGrid" class="camera-grid"></div>
       </section>
+    </section>
 
-      <section id="page-approvals" class="page">
+    <section id="page-voice" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Hermes Voice Layer</h2>
+          <span class="muted">Azure Speech for agents</span>
+        </div>
+        <div id="voicePanel"></div>
+      </section>
+    </section>
+
+    <section id="page-agents" class="page">
+      <div class="split-grid">
         <section class="panel">
           <div class="panel-header">
-            <h2>Approvals</h2>
-            <span class="muted">Model and print gates</span>
+            <h2>Agentic Work Loop</h2>
+            <span class="muted">Safe active work</span>
           </div>
-          <div id="approvalsPageList" class="approval-list"></div>
+          <div id="agenticStatus" class="settings-list"></div>
+          <div class="actions">
+            <button id="agenticTickBtn" type="button">Run Agentic Tick</button>
+          </div>
+          <section class="section">
+            <h2>Active Agents</h2>
+            <div id="agenticAgents" class="setup-list"></div>
+          </section>
         </section>
-      </section>
-
-      <section id="page-plugins" class="page">
         <section class="panel">
           <div class="panel-header">
-            <h2>Plugins</h2>
-            <span class="muted">Factory capabilities and integrations</span>
+            <h2>Work Queue</h2>
+            <span class="muted">Research and build tracks</span>
           </div>
-          <div id="pluginsPage" class="plugin-grid"></div>
+          <div id="agenticQueue" class="setup-list"></div>
+          <section class="section">
+            <h2>Blockers</h2>
+            <div id="agenticBlockers" class="setup-list"></div>
+          </section>
         </section>
-      </section>
+      </div>
+    </section>
 
-      <section id="page-settings" class="page">
+    <section id="page-learning" class="page">
+      <div class="split-grid">
         <section class="panel">
           <div class="panel-header">
-            <h2>Settings</h2>
-            <span class="muted">Local-only runtime configuration</span>
+            <h2>Idle Learning Mode</h2>
+            <span class="muted">Research-only agents</span>
           </div>
-          <div id="settingsPage" class="settings-list"></div>
+          <div id="learningStatus" class="settings-list"></div>
+          <section class="section">
+            <h2>Research Queue</h2>
+            <div id="learningTopics" class="setup-list"></div>
+          </section>
         </section>
-      </section>
-
-      <section id="page-roadmap" class="page">
         <section class="panel">
           <div class="panel-header">
-            <h2>Roadmap</h2>
-            <span class="muted">Daily-use completion path</span>
+            <h2>Research Reports</h2>
+            <span class="muted">Markdown evidence</span>
           </div>
-          <div id="roadmapPage" class="roadmap-list"></div>
+          <div class="actions">
+            <button id="learningNextBtn" type="button">Create Next Report</button>
+          </div>
+          <form id="learningReportForm" class="job-form">
+            <label>
+              <span>Custom Topic</span>
+              <textarea name="topic" rows="4" placeholder="Research a new 3D printing or modeling feature"></textarea>
+            </label>
+            <button type="submit">Create Custom Report</button>
+          </form>
+          <div id="learningReports" class="artifact-list"></div>
         </section>
-      </section>
-    </main>
+      </div>
+    </section>
 
-    <script src="/static/source-os.js?v=20260428-source"></script>
-    <script src="/static/app.js?v=20260428-source"></script>
-    <script src="/static/voice-panel.js?v=20260428-theme"></script>
-  </body>
+    <section id="page-artifacts" class="page">
+      <div class="split-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Attach Visual Evidence</h2>
+            <span class="muted">Images, previews, screenshots</span>
+          </div>
+          <form id="visualEvidenceForm" class="job-form">
+            <label>
+              <span>Job</span>
+              <select name="job_id" id="visualEvidenceJobSelect"></select>
+            </label>
+            <div class="settings-grid">
+              <label>
+                <span>Evidence Type</span>
+                <select name="evidence_kind">
+                  <option value="screenshot">Screenshot</option>
+                  <option value="source_image">Source Image</option>
+                  <option value="mesh_preview">Mesh Preview</option>
+                  <option value="slicer_preview">Slicer Preview</option>
+                  <option value="gcode_preview">G-code Preview</option>
+                  <option value="camera_snapshot">Camera Snapshot</option>
+                  <option value="diagram">Diagram</option>
+                </select>
+              </label>
+              <label>
+                <span>Agent</span>
+                <select name="agent_id">
+                  <option value="factory_operator">Factory Operator</option>
+                  <option value="modeling_agent">Modeling Agent</option>
+                  <option value="mesh_qa_agent">Mesh QA Agent</option>
+                  <option value="slicer_qa_agent">Slicer QA Agent</option>
+                  <option value="print_monitor_agent">Print Monitor Agent</option>
+                  <option value="print_safety_agent">Print Safety Agent</option>
+                  <option value="research_agent">Research Agent</option>
+                </select>
+              </label>
+            </div>
+            <div class="settings-grid">
+              <label>
+                <span>Stage</span>
+                <input name="stage" value="INTAKE" />
+              </label>
+              <label>
+                <span>Gate</span>
+                <input name="gate" placeholder="MODEL_APPROVAL or PRINT_APPROVAL" />
+              </label>
+            </div>
+            <label>
+              <span>Label</span>
+              <input name="label" placeholder="Trellis preview, slicer layer 1, camera snapshot" />
+            </label>
+            <label>
+              <span>File</span>
+              <input name="evidence" type="file" accept="image/*,.svg" required />
+            </label>
+            <label>
+              <span>Notes</span>
+              <textarea name="notes" rows="3" placeholder="What this evidence shows"></textarea>
+            </label>
+            <button type="submit">Attach Evidence</button>
+          </form>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Artifacts</h2>
+            <span class="muted">Models, evidence, G-code, and logs</span>
+          </div>
+          <div id="artifactPageList" class="artifact-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="page-approvals" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Approvals</h2>
+          <span class="muted">Model and print gates</span>
+        </div>
+        <div id="approvalsPageList" class="approval-list"></div>
+      </section>
+    </section>
+
+    <section id="page-plugins" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Plugins</h2>
+          <span class="muted">Factory capabilities and integrations</span>
+        </div>
+        <div id="pluginsPage" class="plugin-grid"></div>
+      </section>
+    </section>
+
+    <section id="page-settings" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Settings</h2>
+          <span class="muted">Local-only runtime configuration</span>
+        </div>
+        <div id="settingsPage" class="settings-list"></div>
+      </section>
+    </section>
+
+    <section id="page-roadmap" class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Roadmap</h2>
+          <span class="muted">Daily-use completion path</span>
+        </div>
+        <div id="roadmapPage" class="roadmap-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/source-os.js?v=20260428-source"></script>
+  <script src="/static/app.js?v=20260428-source"></script>
+  <script src="/static/voice-panel.js?v=20260428-theme"></script>
+</body>
+
 </html>
