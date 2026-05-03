@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: "http://127.0.0.1:8000",
+    baseURL: "http://127.0.0.1:18081",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -16,12 +16,14 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
+  // The FastAPI app at apps/api/hermes3d_api/main.py mounts apps/web at /static
+  // and serves apps/web/index.html at /, so a single uvicorn covers both GUI + API.
   webServer: [
     {
-      command: "python -m http.server 8000 --directory apps/web",
-      url: "http://127.0.0.1:8000",
+      command: "python -m uvicorn apps.api.hermes3d_api.main:app --host 127.0.0.1 --port 18081",
+      url: "http://127.0.0.1:18081/health",
       reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
+      timeout: 60_000,
     },
   ],
 });

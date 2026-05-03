@@ -452,6 +452,60 @@ function sourceStatus(module) {
   return "source downloaded / bridge planned";
 }
 
+function dispatchSourceModuleToActionWindow() {
+  const module = currentSourceModule();
+  if (!module) return;
+  const status = sourceAppStatus(module);
+  const installStatus = status.install_status || "not_installed";
+  const installMethod = status.install_method || null;
+  const installToneMap = { installed: "ok", installing: "info", failed: "err" };
+  const tone = installToneMap[installStatus]
+    || (status.installed_executable ? "ok" : (status.source_exists ? "info" : "warn"));
+  const pillText = installStatus !== "not_installed"
+    ? installStatus
+    : status.installed_executable
+      ? "installed"
+      : status.source_exists
+        ? "source ready"
+        : "not installed";
+  const primary = [];
+  if (installMethod) {
+    primary.push({ id: "install-app", label: installStatus === "installing" ? "Installing…" : "Install", endpoint: `/api/source-apps/${module.id}/install`, method: "POST" });
+  }
+  primary.push({ id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" });
+  const payload = {
+    tab_id: "sources",
+    kind: "app",
+    item_id: module.id,
+    title: module.name,
+    subtitle: module.uxSection || "Hermes3D module",
+    status_pill: { text: pillText, tone },
+    primary_actions: primary,
+    secondary_actions: [
+      { id: "open-local", label: "Open Local", endpoint: localSourcePath(module) },
+    ],
+    panels: [
+      {
+        id: "facts",
+        label: "Facts",
+        body_html: `
+          <ul style="margin:0;padding-left:1.1rem;line-height:1.55;">
+            <li><b>Repo:</b> ${module.repo || "user-provided"}</li>
+            <li><b>License:</b> ${module.license || "unknown"}</li>
+            <li><b>Priority:</b> ${module.priority || "candidate"}</li>
+            <li><b>Section:</b> ${module.uxSection || "Hermes3D module"}</li>
+            <li><b>Install:</b> ${installMethod ? `${installMethod} → ${installStatus}` : "no install block"}</li>
+          </ul>`,
+      },
+    ],
+  };
+  if (window.HermesActionWindow && typeof window.HermesActionWindow.dispatch === "function") {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
+}
+
 function setSourceGroup(group) {
   if (!sourceState.manifest?.groups?.[group]) {
     return;
@@ -506,6 +560,7 @@ document.addEventListener("click", (event) => {
   if (moduleButton) {
     sourceState.selectedIndex = Number(moduleButton.dataset.sourceIndex);
     renderSourceOs();
+    dispatchSourceModuleToActionWindow();
     return;
   }
 
@@ -533,5 +588,48 @@ document.addEventListener("click", (event) => {
     if (module) {
       setSourceHtml("#sourceDownloadState", `${module.name}: ${module.repo || localSourcePath(module)}`);
     }
+    return;
+  }
+
+  const installButton = event.target.closest("#sourceInstallApp");
+  if (installButton) {
+    const module = currentSourceModule();
+    if (module) {
+      installSourceModule(module);
+    }
+    return;
+  }
+
+  const awInstallButton = event.target.closest("#actionWindow [data-action-id='install-app']");
+  if (awInstallButton) {
+    const moduleId = awInstallButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) installSourceModule(module);
+    return;
   }
 });
+
+async function installSourceModule(module) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: install requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/install`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: install failed — ${reason}`);
+      return;
+    }
+    setSourceHtml("#sourceDownloadState", `${module.name}: install ${payload.status || "running"}`);
+    // Reflect into Action Window if it's currently showing this app.
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: install error — ${err}`);
+  }
+}
