@@ -92,6 +92,45 @@ VISUAL_EVIDENCE_KINDS = {
 }
 VISUAL_FILE_SUFFIXES = {".gif", ".jpg", ".jpeg", ".png", ".svg", ".webp"}
 
+SOURCE_APP_REGISTRY = [
+    {
+        "id": "prusaslicer",
+        "name": "PrusaSlicer",
+        "target": Path("slicers") / "PrusaSlicer",
+        "tool_key": "prusaslicer",
+        "gui_tool_key": "prusaslicer_gui",
+        "cli_commands": ["prusa-slicer-console", "prusa-slicer"],
+        "gui_commands": ["prusa-slicer"],
+    },
+    {
+        "id": "orcaslicer",
+        "name": "OrcaSlicer",
+        "target": Path("slicers") / "OrcaSlicer",
+        "tool_key": "orcaslicer",
+        "gui_tool_key": "orcaslicer_gui",
+        "cli_commands": ["orca-slicer", "OrcaSlicer"],
+        "gui_commands": ["orca-slicer", "OrcaSlicer"],
+    },
+    {
+        "id": "flsun-slicer",
+        "name": "FLSUN Slicer",
+        "target": Path("slicers") / "FLSUN-Slicer",
+        "tool_key": "flsunslicer",
+        "gui_tool_key": "flsunslicer_gui",
+        "cli_commands": ["FlsunSlicer", "flsun-slicer"],
+        "gui_commands": ["FlsunSlicer", "flsun-slicer"],
+    },
+    {
+        "id": "cura",
+        "name": "UltiMaker Cura",
+        "target": Path("slicers") / "Cura",
+        "tool_key": "cura",
+        "gui_tool_key": "cura_gui",
+        "cli_commands": ["cura"],
+        "gui_commands": ["cura"],
+    },
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -623,6 +662,35 @@ def generation_stack_status() -> dict[str, Any]:
             "printability_truth_gate_ready": False,
         },
         "services_configured": bool(generation_config),
+    }
+
+
+@app.get("/api/source-apps/status")
+def source_apps_status() -> dict[str, Any]:
+    source_root = settings.repo_root / "source-lab" / "sources"
+    apps = []
+    for item in SOURCE_APP_REGISTRY:
+        source_path = source_root / item["target"]
+        cli_path = _tool_path(item["tool_key"], item["cli_commands"])
+        gui_path = _tool_path(item.get("gui_tool_key", item["tool_key"]), item["gui_commands"])
+        apps.append(
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "source_path": str(source_path),
+                "source_exists": source_path.exists(),
+                "source_has_git": (source_path / ".git").exists(),
+                "cli_executable": cli_path or "",
+                "installed_executable": gui_path or cli_path or "",
+                "embed_mode": "native-window-bridge-required",
+                "ui_host": "Hermes3D resizable Source OS workbench",
+                "safe_actions": ["inspect source", "configure executable path", "run CLI dry-run after approval"],
+            }
+        )
+    return {
+        "source_root": str(source_root),
+        "apps": apps,
+        "note": "Native GUI embedding requires a desktop bridge such as Electron/Tauri/webview capture; the browser shell only hosts status and adapters.",
     }
 
 
@@ -1279,7 +1347,13 @@ def _tool_path(key: str, commands: list[str]) -> str | None:
     env_names = {
         "blender": "HERMES3D_BLENDER_PATH",
         "prusaslicer": "HERMES3D_PRUSASLICER_PATH",
+        "prusaslicer_gui": "HERMES3D_PRUSASLICER_GUI_PATH",
         "orcaslicer": "HERMES3D_ORCASLICER_PATH",
+        "orcaslicer_gui": "HERMES3D_ORCASLICER_GUI_PATH",
+        "flsunslicer": "HERMES3D_FLSUNSLICER_PATH",
+        "flsunslicer_gui": "HERMES3D_FLSUNSLICER_GUI_PATH",
+        "cura": "HERMES3D_CURA_PATH",
+        "cura_gui": "HERMES3D_CURA_GUI_PATH",
     }
     env_path = os.getenv(env_names.get(key, ""))
     if env_path and Path(env_path).exists():
@@ -1298,8 +1372,32 @@ def _tool_path(key: str, commands: list[str]) -> str | None:
             r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer-console.exe",
             r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer.exe",
         ],
+        "prusaslicer_gui": [
+            r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer.exe",
+        ],
         "orcaslicer": [
             r"C:\Program Files\OrcaSlicer\orca-slicer.exe",
+        ],
+        "orcaslicer_gui": [
+            r"C:\Program Files\OrcaSlicer\orca-slicer.exe",
+        ],
+        "flsunslicer": [
+            r"C:\Program Files\FlsunSlicer\FlsunSlicer.exe",
+            r"C:\Program Files\FLSUN Slicer\FlsunSlicer.exe",
+        ],
+        "flsunslicer_gui": [
+            r"C:\Program Files\FlsunSlicer\FlsunSlicer.exe",
+            r"C:\Program Files\FLSUN Slicer\FlsunSlicer.exe",
+        ],
+        "cura": [
+            r"C:\Program Files\UltiMaker Cura 5.9.0\UltiMaker-Cura.exe",
+            r"C:\Program Files\UltiMaker Cura 5.8.1\UltiMaker-Cura.exe",
+            r"C:\Program Files\Ultimaker Cura 5.7.2\UltiMaker-Cura.exe",
+        ],
+        "cura_gui": [
+            r"C:\Program Files\UltiMaker Cura 5.9.0\UltiMaker-Cura.exe",
+            r"C:\Program Files\UltiMaker Cura 5.8.1\UltiMaker-Cura.exe",
+            r"C:\Program Files\Ultimaker Cura 5.7.2\UltiMaker-Cura.exe",
         ],
     }
     for candidate in known_paths.get(key, []):

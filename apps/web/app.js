@@ -6,6 +6,7 @@ const THEME_OPTIONS = [
 ];
 const DEFAULT_THEME = "midnight";
 const PAGE_IDS = [
+  "sources",
   "dashboard",
   "setup",
   "design",
@@ -242,11 +243,11 @@ function renderThemeSelect() {
 
 function pageFromHash() {
   const page = window.location.hash.replace(/^#/, "");
-  return PAGE_IDS.includes(page) ? page : "dashboard";
+  return PAGE_IDS.includes(page) ? page : "sources";
 }
 
 function setActivePage(page) {
-  state.activePage = PAGE_IDS.includes(page) ? page : "dashboard";
+  state.activePage = PAGE_IDS.includes(page) ? page : "sources";
   const nextHash = `#${state.activePage}`;
   if (window.location.hash !== nextHash) {
     window.history.replaceState(null, "", nextHash);
