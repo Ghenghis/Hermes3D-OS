@@ -452,6 +452,50 @@ function sourceStatus(module) {
   return "source downloaded / bridge planned";
 }
 
+function dispatchSourceModuleToActionWindow() {
+  const module = currentSourceModule();
+  if (!module) return;
+  const status = sourceAppStatus(module);
+  const tone = status.installed_executable ? "ok" : (status.source_exists ? "info" : "warn");
+  const pillText = status.installed_executable
+    ? "installed"
+    : status.source_exists
+      ? "source ready"
+      : "not installed";
+  const payload = {
+    tab_id: "sources",
+    kind: "app",
+    item_id: module.id,
+    title: module.name,
+    subtitle: module.uxSection || "Hermes3D module",
+    status_pill: { text: pillText, tone },
+    primary_actions: [
+      { id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" },
+    ],
+    secondary_actions: [
+      { id: "open-local", label: "Open Local", endpoint: localSourcePath(module) },
+    ],
+    panels: [
+      {
+        id: "facts",
+        label: "Facts",
+        body_html: `
+          <ul style="margin:0;padding-left:1.1rem;line-height:1.55;">
+            <li><b>Repo:</b> ${module.repo || "user-provided"}</li>
+            <li><b>License:</b> ${module.license || "unknown"}</li>
+            <li><b>Priority:</b> ${module.priority || "candidate"}</li>
+            <li><b>Section:</b> ${module.uxSection || "Hermes3D module"}</li>
+          </ul>`,
+      },
+    ],
+  };
+  if (window.HermesActionWindow && typeof window.HermesActionWindow.dispatch === "function") {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
+}
+
 function setSourceGroup(group) {
   if (!sourceState.manifest?.groups?.[group]) {
     return;
@@ -506,6 +550,7 @@ document.addEventListener("click", (event) => {
   if (moduleButton) {
     sourceState.selectedIndex = Number(moduleButton.dataset.sourceIndex);
     renderSourceOs();
+    dispatchSourceModuleToActionWindow();
     return;
   }
 
