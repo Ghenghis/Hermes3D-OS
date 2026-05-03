@@ -175,7 +175,8 @@
         "license": "MIT",
         "priority": "primary",
         "uxSection": "Truth Gate / Mesh QA",
-        "bridge": ["mesh stats", "repair helpers", "bounds and volume checks", "format conversion"]
+        "bridge": ["mesh stats", "repair helpers", "bounds and volume checks", "format conversion"],
+        "install": { "method": "pip", "package": "trimesh", "import_name": "trimesh" }
       },
       {
         "id": "manifold",
