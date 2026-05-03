@@ -6,10 +6,10 @@ test.describe("Hermes3D-OS shell smoke", () => {
     await expect(page).toHaveTitle(/Hermes3D/i);
   });
 
-  test("tab strip renders all 15 known tabs", async ({ page }) => {
+  test("tab strip renders all 16 known tabs", async ({ page }) => {
     await page.goto("/");
     const tabs = page.locator("button.tab[data-page]");
-    await expect(tabs).toHaveCount(15);
+    await expect(tabs).toHaveCount(16);
   });
 
   test("clicking tabs swaps active page", async ({ page }) => {
