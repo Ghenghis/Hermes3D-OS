@@ -127,6 +127,24 @@ def _install_pip(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
     return True, "pip install ok"
 
 
+def _resolve_apps_root() -> Path:
+    """Where downloaded apps live. Default: G:\\Github\\Hermes3D\\apps (sibling repo).
+
+    Override with HERMES3D_APPS_ROOT env var. Falls back to local source-lab/sources
+    if neither the env var nor the sibling path is available.
+    """
+    import os as _os
+
+    explicit = _os.environ.get("HERMES3D_APPS_ROOT")
+    if explicit:
+        return Path(explicit)
+    sibling = Path(r"G:\Github\Hermes3D\apps")
+    if sibling.exists():
+        return sibling
+    repo_root = Path(_os.environ.get("HERMES3D_REPO_ROOT", "."))
+    return repo_root / "source-lab" / "sources"
+
+
 def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tuple[bool, str]:
     install = entry["install"]
     repo = install.get("repo") or entry.get("repo")
@@ -135,11 +153,8 @@ def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tup
     target_rel = entry.get("target")
     if not target_rel:
         return False, "manifest target missing"
-    # repo_root injected via env var when called
-    import os as _os
-
-    repo_root = Path(_os.environ.get("HERMES3D_REPO_ROOT", "."))
-    target = repo_root / "source-lab" / "sources" / target_rel
+    apps_root = _resolve_apps_root()
+    target = apps_root / target_rel
     target.parent.mkdir(parents=True, exist_ok=True)
     if (target / ".git").exists():
         _append_log(app_id, f"already cloned: {target}")
