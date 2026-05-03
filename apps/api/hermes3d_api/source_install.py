@@ -13,7 +13,7 @@ gets an optional `install` block:
       "system_env": "HERMES3D_BLENDER_PATH",
       "link_name": "blender",
       "smoke_args": ["--background", "--version"],
-      "build_cmd": ["npm", "ci"],        # for npm-build
+      "build_cmds": [["npm", "ci"], ["npm", "run", "build"]], # for npm-build
       "binary_url": "...",               # for binary-download
       "binary_target": "<vendor path>"   # for binary-download
     }
@@ -213,6 +213,13 @@ def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None =
         return marker.exists()
     if method == "binary-download":
         return find_installed_binary(entry) is not None
+    if method == "npm-build":
+        try:
+            root = repo_root or Path(sys.modules[__name__].__dict__.get("_CURRENT_REPO_ROOT", "."))
+            output_rel = install.get("build_output") or "dist"
+            return (app_target_path(root, entry) / output_rel / "index.html").exists()
+        except Exception:
+            return False
     return False
 
 
@@ -241,6 +248,13 @@ def find_installed_binary(entry: dict[str, Any]) -> Path | None:
         if found:
             return found
     return None
+
+
+def app_target_path(repo_root: Path, entry: dict[str, Any]) -> Path:
+    target_rel = entry.get("target")
+    if not target_rel:
+        raise ValueError("manifest target missing")
+    return resolve_apps_root(repo_root) / target_rel
 
 
 # ─── Dispatchers ───────────────────────────────────────────────────────────
@@ -402,6 +416,49 @@ def _install_binary_download(app_id: str, entry: dict[str, Any]) -> tuple[bool, 
     return True, "binary download ok"
 
 
+def _run_checked(app_id: str, cmd: list[str], cwd: Path, timeout: int) -> tuple[bool, str]:
+    _append_log(app_id, f"{cwd}> {' '.join(cmd)}")
+    try:
+        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except Exception as exc:  # pragma: no cover
+        return False, f"{cmd[0]} subprocess error: {exc}"
+    if proc.stdout:
+        _append_log(app_id, proc.stdout[-2000:])
+    if proc.returncode != 0:
+        if proc.stderr:
+            _append_log(app_id, proc.stderr[-2000:])
+        return False, f"{cmd[0]} exit {proc.returncode}"
+    return True, "ok"
+
+
+def _install_npm_build(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    ok, message = _install_clone(app_id, entry, depth=None)
+    if not ok:
+        return ok, message
+
+    npm = shutil.which("npm") or shutil.which("npm.cmd")
+    if not npm:
+        return False, "npm not found on PATH"
+
+    repo_root = Path(sys.modules[__name__].__dict__.get("_CURRENT_REPO_ROOT", "."))
+    target = app_target_path(repo_root, entry)
+    install = entry["install"]
+    build_cmds = install.get("build_cmds") or [["npm", "ci"], ["npm", "run", "build"]]
+    for raw_cmd in build_cmds:
+        if not isinstance(raw_cmd, list) or not raw_cmd:
+            return False, "manifest install.build_cmds must be a list of command arrays"
+        cmd = [npm if raw_cmd[0] == "npm" else str(raw_cmd[0]), *[str(part) for part in raw_cmd[1:]]]
+        ok, message = _run_checked(app_id, cmd, target, timeout=1800)
+        if not ok:
+            return ok, message
+
+    output_rel = install.get("build_output") or "dist"
+    output_path = target / output_rel
+    if not (output_path / "index.html").exists():
+        return False, f"build output missing index.html: {output_path}"
+    return True, "npm build ok"
+
+
 def _single_payload_root(extract_root: Path) -> Path:
     children = [path for path in extract_root.iterdir() if path.name != "__MACOSX"]
     if len(children) == 1 and children[0].is_dir():
@@ -429,8 +486,8 @@ _DISPATCH = {
     "clone-full": lambda aid, e: _install_clone(aid, e, depth=None),
     "clone-full-venv": lambda aid, e: _install_clone_full_venv(aid, e),
     "binary-download": lambda aid, e: _install_binary_download(aid, e),
+    "npm-build": lambda aid, e: _install_npm_build(aid, e),
     "noop": lambda aid, e: _install_noop(aid, e),
-    # npm-build lands in its own per-app branch.
 }
 
 
@@ -466,6 +523,7 @@ def start_install(repo_root: Path, app_id: str) -> dict[str, Any]:
         import os as _os
 
         _os.environ["HERMES3D_REPO_ROOT"] = str(repo_root)
+        globals()["_CURRENT_REPO_ROOT"] = repo_root
         try:
             ok, message = handler(app_id, entry)
         except Exception as exc:  # pragma: no cover

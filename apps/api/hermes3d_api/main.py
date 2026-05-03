@@ -151,6 +151,15 @@ SOURCE_APP_REGISTRY = [
         "cli_commands": [],
         "gui_commands": [],
     },
+    {
+        "id": "fluidd",
+        "name": "Fluidd",
+        "target": Path("print-farm") / "Fluidd",
+        "tool_key": "fluidd",
+        "cli_commands": [],
+        "gui_commands": [],
+        "static_url": "/static/fluidd/",
+    },
 ]
 
 app.add_middleware(
@@ -162,6 +171,25 @@ app.add_middleware(
 )
 
 web_dir = settings.repo_root / "apps" / "web"
+
+
+@app.get("/static/fluidd/", include_in_schema=False)
+@app.get("/static/fluidd/{asset_path:path}", include_in_schema=False)
+def fluidd_static(asset_path: str = "") -> FileResponse:
+    root = _fluidd_static_root()
+    if not root:
+        raise HTTPException(status_code=404, detail="Fluidd build output is not installed")
+    requested = (root / asset_path).resolve() if asset_path else root / "index.html"
+    if requested.is_dir():
+        requested = requested / "index.html"
+    root_resolved = root.resolve()
+    if requested != root_resolved and root_resolved not in requested.parents:
+        raise HTTPException(status_code=404, detail="Fluidd asset not found")
+    if not requested.exists():
+        raise HTTPException(status_code=404, detail="Fluidd asset not found")
+    return FileResponse(requested)
+
+
 if web_dir.exists():
     app.mount("/static", StaticFiles(directory=web_dir), name="static")
 
@@ -700,8 +728,9 @@ def source_apps_status() -> dict[str, Any]:
         install_target = source_install.install_target_path(manifest_entry) if manifest_entry else None
         install_state = source_install.install_state_payload(item["id"])
         if manifest_entry.get("install") and install_state["status"] == "not_installed":
-            if source_install.probe_installed(item["id"], manifest_entry):
+            if source_install.probe_installed(item["id"], manifest_entry, settings.repo_root):
                 install_state = {**install_state, "status": "installed", "log_tail": ["probed via install target"]}
+        process_state = _source_app_process_state(item["id"])
         launched = source_app_processes.get(item["id"])
         launch_running = bool(launched and launched.poll() is None)
         apps.append(
@@ -717,10 +746,12 @@ def source_apps_status() -> dict[str, Any]:
                 "install_method": (manifest_entry.get("install") or {}).get("method"),
                 "install_status": install_state["status"],
                 "install_state": install_state,
-                "launch_supported": item["id"] == "prusaslicer" or bool(item.get("launch_args")),
+                "launch_supported": item["id"] == "prusaslicer" or bool(item.get("launch_args")) or bool(item.get("static_url")),
                 "launch_kind": item.get("launch_kind") or "",
                 "launch_status": "running" if launch_running else "stopped",
                 "launch_pid": launched.pid if launch_running and launched else None,
+                "launch_url": process_state.get("url") or item.get("static_url", ""),
+                "process_state": process_state,
                 "embed_mode": "native-window-bridge-required",
                 "ui_host": "Hermes3D resizable Source OS workbench",
                 "safe_actions": ["inspect source", "configure executable path", "run CLI dry-run after approval"],
@@ -754,6 +785,11 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
     manifest_entry = source_install.find_app(settings.repo_root, app_id)
     if registry_item is None or manifest_entry is None:
         return {"ok": False, "app_id": app_id, "error": f"unknown app id: {app_id}"}
+    if app_id == "fluidd":
+        state = _source_app_process_state(app_id)
+        if not state["ready"]:
+            return {"ok": False, "app_id": app_id, "error": "Fluidd build output is not installed", "state": state}
+        return {"ok": True, "app_id": app_id, "state": state, "url": state["url"]}
     launch_args = registry_item.get("launch_args") or []
     if launch_args:
         executable = _tool_path(registry_item["tool_key"], registry_item["cli_commands"])
@@ -812,6 +848,23 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
         "pid": proc.pid,
         "executable": str(executable),
     }
+
+
+@app.post("/api/source-apps/{app_id}/stop")
+def source_app_stop(app_id: str) -> dict[str, Any]:
+    if app_id != "fluidd":
+        return {"ok": False, "app_id": app_id, "error": "stop is not implemented for this app"}
+    return {
+        "ok": True,
+        "app_id": app_id,
+        "state": _source_app_process_state(app_id),
+        "note": "Fluidd is served as static built assets; there is no worker process to stop.",
+    }
+
+
+@app.get("/api/source-apps/{app_id}/process-state")
+def source_app_process_state(app_id: str) -> dict[str, Any]:
+    return {"app_id": app_id, "state": _source_app_process_state(app_id)}
 
 
 @app.post("/api/jobs/{job_id}/generate-3d-from-image")
@@ -1525,6 +1578,43 @@ def _tool_path(key: str, commands: list[str]) -> str | None:
         if Path(candidate).exists():
             return candidate
     return None
+
+
+def _fluidd_static_root() -> Path | None:
+    entry = source_install.find_app(settings.repo_root, "fluidd")
+    if not entry:
+        return None
+    install = entry.get("install") or {}
+    output_rel = install.get("build_output") or "dist"
+    try:
+        root = source_install.app_target_path(settings.repo_root, entry) / output_rel
+    except ValueError:
+        return None
+    if (root / "index.html").exists():
+        return root
+    return None
+
+
+def _source_app_process_state(app_id: str) -> dict[str, Any]:
+    if app_id == "fluidd":
+        root = _fluidd_static_root()
+        return {
+            "ready": root is not None,
+            "running": root is not None,
+            "kind": "static-serve",
+            "url": "/static/fluidd/",
+            "pid": None,
+            "detail": "Fluidd is served from built static assets.",
+            "static_root": str(root) if root else "",
+        }
+    return {
+        "ready": False,
+        "running": False,
+        "kind": "unknown",
+        "url": "",
+        "pid": None,
+        "detail": "No launcher registered.",
+    }
 
 
 def _camera_count(printers: list[dict[str, Any]]) -> int:

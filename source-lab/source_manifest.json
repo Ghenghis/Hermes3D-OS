@@ -282,7 +282,14 @@
         "license": "GPL-3.0",
         "priority": "reference",
         "uxSection": "Printer Farm / Device UI",
-        "bridge": ["Moonraker UI patterns", "console/files/macros", "compact telemetry"]
+        "bridge": ["Moonraker UI patterns", "console/files/macros", "compact telemetry"],
+        "install": {
+          "method": "npm-build",
+          "repo": "https://github.com/fluidd-core/fluidd.git",
+          "build_cmds": [["npm", "ci", "--include=dev"], ["npm", "run", "build"]],
+          "build_output": "dist",
+          "static_url": "/static/fluidd/"
+        }
       },
       {
         "id": "mainsail",

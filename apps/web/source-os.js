@@ -481,11 +481,12 @@ function dispatchSourceModuleToActionWindow() {
         ? "source ready"
         : "not installed";
   const primary = [];
+  const launchUrl = status.launch_url || status.process_state?.url || module.install?.static_url || "";
   if (installMethod) {
     primary.push({ id: "install-app", label: installStatus === "installing" ? "Installing…" : "Install", endpoint: `/api/source-apps/${module.id}/install`, method: "POST" });
   }
   if (status.launch_supported) {
-    primary.push({ id: "launch-app", label: "Launch", endpoint: `/api/source-apps/${module.id}/launch`, method: "POST" });
+    primary.push({ id: "launch-app", label: launchUrl && status.process_state?.running ? "Open" : "Launch", endpoint: `/api/source-apps/${module.id}/launch`, method: "POST" });
   }
   primary.push({ id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" });
   const logTail = status.install_state?.log_tail || [];
@@ -493,7 +494,9 @@ function dispatchSourceModuleToActionWindow() {
   const launcherText = module.id === "triposr"
     ? "N/A; TripoSR is prepared as a local research module and probed through its Python setup."
     : status.launch_supported
-      ? `${status.launch_status || "stopped"}${status.launch_pid ? ` pid ${status.launch_pid}` : ""}`
+      ? launchUrl
+        ? `${status.process_state?.running ? "running" : "ready"} at ${launchUrl}`
+        : `${status.launch_status || "stopped"}${status.launch_pid ? ` pid ${status.launch_pid}` : ""}`
       : "Native or service launch wiring depends on this app's adapter.";
   const triposrPanels = module.id === "triposr"
     ? [
@@ -729,7 +732,12 @@ async function launchSourceModule(module) {
       setSourceHtml("#sourceDownloadState", `${module.name}: launch failed - ${sourceEscape(reason)}`);
       return;
     }
-    setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.launch_status || payload.status || "running"}${payload.pid ? ` pid ${payload.pid}` : ""}`);
+    const launchUrl = payload.url || payload.state?.url || "";
+    if (launchUrl) {
+      setSourceHtml("#sourceDownloadState", `${module.name}: running at ${launchUrl}`);
+    } else {
+      setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.launch_status || payload.status || "running"}${payload.pid ? ` pid ${payload.pid}` : ""}`);
+    }
     await loadSourceAppsStatus();
     const aw = document.getElementById("actionWindow");
     if (aw && aw.dataset.itemId === module.id) {
