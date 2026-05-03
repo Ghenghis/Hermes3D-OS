@@ -729,7 +729,7 @@ async function launchSourceModule(module) {
       setSourceHtml("#sourceDownloadState", `${module.name}: launch failed - ${sourceEscape(reason)}`);
       return;
     }
-    setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.status || "running"} pid ${payload.pid || ""}`);
+    setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.launch_status || payload.status || "running"}${payload.pid ? ` pid ${payload.pid}` : ""}`);
     await loadSourceAppsStatus();
     const aw = document.getElementById("actionWindow");
     if (aw && aw.dataset.itemId === module.id) {

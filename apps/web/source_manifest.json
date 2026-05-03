@@ -131,7 +131,15 @@
         "license": "GPL-3.0-or-later",
         "priority": "primary",
         "uxSection": "Modeling / Blender",
-        "bridge": ["background CLI", "Python repair/export scripts", "mesh analysis", "camera/render previews", "modifier stack concepts"]
+        "bridge": ["background CLI", "Python repair/export scripts", "mesh analysis", "camera/render previews", "modifier stack concepts"],
+        "install": {
+          "method": "clone-shallow",
+          "repo": "https://github.com/blender/blender.git",
+          "system_command": "blender",
+          "system_env": "HERMES3D_BLENDER_PATH",
+          "link_name": "blender",
+          "smoke_args": ["--background", "--version"]
+        }
       },
       {
         "id": "freecad",
