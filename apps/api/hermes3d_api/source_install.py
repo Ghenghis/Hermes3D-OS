@@ -5,7 +5,7 @@ One endpoint, many install methods. Each app's source_manifest.json entry
 gets an optional `install` block:
 
     "install": {
-      "method": "pip" | "clone-shallow" | "clone-full" | "clone-full-venv" | "npm-build" | "binary-download" | "noop",
+      "method": "pip" | "clone-shallow" | "clone-full" | "npm-build" | "binary-download" | "noop",
       "package": "<pypi-name>",          # for pip
       "import_name": "<python module>",  # optional pip probe
       "repo": "<git url>",               # for clone-*
@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import importlib
 import json
-import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
+import urllib.request
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -89,34 +92,7 @@ def _append_log(app_id: str, line: str) -> None:
         state.log.append(line)
 
 
-def resolve_apps_root(repo_root: Path | None = None) -> Path:
-    """Where downloaded apps live.
-
-    Default: G:\\Github\\Hermes3D\\apps. Override with HERMES3D_APPS_ROOT.
-    """
-    explicit = os.environ.get("HERMES3D_APPS_ROOT")
-    if explicit:
-        return Path(explicit)
-    sibling = Path(r"G:\Github\Hermes3D\apps")
-    if sibling.exists():
-        return sibling
-    return (repo_root or Path(os.environ.get("HERMES3D_REPO_ROOT", "."))) / "source-lab" / "sources"
-
-
-def app_install_path(repo_root: Path | None, entry: dict[str, Any]) -> Path | None:
-    target_rel = entry.get("target")
-    if not target_rel:
-        return None
-    return resolve_apps_root(repo_root) / target_rel
-
-
-def _venv_python(venv: Path) -> Path:
-    if os.name == "nt":
-        return venv / "Scripts" / "python.exe"
-    return venv / "bin" / "python"
-
-
-def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None = None) -> bool:
+def probe_installed(app_id: str, entry: dict[str, Any]) -> bool:
     """Best-effort detection — used by status endpoint."""
     install = entry.get("install") or {}
     method = install.get("method")
@@ -130,18 +106,38 @@ def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None =
         except Exception:
             return False
     if method in ("clone-shallow", "clone-full"):
-        target = app_install_path(repo_root, entry)
-        return bool(target and (target / ".git").exists())
-    if method == "clone-full-venv":
-        target = app_install_path(repo_root, entry)
-        if not target or not (target / ".git").exists():
-            return False
-        venv = target / install.get("venv", ".venv")
-        if not _venv_python(venv).exists():
-            return False
-        marker = target / install.get("setup_marker", ".hermes3d-venv-ready")
-        return marker.exists()
+        # Repo cloned into source-lab/sources/<target>
+        return True  # caller folds into source_exists check
+    if method == "binary-download":
+        return find_installed_binary(entry) is not None
     return False
+
+
+def install_target_path(entry: dict[str, Any]) -> Path | None:
+    install = entry.get("install") or {}
+    target_rel = install.get("binary_target") or entry.get("target")
+    if not target_rel:
+        return None
+    return _resolve_apps_root() / target_rel
+
+
+def find_installed_binary(entry: dict[str, Any]) -> Path | None:
+    target = install_target_path(entry)
+    if target is None or not target.exists():
+        return None
+    install = entry.get("install") or {}
+    names = install.get("binary_names") or install.get("launch_candidates") or []
+    if isinstance(names, str):
+        names = [names]
+    for name in names:
+        candidate = target / str(name)
+        if candidate.exists():
+            return candidate
+    for pattern in ("prusa-slicer.exe", "prusa-slicer-console.exe", "*.exe"):
+        found = next(target.rglob(pattern), None)
+        if found:
+            return found
+    return None
 
 
 # ─── Dispatchers ───────────────────────────────────────────────────────────
@@ -164,6 +160,24 @@ def _install_pip(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
     return True, "pip install ok"
 
 
+def _resolve_apps_root() -> Path:
+    """Where downloaded apps live. Default: G:\\Github\\Hermes3D\\apps (sibling repo).
+
+    Override with HERMES3D_APPS_ROOT env var. Falls back to local source-lab/sources
+    if neither the env var nor the sibling path is available.
+    """
+    import os as _os
+
+    explicit = _os.environ.get("HERMES3D_APPS_ROOT")
+    if explicit:
+        return Path(explicit)
+    sibling = Path(r"G:\Github\Hermes3D\apps")
+    if sibling.exists():
+        return sibling
+    repo_root = Path(_os.environ.get("HERMES3D_REPO_ROOT", "."))
+    return repo_root / "source-lab" / "sources"
+
+
 def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tuple[bool, str]:
     install = entry["install"]
     repo = install.get("repo") or entry.get("repo")
@@ -172,7 +186,7 @@ def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tup
     target_rel = entry.get("target")
     if not target_rel:
         return False, "manifest target missing"
-    apps_root = resolve_apps_root()
+    apps_root = _resolve_apps_root()
     target = apps_root / target_rel
     target.parent.mkdir(parents=True, exist_ok=True)
     if (target / ".git").exists():
@@ -194,71 +208,59 @@ def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tup
     return True, "clone ok"
 
 
-def _run_setup_command(app_id: str, cmd: list[str], cwd: Path, timeout: int = 900) -> tuple[bool, str]:
-    _append_log(app_id, f"$ {' '.join(cmd)}")
-    try:
-        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
-    except Exception as exc:  # pragma: no cover
-        return False, f"setup subprocess error: {exc}"
-    _append_log(app_id, (proc.stdout or "")[-2000:])
-    if proc.returncode != 0:
-        _append_log(app_id, (proc.stderr or "")[-2000:])
-        return False, f"setup exit {proc.returncode}"
-    return True, "ok"
-
-
-def _install_clone_full_venv(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
-    ok, message = _install_clone(app_id, entry, depth=None)
-    if not ok:
-        return ok, message
-
+def _install_binary_download(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
     install = entry["install"]
-    target = app_install_path(None, entry)
+    url = install.get("binary_url")
+    if not url:
+        return False, "manifest install.binary_url missing"
+    target = install_target_path(entry)
     if target is None:
-        return False, "manifest target missing"
+        return False, "manifest install.binary_target missing"
+    existing = find_installed_binary(entry)
+    if existing:
+        _append_log(app_id, f"already installed: {existing}")
+        return True, "already installed"
 
-    venv = target / install.get("venv", ".venv")
-    python_exe = _venv_python(venv)
-    if not python_exe.exists():
-        ok, message = _run_setup_command(app_id, [sys.executable, "-m", "venv", str(venv)], target)
-        if not ok:
-            return ok, message
+    target.mkdir(parents=True, exist_ok=True)
+    _append_log(app_id, f"download: {url}")
+    _append_log(app_id, f"target: {target}")
+    try:
+        with tempfile.TemporaryDirectory(prefix=f"{app_id}-") as tmp:
+            tmp_path = Path(tmp)
+            archive = tmp_path / "download.zip"
+            with urllib.request.urlopen(url, timeout=120) as response:
+                with archive.open("wb") as handle:
+                    shutil.copyfileobj(response, handle)
+            extract_root = tmp_path / "extract"
+            extract_root.mkdir()
+            with zipfile.ZipFile(archive) as zip_ref:
+                _safe_extract(zip_ref, extract_root)
+            payload_root = _single_payload_root(extract_root)
+            shutil.copytree(payload_root, target, dirs_exist_ok=True)
+    except Exception as exc:  # pragma: no cover - network/filesystem failure
+        return False, f"binary download error: {exc}"
 
-    ok, message = _run_setup_command(
-        app_id,
-        [str(python_exe), "-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "setuptools"],
-        target,
-    )
-    if not ok:
-        return ok, message
+    installed = find_installed_binary(entry)
+    if not installed:
+        return False, f"download extracted but no executable was found in {target}"
+    _append_log(app_id, f"installed executable: {installed}")
+    return True, "binary download ok"
 
-    requirements = install.get("requirements")
-    if requirements:
-        req_path = target / requirements
-        if not req_path.exists():
-            return False, f"requirements file missing: {requirements}"
-        ok, message = _run_setup_command(
-            app_id,
-            [str(python_exe), "-m", "pip", "install", "--disable-pip-version-check", "-r", str(req_path)],
-            target,
-            timeout=1800,
-        )
-        if not ok:
-            return ok, message
 
-    probe_files = install.get("probe_files") or []
-    for rel_path in probe_files:
-        probe_path = target / rel_path
-        if not probe_path.exists():
-            return False, f"probe file missing: {rel_path}"
-        if probe_path.suffix == ".py":
-            ok, message = _run_setup_command(app_id, [str(python_exe), "-m", "py_compile", str(probe_path)], target)
-            if not ok:
-                return ok, message
+def _single_payload_root(extract_root: Path) -> Path:
+    children = [path for path in extract_root.iterdir() if path.name != "__MACOSX"]
+    if len(children) == 1 and children[0].is_dir():
+        return children[0]
+    return extract_root
 
-    marker = target / install.get("setup_marker", ".hermes3d-venv-ready")
-    marker.write_text("ok\n", encoding="utf-8")
-    return True, "clone + venv requirements ok"
+
+def _safe_extract(zip_ref: zipfile.ZipFile, destination: Path) -> None:
+    root = destination.resolve()
+    for member in zip_ref.infolist():
+        resolved = (destination / member.filename).resolve()
+        if root != resolved and root not in resolved.parents:
+            raise ValueError(f"refusing unsafe archive path: {member.filename}")
+    zip_ref.extractall(destination)
 
 
 def _install_noop(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
@@ -270,9 +272,9 @@ _DISPATCH = {
     "pip": lambda aid, e: _install_pip(aid, e),
     "clone-shallow": lambda aid, e: _install_clone(aid, e, depth=1),
     "clone-full": lambda aid, e: _install_clone(aid, e, depth=None),
-    "clone-full-venv": lambda aid, e: _install_clone_full_venv(aid, e),
+    "binary-download": lambda aid, e: _install_binary_download(aid, e),
     "noop": lambda aid, e: _install_noop(aid, e),
-    # binary-download and npm-build land in their own per-app branches.
+    # npm-build lands in its own per-app branch.
 }
 
 
