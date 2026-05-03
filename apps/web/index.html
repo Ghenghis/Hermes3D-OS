@@ -23,6 +23,42 @@
             <option value="forest">Forest</option>
           </select>
         </label>
+        <details class="ui-settings" id="uiSettings">
+          <summary
+            class="ui-settings__toggle"
+            aria-label="UI text settings"
+            title="Text size and typeface"
+          >⚙ Text</summary>
+          <div class="ui-settings__panel" role="group" aria-label="Text settings">
+            <label class="ui-settings__row" for="fontScale">
+              <span>Font size</span>
+              <input
+                type="range"
+                id="fontScale"
+                min="0.55"
+                max="1.30"
+                step="0.05"
+                value="0.70"
+                aria-label="Font scale"
+              />
+              <output id="fontScaleValue">0.70×</output>
+            </label>
+            <label class="ui-settings__row" for="fontFamily">
+              <span>Typeface</span>
+              <select id="fontFamily" aria-label="UI typeface">
+                <option value="inter">Inter (default)</option>
+                <option value="system">System UI</option>
+                <option value="mono">Monospace</option>
+                <option value="serif">Serif</option>
+                <option value="roboto">Roboto</option>
+                <option value="atkinson">Atkinson Hyperlegible</option>
+              </select>
+            </label>
+            <button type="button" id="fontReset" class="ui-settings__reset">
+              Reset to defaults
+            </button>
+          </div>
+        </details>
         <button id="bootstrapBtn" type="button">Load Printers</button>
         <button id="refreshBtn" type="button">Refresh</button>
       </div>

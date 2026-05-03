@@ -67,6 +67,32 @@ const OS_FLOW_LANES = [
   },
 ];
 
+// UI typography presets — keys map to CSS font-family stacks. The user can
+// pick any of these via the gear popover next to Theme; choice persists in
+// localStorage("hermes3d-font-family"). The font-scale slider in the same
+// popover writes localStorage("hermes3d-font-scale") (a number 0.55–1.30).
+// Both values are applied through CSS custom properties on :root, so every
+// rule that uses calc(Npx * var(--font-scale)) or var(--font-family-ui) in
+// styles.css picks them up live.
+const FONT_FAMILY_OPTIONS = {
+  inter:
+    'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  system:
+    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  mono:
+    'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+  serif:
+    'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+  roboto:
+    'Roboto, "Helvetica Neue", Arial, sans-serif',
+  atkinson:
+    '"Atkinson Hyperlegible", Inter, system-ui, sans-serif',
+};
+const DEFAULT_FONT_SCALE = 0.70;
+const DEFAULT_FONT_FAMILY = "inter";
+const FONT_SCALE_MIN = 0.55;
+const FONT_SCALE_MAX = 1.30;
+
 const state = {
   activePage: pageFromHash(),
   theme: savedTheme(),
@@ -87,9 +113,14 @@ const state = {
 };
 
 applyTheme(state.theme);
+applyFontSettings(savedFontScale(), savedFontFamily());
 
 const healthEl = document.querySelector("#health");
 const themeSelect = document.querySelector("#themeSelect");
+const fontScaleInput = document.querySelector("#fontScale");
+const fontScaleValue = document.querySelector("#fontScaleValue");
+const fontFamilySelect = document.querySelector("#fontFamily");
+const fontResetBtn = document.querySelector("#fontReset");
 const printerSelect = document.querySelector("#printerSelect");
 const advanceBtn = document.querySelector("#advanceBtn");
 const approveModelBtn = document.querySelector("#approveModelBtn");
@@ -283,6 +314,59 @@ function renderThemeSelect() {
     return;
   }
   themeSelect.value = state.theme;
+}
+
+// ─── Font scale + family ──────────────────────────────────────────────────
+// Reads/writes two localStorage keys and applies them to :root as CSS custom
+// properties. Defaults: scale=0.70 (the user's "fonts 22 should be 14–16"
+// directive translates to ~70% of the original sizes), family=inter. The
+// applyFontSettings call at boot installs them before any render so the
+// initial paint is already at the requested size.
+function clampFontScale(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return DEFAULT_FONT_SCALE;
+  return Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, num));
+}
+
+function savedFontScale() {
+  const raw = localStorage.getItem("hermes3d-font-scale");
+  if (raw === null) return DEFAULT_FONT_SCALE;
+  return clampFontScale(raw);
+}
+
+function savedFontFamily() {
+  const raw = localStorage.getItem("hermes3d-font-family");
+  return Object.prototype.hasOwnProperty.call(FONT_FAMILY_OPTIONS, raw)
+    ? raw
+    : DEFAULT_FONT_FAMILY;
+}
+
+function applyFontSettings(scale, familyKey) {
+  const safeScale = clampFontScale(scale);
+  const safeFamily = Object.prototype.hasOwnProperty.call(FONT_FAMILY_OPTIONS, familyKey)
+    ? familyKey
+    : DEFAULT_FONT_FAMILY;
+  document.documentElement.style.setProperty("--font-scale", String(safeScale));
+  document.documentElement.style.setProperty(
+    "--font-family-ui",
+    FONT_FAMILY_OPTIONS[safeFamily],
+  );
+  localStorage.setItem("hermes3d-font-scale", String(safeScale));
+  localStorage.setItem("hermes3d-font-family", safeFamily);
+}
+
+function renderFontSettingsControls() {
+  const scale = savedFontScale();
+  const family = savedFontFamily();
+  if (fontScaleInput) {
+    fontScaleInput.value = String(scale);
+  }
+  if (fontScaleValue) {
+    fontScaleValue.textContent = `${scale.toFixed(2)}×`;
+  }
+  if (fontFamilySelect) {
+    fontFamilySelect.value = family;
+  }
 }
 
 function pageFromHash() {
@@ -1318,6 +1402,28 @@ themeSelect?.addEventListener("change", () => {
   applyTheme(themeSelect.value);
   renderAll();
 });
+
+// Font-scale slider — live update on input so the user sees the rescale as
+// they drag. Family select switches the typeface immediately. Reset button
+// returns both to the documented defaults (0.70× / Inter).
+fontScaleInput?.addEventListener("input", () => {
+  applyFontSettings(fontScaleInput.value, fontFamilySelect?.value);
+  if (fontScaleValue) {
+    fontScaleValue.textContent = `${clampFontScale(fontScaleInput.value).toFixed(2)}×`;
+  }
+});
+
+fontFamilySelect?.addEventListener("change", () => {
+  applyFontSettings(fontScaleInput?.value, fontFamilySelect.value);
+});
+
+fontResetBtn?.addEventListener("click", () => {
+  applyFontSettings(DEFAULT_FONT_SCALE, DEFAULT_FONT_FAMILY);
+  renderFontSettingsControls();
+});
+
+// Sync the popover controls with the persisted values on first paint.
+renderFontSettingsControls();
 
 document.querySelector("#bootstrapBtn").addEventListener("click", async () => {
   await api("/api/bootstrap", { method: "POST", body: "{}" });

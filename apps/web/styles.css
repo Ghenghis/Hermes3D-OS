@@ -92,14 +92,65 @@ body[data-theme="forest"] {
   box-sizing: border-box;
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * UI scale tokens (2026-05-03 fit-and-fonts pass)
+ *
+ * The base UI was authored at ~22 px h1 / 16 px body which over-
+ * flows large monitors and renders ~2× too tall vs. the target
+ * (per user feedback: "fonts 22 should be 14–16"). Every
+ * font-size declaration in the rest of this file is scaled
+ * through `calc(X * var(--font-scale))`. Default 0.7 brings 22 px
+ * down to ~15.4 px (≈16) and 16 px down to ~11.2 px (≈11), which
+ * matches the requested target. Users can override at runtime
+ * via the gear popover (see app.js applyFontSettings).
+ *
+ * --font-family-ui exposes the typeface for the same popover so
+ * the user can swap between Inter / System / Mono / Serif
+ * without touching the CSS.
+ *
+ * Both values persist through localStorage:
+ *   hermes3d-font-scale     (0.6 – 1.2 typical)
+ *   hermes3d-font-family    (one of the keys in FONT_FAMILY_OPTIONS)
+ * ───────────────────────────────────────────────────────────── */
+:root {
+  --font-scale: 0.7;
+  --font-family-ui:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html {
+  /* Re-base rem so 1rem = 14 px at default scale (15px × 0.93). */
+  font-size: calc(15px * var(--font-scale));
+}
+
 body {
   margin: 0;
   background: var(--bg);
   background-image: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-family-ui);
+  font-size: calc(14px * var(--font-scale));
+  /* Stop horizontal overflow from any rogue grid; legitimate scroll
+   * regions (sidebars, code blocks) define their own overflow. */
+  overflow-x: hidden;
+}
+
+/* Ensure flex/grid descendants can shrink past their content size
+ * — the cause of the "doesn't resize" bug. min-content was the
+ * default min-size and it was preventing column collapse on narrow
+ * viewports. */
+.panel,
+.panel-host,
+.surface,
+main,
+.shell,
+.tabs,
+.app-grid > *,
+.source-os__grid > *,
+.workbench > * {
+  min-width: 0;
+  min-height: 0;
 }
 
 button,
@@ -153,9 +204,110 @@ button:disabled {
 
 .theme-control span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   font-weight: 700;
   text-transform: uppercase;
+}
+
+/* ─── UI text settings popover (gear next to Theme picker) ─────────────────
+ * Compact <details> popover that exposes --font-scale + --font-family-ui
+ * to end users. The slider drag triggers applyFontSettings on every input
+ * event so the rescale is immediate. */
+.ui-settings {
+  position: relative;
+}
+
+.ui-settings__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+  font-size: calc(12px * var(--font-scale));
+  cursor: pointer;
+  list-style: none;
+}
+
+.ui-settings__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.ui-settings[open] .ui-settings__toggle {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.ui-settings__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+  min-width: 260px;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.ui-settings__row {
+  display: grid;
+  grid-template-columns: minmax(0, 80px) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: calc(12px * var(--font-scale));
+}
+
+.ui-settings__row > span {
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: calc(10px * var(--font-scale));
+}
+
+.ui-settings__row input[type="range"] {
+  width: 100%;
+}
+
+.ui-settings__row select {
+  min-height: 28px;
+  background: var(--input);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 6px;
+}
+
+.ui-settings__row output {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 3.2em;
+  text-align: right;
+}
+
+.ui-settings__reset {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: var(--card-strong);
+  color: var(--text);
+  border: 1px solid var(--line);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: calc(11px * var(--font-scale));
+}
+
+.ui-settings__reset:hover {
+  border-color: var(--blue);
+  color: var(--blue);
 }
 
 .tabs {
@@ -197,24 +349,24 @@ p {
 }
 
 h1 {
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale));
   font-weight: 700;
 }
 
 h2 {
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: 700;
 }
 
 h3 {
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 700;
 }
 
 .topbar p,
 .muted {
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
 }
 
 .page-shell {
@@ -321,7 +473,7 @@ h3 {
 
 .theme-choice span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 400;
 }
 
@@ -334,7 +486,7 @@ label {
   display: grid;
   gap: 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
 }
 
 input,
@@ -488,7 +640,7 @@ textarea {
   gap: 2px;
   margin-top: 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   padding: 8px 10px;
 }
 
@@ -534,7 +686,7 @@ textarea {
   border-radius: 999px;
   background: var(--blue-soft);
   color: var(--blue);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 700;
   padding: 2px 8px;
 }
@@ -583,7 +735,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   font-weight: 700;
   padding: 4px 8px;
 }
@@ -627,7 +779,7 @@ textarea {
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   padding: 12px;
   text-align: center;
 }
@@ -676,7 +828,7 @@ textarea {
   border-radius: 999px;
   background: var(--input);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   padding: 0 10px;
 }
 
@@ -974,7 +1126,7 @@ textarea {
 }
 
 .source-workbench-hero strong {
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
 }
 
 .source-workbench-hero span,
@@ -992,7 +1144,7 @@ textarea {
 
 .source-state-stack b {
   color: var(--green);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   letter-spacing: 0.08em;
 }
 
@@ -1029,7 +1181,7 @@ textarea {
   border-radius: 999px;
   background: var(--input);
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   padding: 4px 8px;
 }
 
@@ -1041,7 +1193,7 @@ textarea {
   border-radius: 2px;
   background: #ffffff;
   color: #1b2530;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 500;
 }
 
@@ -1229,7 +1381,7 @@ textarea {
   bottom: 14px;
   width: 42px;
   height: 42px;
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale));
 }
 
 .source-layer-toggle {
@@ -1237,7 +1389,7 @@ textarea {
   bottom: 14px;
   width: 42px;
   min-height: 42px;
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale));
 }
 
 .source-slicer-settings {
@@ -1384,7 +1536,7 @@ textarea {
 
 .source-flow-svg text {
   fill: var(--text);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-weight: 700;
   text-anchor: middle;
   dominant-baseline: middle;
@@ -1392,7 +1544,7 @@ textarea {
 
 .source-flow-svg .source-flow-label {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   text-anchor: start;
 }
 
@@ -1414,7 +1566,7 @@ textarea {
 
 .source-flow-lanes span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   overflow-wrap: anywhere;
 }
 
