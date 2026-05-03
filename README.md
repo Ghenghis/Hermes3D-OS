@@ -1,37 +1,81 @@
 # Hermes3D OS
 
-Hermes3D OS is a standalone agent-controlled 3D print factory controller.
+Hermes3D OS is a local-first, agent-controlled 3D print factory operating surface. It is not just a printer dashboard: it ties source-backed tools, CAD/modeling workers, generation engines, slicers, printer dispatch, camera evidence, approvals, and audit history into one operator shell.
 
-It uses the Hermes agent system as the printer-agent brain, LangGraph-style workflow gates for controlled execution, Moonraker/Klipper for printer control, slicer/modeling workers for fabrication tasks, and an internal job ledger for evidence, approvals, and telemetry.
+The current web app starts on **Source OS** because Hermes3D now treats open-source slicers, modelers, print-farm tools, firmware, generation engines, material systems, and research projects as first-class factory modules.
 
-This project does not require Goose, OpenHands, or OpenClaw to operate.
+## Current OS Surface
 
-## Target Stack
+The live app exposes 16 pages:
 
 ```text
-Hermes3D Standalone Web UI
+Source OS -> Dashboard -> Autopilot -> Design -> 3D Generation
+Jobs -> Printers -> Observe -> Voice -> Agents -> Learning
+Artifacts -> Approvals -> Plugins -> Settings -> Roadmap
+```
+
+Source inventory status on 2026-05-03:
+
+- 55 manifest modules.
+- 0 missing local checkout folders.
+- 3 full working-tree slicer checkouts: PrusaSlicer, OrcaSlicer, FLSUN Slicer.
+- 52 sparse working-tree checkouts held as reference modules until promoted.
+
+The main digital thread is:
+
+```text
+Source Bench
+  -> Design/CAD
+  -> 3D Generation
+  -> Slicer Compiler
+  -> Dispatch
+  -> Observation
+  -> Materials/Calibration
+  -> Trust/Audit
+```
+
+## Factory Flows
+
+Hermes3D OS keeps the important production flows visible instead of hiding them behind one "print" button:
+
+| Flow | Gate shape |
+| --- | --- |
+| Source Bench | repo -> adapter -> checkout -> bridge -> promote |
+| Design/CAD | brief -> source CAD -> execute -> geometry QA -> model approval |
+| 3D Generation | image -> 3D engine -> repair -> printability -> candidate |
+| Slicer Compiler | profile lock -> slice -> preview -> G-code QA -> print approval |
+| Dispatch | select printer -> upload only -> operator check -> start -> monitor |
+| Observation | snapshot -> first layer -> anomaly -> event -> report |
+| Materials | spool -> profile -> coupon -> measurement -> confidence |
+| Trust/Audit | scope -> permission -> ledger -> artifact -> export |
+
+## Runtime Stack
+
+```text
+Hermes3D OS web shell
         |
-Hermes Agent System
+FastAPI local service layer
         |
-LangGraph workflow gates
+Hermes agent system and workflow gates
         |
-Tool / service layer
- ├─ Moonraker connector
- ├─ FDM Monster connector
- ├─ PrusaSlicer CLI worker
- ├─ OrcaSlicer worker
+Workers, connectors, and evidence stores
+ ├─ Source OS module registry
+ ├─ Moonraker / Klipper connector
+ ├─ FDM Monster sidecar connector
+ ├─ PrusaSlicer / OrcaSlicer / FLSUN profile bridge
  ├─ TRELLIS.2 / Hunyuan3D / TripoSR generation stack
- ├─ CadQuery worker
- ├─ OpenSCAD worker
- ├─ Blender / Trimesh repair worker
+ ├─ CadQuery / OpenSCAD / Blender / Trimesh workers
  ├─ printer inventory database
- ├─ job/evidence ledger
- ├─ Azure Speech voice layer
- └─ safety/approval gate
+ ├─ job, artifact, approval, and event ledger
+ ├─ camera and visual-evidence surfaces
+ ├─ voice provider adapter
+ └─ safety and approval gates
         |
 Pilot printers
  ├─ FLSUN T1-A
- └─ FLSUN T1-B
+ ├─ FLSUN T1-B
+ ├─ FLSUN V400
+ └─ FLSUN S1 maintenance locked
 ```
 
 ## Core Principle
@@ -42,9 +86,9 @@ Hermes decides, workflows gate, services execute.
 - Workflow gates prevent unsafe jumps from prompt to print.
 - Moonraker performs printer actions through explicit API calls.
 - Slicer and modeling workers produce artifacts with captured evidence.
-- The job ledger records models, G-code, decisions, approvals, telemetry, and failures.
+- The ledger records models, G-code, decisions, approvals, telemetry, and failures.
 
-## First Pilot Workflow
+## Pilot Workflow
 
 ```text
 INTAKE
@@ -71,65 +115,15 @@ Hermes3D-OS
 │  ├─ api
 │  └─ web
 ├─ configs
-│  ├─ printers.pilot.example.yaml
-│  └─ services.example.yaml
 ├─ docs
-│  ├─ ARCHITECTURE.md
-│  ├─ BRANCHING.md
-│  ├─ DEVELOPMENT.md
-│  ├─ GETTING_STARTED.md
-│  ├─ HERMES_AGENT_SYSTEM.md
-│  ├─ LOCAL_MODEL_SETUP.md
-│  ├─ PRINTER_ONBOARDING.md
-│  ├─ WORKFLOW_GATES.md
-│  └─ ROADMAP.md
 ├─ packages
-│  ├─ connectors
-│  ├─ db
-│  ├─ hermes_runtime
-│  ├─ workflows
-│  └─ workers
 ├─ profiles
-│  └─ prusaslicer
+├─ scripts
+├─ source-lab
+│  └─ sources       # local checkouts, kept out of git
+├─ storage
 └─ README.md
 ```
-
-## Pilot Scope
-
-The first working version should focus on the two FLSUN T1 printers:
-
-- printer inventory records
-- Moonraker connectivity
-- PrusaSlicer CLI slicing
-- manual model upload
-- approval-gated print dispatch
-- telemetry capture
-- job evidence ledger
-
-Model generation with the downloaded 3D/modeling LLM should come after the print pipeline is safe and observable.
-
-## Start Here
-
-For setup and operating context, read:
-
-- [Getting Started](docs/GETTING_STARTED.md)
-- [Development Guide](docs/DEVELOPMENT.md)
-- [Branching Strategy](docs/BRANCHING.md)
-- [Printer Onboarding](docs/PRINTER_ONBOARDING.md)
-- [Local Model Setup](docs/LOCAL_MODEL_SETUP.md)
-- [MVP Runbook](docs/MVP_RUNBOOK.md)
-- [Test Printer Data](docs/TEST_PRINTER_DATA.md)
-- [Day-To-Day Roadmap](docs/DAY_TO_DAY_ROADMAP.md)
-- [2026 Research Action Plan](docs/RESEARCH_2026_ACTION_PLAN.md)
-- [AI 3D Generation Research 2026](docs/AI_3D_GENERATION_RESEARCH_2026.md)
-- [OS Interface Design](docs/OS_INTERFACE_DESIGN.md)
-- [Voice Layer](docs/VOICE_LAYER.md)
-- [Vision Agent Contract](docs/VISION_AGENT_CONTRACT.md)
-- [Visual Evidence](docs/VISUAL_EVIDENCE.md)
-- [UI Visual Proof](docs/UI_VISUAL_PROOF.md)
-- [Full-Stack 3D Generation](docs/FULL_STACK_3D_GENERATION.md)
-- [Idle Learning Mode](docs/IDLE_LEARNING_MODE.md)
-- [Agentic Work System](docs/AGENTIC_WORK_SYSTEM.md)
 
 ## Run The MVP
 
@@ -140,18 +134,26 @@ On Windows:
 .\scripts\run-dev.ps1
 ```
 
+Then open the URL printed by `scripts/run-dev.ps1`.
+
+If the saved/default port is busy, `run-dev.ps1` automatically finds an open local port, saves it to `configs/runtime.local.yaml`, and prints the new URL.
+
 For local 3D generation readiness:
 
 ```powershell
 .\scripts\discover-3d-tools.ps1
 ```
 
-Then open:
-
-```text
-the URL printed by scripts/run-dev.ps1
-```
-
-If the saved/default port is busy, `run-dev.ps1` automatically finds an open local port, saves it to `configs/runtime.local.yaml`, and prints the new URL.
-
 The MVP runs in printer dry-run mode by default. It can create jobs, move through workflow gates, write evidence artifacts, simulate slicing when PrusaSlicer is unavailable, and simulate Moonraker dispatch without touching hardware.
+
+## Start Here
+
+- [Getting Started](docs/GETTING_STARTED.md)
+- [MVP Runbook](docs/MVP_RUNBOOK.md)
+- [OS Interface Design](docs/OS_INTERFACE_DESIGN.md)
+- [Source-backed UI proof](docs/UI_VISUAL_PROOF.md)
+- [Full-Stack 3D Generation](docs/FULL_STACK_3D_GENERATION.md)
+- [Idle Learning Mode](docs/IDLE_LEARNING_MODE.md)
+- [Agentic Work System](docs/AGENTIC_WORK_SYSTEM.md)
+- [Day-To-Day Roadmap](docs/DAY_TO_DAY_ROADMAP.md)
+- [2026 Research Action Plan](docs/RESEARCH_2026_ACTION_PLAN.md)

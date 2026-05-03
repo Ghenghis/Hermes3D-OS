@@ -24,6 +24,49 @@ const PAGE_IDS = [
   "roadmap",
 ];
 
+const OS_FLOW_LANES = [
+  {
+    title: "Source Bench",
+    status: "live",
+    steps: ["repo", "adapter", "checkout", "bridge", "promote"],
+  },
+  {
+    title: "Design/CAD",
+    status: "gated",
+    steps: ["brief", "source CAD", "execute", "geometry QA", "model approval"],
+  },
+  {
+    title: "Generation",
+    status: "evidence",
+    steps: ["image", "3D engine", "repair", "printability", "candidate"],
+  },
+  {
+    title: "Slicer Compiler",
+    status: "proof",
+    steps: ["profile lock", "slice", "preview", "G-code QA", "print approval"],
+  },
+  {
+    title: "Dispatch",
+    status: "human gate",
+    steps: ["select printer", "upload only", "operator check", "start", "monitor"],
+  },
+  {
+    title: "Observation",
+    status: "camera",
+    steps: ["snapshot", "first layer", "anomaly", "event", "report"],
+  },
+  {
+    title: "Materials",
+    status: "planned",
+    steps: ["spool", "profile", "coupon", "measurement", "confidence"],
+  },
+  {
+    title: "Trust/Audit",
+    status: "always on",
+    steps: ["scope", "permission", "ledger", "artifact", "export"],
+  },
+];
+
 const state = {
   activePage: pageFromHash(),
   theme: savedTheme(),
@@ -159,6 +202,7 @@ function renderDashboard() {
   setHtml("#dashboardFleet", renderPrinterCards(state.printers.slice(0, 4), true));
   setHtml("#dashboardJobs", renderJobCards(state.jobs.slice(0, 8)));
   setHtml("#dashboardEvents", renderEventCards(state.events.slice(0, 12)));
+  setHtml("#dashboardFlow", renderOsFlowBoard(OS_FLOW_LANES));
 }
 
 function renderSetup() {
@@ -726,7 +770,7 @@ function renderPlugins() {
     ["Hunyuan3D-2.1", "Comparison/fallback image-to-3D engine", "planned"],
     ["TripoSR", "Fast preview fallback for early shape review", "planned"],
     ["Blender / Trimesh", "Mesh repair, validation, previews, exports", "planned"],
-    ["Azure Voice", "Agent TTS/STT, safety alerts, preview, and transcripts", "active"],
+    ["Voice Layer", "Agent TTS/STT, safety alerts, preview, and transcripts", "active"],
     ["MiniMax-MCP Vision", "Required multimodal layer for image, screenshot, mesh, slicer, and camera evidence", "active"],
     ["DeepSeek V4", "Optional planning, CAD reasoning, research summaries, roadmaps, and reports", "ready"],
     ["Visual Evidence", "Job-scoped evidence uploads, local file serving, and thumbnails", "active"],
@@ -756,8 +800,9 @@ function renderPlugins() {
 
 function renderRoadmap() {
   const items = [
+    "Keep Source OS, README, interface docs, and visual proof aligned with the live 16-page OS shell",
     "Confirm safe printer set: T1-A, T1-B, and V400 only while S1 is locked",
-    "Complete OS shell navigation and visual proof: themes, page deep links, responsive layout, UI screenshots",
+    "Maintain responsive OS shell navigation: themes, page deep links, flow maps, and UI screenshots",
     "Add model endpoint picker from /v1/models",
     "Add DesignSpec fields for dimensions, constraints, tolerances, material, and target printer",
     "Add executable CAD worker with source, preview, bounding box, volume, and export validation",
@@ -777,6 +822,26 @@ function renderRoadmap() {
     "#roadmapPage",
     items.map((item, index) => `<article class="roadmap-item"><strong>${index + 1}</strong><span>${escapeHtml(item)}</span></article>`).join(""),
   );
+}
+
+function renderOsFlowBoard(lanes) {
+  return lanes
+    .map(
+      (lane) => `
+        <article class="flow-lane">
+          <header>
+            <strong>${escapeHtml(lane.title)}</strong>
+            ${stateBadge(String(lane.status || "planned").toUpperCase())}
+          </header>
+          <div class="flow-steps">
+            ${(lane.steps || [])
+              .map((step, index) => `<span data-step="${index + 1}">${escapeHtml(step)}</span>`)
+              .join("")}
+          </div>
+        </article>
+      `,
+    )
+    .join("");
 }
 
 async function renderActiveJob() {

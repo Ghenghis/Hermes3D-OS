@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hermes OS Print Factory</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260428-theme" />
-    <link rel="stylesheet" href="/static/voice-settings.css?v=20260428-theme" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260503-os-sync" />
+    <link rel="stylesheet" href="/static/voice-settings.css?v=20260503-os-sync" />
   </head>
   <body data-theme="midnight">
     <header class="topbar">
@@ -76,9 +76,12 @@
                 </div>
                 <div class="source-actions">
                   <div id="sourceLayoutControls" class="source-layout-controls" aria-label="Source workbench size"></div>
-                  <button id="sourceOpenRepo" type="button">Repo</button>
+                  <button id="sourceOpenRepo" type="button">Upstream</button>
+                  <button id="sourceOpenLocal" type="button">Source</button>
+                  <button id="sourceLaunchApp" type="button">Launch</button>
                   <button id="sourceBridgePlan" type="button">Bridge</button>
                   <button id="sourceSetupPlan" type="button">Setup</button>
+                  <button id="sourceRefresh" type="button">Refresh</button>
                 </div>
               </div>
 
@@ -177,6 +180,13 @@
               <span class="muted">Latest system events</span>
             </div>
             <div id="dashboardEvents" class="event-list"></div>
+          </section>
+          <section class="panel dashboard-flow-panel">
+            <div class="panel-header">
+              <h2>Factory Flow</h2>
+              <span class="muted">Digital thread</span>
+            </div>
+            <div id="dashboardFlow" class="os-flow-board"></div>
           </section>
         </div>
       </section>
@@ -334,7 +344,7 @@
         <section class="panel">
           <div class="panel-header">
             <h2>Hermes Voice Layer</h2>
-            <span class="muted">Azure Speech for agents</span>
+            <span class="muted">Agent voice provider</span>
           </div>
           <div id="voicePanel"></div>
         </section>
@@ -517,8 +527,8 @@
       </section>
     </main>
 
-    <script src="/static/source-os.js?v=20260428-source"></script>
-    <script src="/static/app.js?v=20260428-source"></script>
-    <script src="/static/voice-panel.js?v=20260428-theme"></script>
+    <script src="/static/source-os.js?v=20260503-source-actions-2"></script>
+    <script src="/static/app.js?v=20260503-source-actions-2"></script>
+    <script src="/static/voice-panel.js?v=20260503-source-actions-2"></script>
   </body>
 </html>

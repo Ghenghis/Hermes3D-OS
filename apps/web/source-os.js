@@ -13,17 +13,75 @@ const SOURCE_GROUP_LABELS = {
 };
 
 const SOURCE_PIPELINES = {
-  slicers: ["import", "profile", "slice dry-run", "preview", "upload"],
-  modelers: ["script/model", "preview", "repair", "export", "truth gate"],
-  print_farm: ["scan", "connect", "telemetry", "queue", "observe"],
-  firmware: ["identify board", "map commands", "safety gate", "status model", "profile link"],
-  generation: ["photo", "vision", "3D engine", "repair", "slice proof"],
-  orchestration: ["agent", "gate", "tool call", "evidence", "voice"],
-  libraries: ["import", "tag", "version", "preview", "reuse"],
-  materials: ["material", "profile", "slicer map", "test coupon", "approve"],
-  hardware: ["research", "fit check", "risk gate", "mod plan", "archive"],
-  utilities: ["template", "parameters", "preview", "export", "slice"],
-  research: ["index", "score", "cherry-pick", "prototype", "promote"],
+  slicers: ["import", "profile lock", "slice dry-run", "preview", "G-code QA", "approval", "upload-only"],
+  modelers: ["brief", "source CAD", "execute", "preview", "repair", "export", "model gate"],
+  print_farm: ["scan", "connect", "telemetry", "queue", "observe", "pause policy", "report"],
+  firmware: ["identify board", "map commands", "safety gate", "status model", "profile link", "do-not-probe check"],
+  generation: ["photo", "vision", "3D engine", "mesh repair", "printability gate", "slice proof", "evidence"],
+  orchestration: ["agent", "permission", "gate", "tool call", "evidence", "voice", "operator handoff"],
+  libraries: ["import", "tag", "version", "preview", "reuse", "3MF contract", "archive"],
+  materials: ["spool", "material", "profile", "slicer map", "test coupon", "measurement", "approve"],
+  hardware: ["research", "fit check", "risk gate", "mod plan", "operator approval", "archive"],
+  utilities: ["template", "parameters", "preview", "export", "slice", "evidence"],
+  research: ["index", "score", "summarize", "ticket", "prototype", "promote", "audit"],
+};
+
+const SOURCE_FLOW_LANES = {
+  slicers: [
+    ["Profile Contract", "vendor profile", "Hermes lock", "hash", "printer map"],
+    ["Compiler Proof", "STL/3MF", "slice", "preview", "G-code report"],
+    ["Dispatch Guard", "approval", "upload-only", "operator check", "start gate"],
+  ],
+  modelers: [
+    ["CAD Agent", "brief", "script", "execute", "revise"],
+    ["Geometry QA", "bounds", "volume", "manifold", "repair"],
+    ["Package", "STEP/STL", "3MF", "preview", "approval"],
+  ],
+  print_farm: [
+    ["Fleet State", "scan", "connect", "temperature", "queue"],
+    ["Camera Loop", "stream", "snapshot", "first layer", "alert"],
+    ["Job Control", "upload", "human check", "start", "monitor"],
+  ],
+  firmware: [
+    ["Firmware Map", "board", "flavor", "commands", "limits"],
+    ["Safety", "lock", "blocked G-code", "probe policy", "operator gate"],
+    ["Profiles", "machine", "bed", "nozzle", "slicer link"],
+  ],
+  generation: [
+    ["Image To Mesh", "source", "vision", "engine", "candidate"],
+    ["Repair", "scale", "watertight", "bounds", "mesh proof"],
+    ["Printability", "slicer", "G-code QA", "approval", "evidence"],
+  ],
+  orchestration: [
+    ["Agent Loop", "intent", "plan", "tool call", "result"],
+    ["Permissions", "scope", "gate", "approval", "handoff"],
+    ["Ledger", "event", "artifact", "summary", "audit"],
+  ],
+  libraries: [
+    ["Catalog", "import", "tag", "license", "version"],
+    ["Reuse", "preview", "variant", "fit", "package"],
+    ["Contract", "3MF", "profile", "material", "evidence"],
+  ],
+  materials: [
+    ["Spool", "material", "lot", "remaining", "dry state"],
+    ["Calibration", "coupon", "measure", "profile", "expiry"],
+    ["Compatibility", "nozzle", "temperature", "flow", "approval"],
+  ],
+  hardware: [
+    ["Mod Plan", "research", "fit", "risk", "approval"],
+    ["Install", "steps", "photos", "rollback", "ledger"],
+    ["Safety", "lock", "test scope", "operator", "archive"],
+  ],
+  utilities: [
+    ["Template", "params", "preview", "export", "slice"],
+    ["Evidence", "image", "diagram", "hash", "report"],
+    ["Promotion", "review", "ticket", "merge", "release"],
+  ],
+  research: [
+    ["Watch", "source", "score", "summary", "ticket"],
+    ["Prototype", "bench", "risk", "demo", "promote"],
+    ["Audit", "claim", "evidence", "drift", "fix queue"],
+  ],
 };
 
 const SOURCE_PREFERRED_ORDER = {
@@ -81,6 +139,7 @@ async function loadSourceAppsStatus() {
       throw new Error(response.statusText);
     }
     sourceState.sourceAppsStatus = await response.json();
+    renderSourceModuleList();
     renderSourceModuleDetails();
   } catch (error) {
     sourceState.sourceAppsStatus = {
@@ -179,14 +238,17 @@ function renderSourceModuleList() {
   setSourceHtml(
     "#sourceModuleList",
     modules
-      .map(
-        (module, index) => `
+      .map((module, index) => {
+        const status = sourceAppStatus(module);
+        const mode = checkoutMode(status);
+        return `
           <button class="source-module-card ${index === sourceState.selectedIndex ? "active" : ""} ${sourceEscapeAttr(module.priority || "")}" type="button" data-source-index="${index}">
             <b>${sourceEscape(module.name)}</b><i>${sourceEscape(module.priority || "candidate")}</i>
             <span>${sourceEscape(module.uxSection || "Hermes3D module")}</span><span>${sourceEscape(module.license || "unknown")}</span>
+            <em class="${sourceEscapeAttr(mode)}">${sourceEscape(mode)}</em><span>${status.launch_available ? "launchable" : "source only"}</span>
           </button>
-        `,
-      )
+        `;
+      })
       .join(""),
   );
 }
@@ -198,6 +260,12 @@ function renderSourceModuleDetails() {
   }
   const bridge = module.bridge || [];
   const pipeline = SOURCE_PIPELINES[sourceState.groupKey] || ["source", "bridge", "setup", "test", "promote"];
+  const lanes = SOURCE_FLOW_LANES[sourceState.groupKey] || [
+    ["Bridge", "source", "adapter", "dry-run", "promote"],
+    ["Evidence", "artifact", "preview", "approval", "ledger"],
+    ["Operator", "review", "gate", "handoff", "release"],
+  ];
+  const appStatus = sourceAppStatus(module);
   setSourceHtml("#sourceModuleName", module.name);
   setSourceHtml("#sourceModuleRole", module.priority || "candidate");
   setSourceHtml("#sourceRepoCell", module.repo || "user-provided source/profile");
@@ -208,194 +276,150 @@ function renderSourceModuleDetails() {
   setSourceHtml("#sourceStatusCell", sourceStatus(module));
   setSourceHtml("#sourceTaskCount", `${bridge.length} ${bridge.length === 1 ? "task" : "tasks"}`);
   setSourceHtml("#sourceBridgeTasks", bridge.map((task) => `<li>${sourceEscape(task)}</li>`).join(""));
-  setSourceHtml("#sourceViewport", renderSourceViewport(module, bridge, pipeline));
+  updateSourceActionButtons(module, appStatus);
+  setSourceHtml("#sourceViewport", renderSourceViewport(module, bridge, pipeline, lanes));
 }
 
-function renderSourceViewport(module, bridge, pipeline) {
-  if (sourceState.groupKey === "slicers") {
-    return renderSlicerViewport(module, bridge, pipeline);
-  }
-  return renderGenericSourceViewport(module, bridge, pipeline);
+function renderSourceViewport(module, bridge, pipeline, lanes) {
+  return renderSourceBridgeWorkbench(module, bridge, pipeline, lanes);
 }
 
-function renderSlicerViewport(module, bridge, pipeline) {
-  const slicer = slicerUiProfile(module);
+function renderSourceBridgeWorkbench(module, bridge, pipeline, lanes) {
   const appStatus = sourceAppStatus(module);
+  const mode = checkoutMode(appStatus);
   return `
     <div class="source-app-hostbar">
-      <strong>${sourceEscape(module.name)} app host</strong>
-      <span class="${appStatus.source_exists ? "ok" : "warn"}">source ${appStatus.source_exists ? "ready" : "missing"}</span>
-      <span class="${appStatus.installed_executable ? "ok" : "warn"}">app ${appStatus.installed_executable ? "detected" : "not built/installed"}</span>
+      <strong>${sourceEscape(module.name)} source bridge</strong>
+      <span class="${appStatus.source_exists ? "ok" : "warn"}">${appStatus.source_exists ? "source present" : "source missing"}</span>
+      <span class="${mode === "full" ? "ok" : "warn"}">${sourceEscape(mode)} checkout</span>
+      <span class="${appStatus.installed_executable ? "ok" : "warn"}">${appStatus.installed_executable ? "native app detected" : "native app not detected"}</span>
       <span>CLI ${appStatus.cli_executable ? "ready" : "pending"}</span>
-      <button type="button" data-source-layout="wide">wide</button>
-      <button type="button" data-source-layout="full">maximize</button>
     </div>
-    <div class="source-native-window source-slicer-window">
-      <div class="source-native-title">
-        <span class="source-app-dot"></span>
-        <strong>*Untitled - ${sourceEscape(slicer.title)}</strong>
-        <span class="source-window-controls"><button type="button" data-source-layout="dock">-</button><button type="button" data-source-layout="full">□</button><button type="button">×</button></span>
-      </div>
-      <div class="source-native-menu">
-        <span>File</span><span>Edit</span><span>Window</span><span>View</span><span>Configuration</span><span>Help</span>
-      </div>
-      <div class="source-slicer-tabs">
-        ${["Plater", "Print Settings", "Filaments", "Printers", "Printables"].map((tab, index) => `<button class="${index === 0 ? "active" : ""}" type="button">${tab}</button>`).join("")}
-        <input aria-label="Search ${sourceEscapeAttr(slicer.title)}" value="${sourceEscapeAttr(slicer.search)}" readonly />
-        <span class="source-expert-chip">⬢ Expert mode</span>
-      </div>
-      <div class="source-slicer-shell">
-        <aside class="source-tool-strip">
-          ${["□+", "↔", "⌫", "▦", "⧉", "○", "↶", "↷"].map((icon) => `<button type="button">${icon}</button>`).join("")}
-        </aside>
-        <section class="source-slicer-plate">
-          <div class="source-perspective-bed">
-            <span>${sourceEscape(slicer.bed)}</span>
-            <i class="axis-red"></i>
-            <i class="axis-green"></i>
-            <i class="axis-blue"></i>
-          </div>
-          <div class="source-view-cube">□</div>
-          <div class="source-layer-toggle">▣<br />▤</div>
-        </section>
-        <aside class="source-slicer-settings">
-          ${sourceSlicerSelect("Print settings", slicer.printSettings)}
-          ${sourceSlicerSelect("Filament", slicer.filament)}
-          ${sourceSlicerSelect("Printer", slicer.printer)}
-          ${sourceSlicerSelect("Supports", slicer.supports)}
-          <div class="source-compact-row">
-            <label>Infill <select><option>${sourceEscape(slicer.infill)}</option></select></label>
-            <label>Brim <input type="checkbox" /></label>
-          </div>
-          <div class="source-object-list">
-            <div><span>Name</span><span>Editing</span></div>
-            <button type="button">${sourceEscape(slicer.object)}</button>
-          </div>
-          <button class="source-slice-now" type="button">Slice now</button>
-        </aside>
-      </div>
+    <div class="source-real-workbench">
+      <section class="source-workbench-hero">
+        <div>
+          <strong>${sourceEscape(module.name)}</strong>
+          <span>${sourceEscape(module.uxSection || sourceGroupLabel(sourceState.groupKey))}</span>
+        </div>
+        <div class="source-state-stack">
+          <b>${appStatus.source_exists ? "CHECKOUT" : "MISSING"}</b>
+          <small>${sourceEscape(appStatus.source_head || "no git head")}</small>
+        </div>
+      </section>
+      <section class="source-action-grid">
+        ${sourceActionCard("Upstream", module.repo || "No upstream repo configured", "Opens the GitHub/source repository in a new browser tab.")}
+        ${sourceActionCard("Local Source", appStatus.source_path || localSourcePath(module), appStatus.source_exists ? "Opens the real local checkout folder." : "Checkout is missing; run the source downloader.")}
+        ${sourceActionCard("Executable", appStatus.installed_executable || "No installed executable detected", appStatus.launch_available ? "Launch button will start the installed native app." : "Configure an executable path or install/build the tool.")}
+        ${sourceActionCard("Checkout Mode", `${mode}${appStatus.source_branch ? ` / ${appStatus.source_branch}` : ""}`, mode === "full" ? "Full working tree is available." : "Sparse checkout: useful files only, not full repo.")}
+      </section>
+      <section class="source-file-strip">
+        <strong>Source highlights</strong>
+        <div>
+          ${(appStatus.source_highlights || []).map((item) => `<span>${sourceEscape(item)}</span>`).join("") || "<span>No source files visible yet</span>"}
+        </div>
+      </section>
+      <section class="source-bridge-notice">
+        <strong>Native UI status</strong>
+        <span>Hermes3D is not embedding ${sourceEscape(module.name)} inside this browser. Source OS opens the true checkout, detects installed executables, and launches the native app when available.</span>
+      </section>
     </div>
-    ${renderSourcePipelineBar(bridge, pipeline)}
+    ${renderSourcePipelineBar(bridge, pipeline, lanes)}
   `;
 }
 
-function sourceSlicerSelect(label, value) {
+function sourceActionCard(title, value, detail) {
   return `
-    <label class="source-slicer-select">
-      <span>${sourceEscape(label)}:</span>
-      <select>
-        <option>${sourceEscape(value)}</option>
-      </select>
-    </label>
+    <article>
+      <strong>${sourceEscape(title)}</strong>
+      <span>${sourceEscape(value || "Not configured")}</span>
+      <small>${sourceEscape(detail || "")}</small>
+    </article>
   `;
 }
 
-function slicerUiProfile(module) {
-  const name = module.name || "Slicer";
-  const profiles = {
-    PrusaSlicer: {
-      title: "PrusaSlicer 2.9 source bridge",
-      search: "Enter a search term",
-      printSettings: "0.30mm QUALITY",
-      filament: "Prusament PLA",
-      printer: "FLSUN T1 / V400 profile target",
-      supports: "None",
-      infill: "15%",
-      bed: "FLSUN / PRUSA PLATER",
-      object: "bracket.stl",
-    },
-    OrcaSlicer: {
-      title: "OrcaSlicer source bridge",
-      search: "Calibration, profile, device",
-      printSettings: "0.20mm QUALITY",
-      filament: "PLA profile",
-      printer: "FLSUN T1 Klipper target",
-      supports: "Tree / Auto",
-      infill: "15%",
-      bed: "ORCA CALIBRATION PLATER",
-      object: "calibration.3mf",
-    },
-    "FLSUN Slicer": {
-      title: "FLSUN Slicer profile bridge",
-      search: "T1 / V400 vendor profile",
-      printSettings: "FLSUN T1 PLA",
-      filament: "FLSUN PLA",
-      printer: "FLSUN T1 / V400",
-      supports: "None",
-      infill: "15%",
-      bed: "FLSUN DELTA PLATER",
-      object: "vendor-profile.stl",
-    },
-    "UltiMaker Cura": {
-      title: "UltiMaker Cura plugin bridge",
-      search: "Machine definition",
-      printSettings: "Standard Quality",
-      filament: "Generic PLA",
-      printer: "FLSUN / Creality profile",
-      supports: "Generate Supports Off",
-      infill: "20%",
-      bed: "CURA BUILD PLATE",
-      object: "cura-import.stl",
-    },
-    Cura: {
-      title: "Cura plugin bridge",
-      search: "Machine definition",
-      printSettings: "Standard Quality",
-      filament: "Generic PLA",
-      printer: "FLSUN / Creality profile",
-      supports: "Generate Supports Off",
-      infill: "20%",
-      bed: "CURA BUILD PLATE",
-      object: "cura-import.stl",
-    },
-    CuraEngine: {
-      title: "CuraEngine headless worker",
-      search: "CLI profile",
-      printSettings: "engine dry-run",
-      filament: "material json",
-      printer: "machine definition",
-      supports: "profile driven",
-      infill: "20%",
-      bed: "CURAENGINE DRY-RUN",
-      object: "engine-output.gcode",
-    },
-  };
-  return profiles[name] || {
-    title: `${name} source bridge`,
-    search: "profile / import / preview",
-    printSettings: "default profile",
-    filament: "PLA",
-    printer: "Hermes printer target",
-    supports: "Profile default",
-    infill: "15%",
-    bed: `${name} PLATER`,
-    object: "candidate.3mf",
-  };
+function updateSourceActionButtons(module, appStatus) {
+  const repoButton = document.querySelector("#sourceOpenRepo");
+  const sourceButton = document.querySelector("#sourceOpenLocal");
+  const launchButton = document.querySelector("#sourceLaunchApp");
+  if (repoButton) {
+    repoButton.disabled = !module.repo;
+  }
+  if (sourceButton) {
+    sourceButton.disabled = !appStatus.open_source_available;
+  }
+  if (launchButton) {
+    launchButton.disabled = !appStatus.launch_available;
+  }
 }
 
-function renderGenericSourceViewport(module, bridge, pipeline) {
+function checkoutMode(appStatus) {
+  if (!appStatus.source_exists) {
+    return "missing";
+  }
+  if (appStatus.checkout_mode) {
+    return appStatus.checkout_mode;
+  }
+  return appStatus.source_has_git ? "git" : "folder";
+}
+
+function renderSourcePipelineBar(bridge, pipeline, lanes) {
   return `
-    <div class="source-plate">
-      <div class="source-part">
-        <span>${sourceEscape(module.name)}</span>
+    <div class="source-pipeline-board">
+      <div class="source-timeline">
+        ${pipeline.map((step, index) => `<span class="${index < 3 ? "done" : ""}">${sourceEscape(step)}</span>`).join("")}
+        ${bridge.slice(0, 2).map((task) => `<span>${sourceEscape(task)}</span>`).join("")}
       </div>
-      <div class="source-tool-flags">
-        ${bridge
-          .slice(0, 4)
-          .map((task, index) => `<span class="${index === 0 ? "primary" : ""}">${sourceEscape(task)}</span>`)
+      ${renderSourceFlowSvg(lanes)}
+      <div class="source-flow-lanes">
+        ${lanes
+          .map(
+            ([label, ...steps]) => `
+              <article>
+                <strong>${sourceEscape(label)}</strong>
+                <span>${steps.map(sourceEscape).join(" -> ")}</span>
+              </article>
+            `,
+          )
           .join("")}
       </div>
     </div>
-    ${renderSourcePipelineBar(bridge, pipeline)}
   `;
 }
 
-function renderSourcePipelineBar(bridge, pipeline) {
+function renderSourceFlowSvg(lanes) {
+  const safeLanes = lanes.slice(0, 4);
+  const height = 46 + safeLanes.length * 50;
+  const nodeXs = [128, 222, 316, 398];
   return `
-    <div class="source-timeline">
-      ${pipeline.map((step, index) => `<span class="${index < 2 ? "done" : ""}">${sourceEscape(step)}</span>`).join("")}
-      ${bridge.slice(0, 2).map((task) => `<span>${sourceEscape(task)}</span>`).join("")}
-    </div>
+    <svg class="source-flow-svg" viewBox="0 0 440 ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Source pipeline flow">
+      <defs>
+        <linearGradient id="sourceFlowLine" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#58a6ff" stop-opacity="0.85" />
+          <stop offset="100%" stop-color="#4dd799" stop-opacity="0.85" />
+        </linearGradient>
+      </defs>
+      ${safeLanes
+        .map(([label, ...steps], laneIndex) => {
+          const y = 38 + laneIndex * 50;
+          const safeSteps = steps.slice(0, 4);
+          return `
+            <text class="source-flow-label" x="16" y="${y}">${sourceEscape(label)}</text>
+            <path d="M 110 ${y} H 420" />
+            ${safeSteps
+              .map((step, stepIndex) => {
+                const x = nodeXs[stepIndex] || nodeXs[nodeXs.length - 1];
+                return `
+                  <g>
+                    <rect x="${x - 39}" y="${y - 16}" width="78" height="32" rx="7" />
+                    <text x="${x}" y="${y}">${sourceEscape(step)}</text>
+                  </g>
+                `;
+              })
+              .join("")}
+          `;
+        })
+        .join("")}
+    </svg>
   `;
 }
 
@@ -431,17 +455,15 @@ function localSourcePath(module) {
 }
 
 function sourceStatus(module) {
+  const status = sourceAppStatus(module);
   if (!module.repo) {
     return "needs user source/profile";
   }
-  if (sourceState.groupKey === "slicers") {
-    const status = sourceAppStatus(module);
-    if (status.source_exists && status.installed_executable) {
-      return "source ready / installed app detected";
-    }
-    if (status.source_exists) {
-      return "source checkout ready / native app bridge required";
-    }
+  if (status.source_exists && status.installed_executable) {
+    return `${checkoutMode(status)} source / native app detected`;
+  }
+  if (status.source_exists) {
+    return `${checkoutMode(status)} source / executable not detected`;
   }
   if (module.priority === "catalog") {
     return "catalog source downloaded";
@@ -450,6 +472,23 @@ function sourceStatus(module) {
     return "reference source downloaded";
   }
   return "source downloaded / bridge planned";
+}
+
+async function sourcePost(path) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || response.statusText);
+  }
+  return response.json();
+}
+
+function setSourceStatus(message) {
+  setSourceHtml("#sourceDownloadState", sourceEscape(message));
 }
 
 function setSourceGroup(group) {
@@ -487,14 +526,14 @@ function sourceEscapeAttr(value) {
   return sourceEscape(value).replaceAll("`", "&#96;");
 }
 
-document.addEventListener("click", (event) => {
-  const groupButton = event.target.closest("[data-source-group]");
+document.addEventListener("click", async (event) => {
+  const groupButton = event.target.closest("button[data-source-group]");
   if (groupButton) {
     setSourceGroup(groupButton.dataset.sourceGroup);
     return;
   }
 
-  const layoutButton = event.target.closest("[data-source-layout]");
+  const layoutButton = event.target.closest("button[data-source-layout]");
   if (layoutButton) {
     sourceState.layout = layoutButton.dataset.sourceLayout;
     localStorage.setItem("hermes3d.sourceLayout", sourceState.layout);
@@ -502,7 +541,7 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const moduleButton = event.target.closest("[data-source-index]");
+  const moduleButton = event.target.closest("button[data-source-index]");
   if (moduleButton) {
     sourceState.selectedIndex = Number(moduleButton.dataset.sourceIndex);
     renderSourceOs();
@@ -513,7 +552,8 @@ document.addEventListener("click", (event) => {
   if (bridgeButton) {
     const module = currentSourceModule();
     if (module) {
-      setSourceHtml("#sourceDownloadState", `${module.name}: adapter bridge queued for the next implementation pass`);
+      const tasks = (module.bridge || []).join("; ");
+      setSourceStatus(`${module.name}: bridge tasks visible and sourced from manifest: ${tasks || "none"}`);
     }
     return;
   }
@@ -522,7 +562,16 @@ document.addEventListener("click", (event) => {
   if (setupButton) {
     const module = currentSourceModule();
     if (module) {
-      setSourceHtml("#sourceDownloadState", `${module.name}: setup requires adapter review before running third-party code`);
+      const status = sourceAppStatus(module);
+      if (!status.source_exists) {
+        setSourceStatus(`${module.name}: source missing. Run source-lab/download-open-source.ps1 -Only ${module.id}`);
+      } else if (checkoutMode(status) === "sparse") {
+        setSourceStatus(`${module.name}: sparse checkout. Run source-lab/download-open-source.ps1 -Only ${module.id} -FullCheckout for the full working tree.`);
+      } else if (!status.launch_available) {
+        setSourceStatus(`${module.name}: source is present; no native executable detected. Configure/install/build the app before Launch can run.`);
+      } else {
+        setSourceStatus(`${module.name}: ready. Source opens the checkout; Launch starts ${status.installed_executable}.`);
+      }
     }
     return;
   }
@@ -530,8 +579,57 @@ document.addEventListener("click", (event) => {
   const repoButton = event.target.closest("#sourceOpenRepo");
   if (repoButton) {
     const module = currentSourceModule();
+    if (module?.repo) {
+      window.open(module.repo, "_blank", "noopener,noreferrer");
+      setSourceStatus(`${module.name}: opened upstream repository ${module.repo}`);
+    }
+    return;
+  }
+
+  const localButton = event.target.closest("#sourceOpenLocal");
+  if (localButton) {
+    const module = currentSourceModule();
     if (module) {
-      setSourceHtml("#sourceDownloadState", `${module.name}: ${module.repo || localSourcePath(module)}`);
+      localButton.disabled = true;
+      try {
+        const result = await sourcePost(`/api/source-apps/${encodeURIComponent(module.id)}/open-source`);
+        setSourceStatus(`${result.name}: opened local source checkout ${result.source_path}`);
+      } catch (error) {
+        setSourceStatus(`${module.name}: ${error.message}`);
+      } finally {
+        updateSourceActionButtons(module, sourceAppStatus(module));
+      }
+    }
+    return;
+  }
+
+  const launchButton = event.target.closest("#sourceLaunchApp");
+  if (launchButton) {
+    const module = currentSourceModule();
+    if (module) {
+      launchButton.disabled = true;
+      try {
+        const result = await sourcePost(`/api/source-apps/${encodeURIComponent(module.id)}/launch`);
+        setSourceStatus(`${result.name}: launched native application ${result.executable}`);
+      } catch (error) {
+        setSourceStatus(`${module.name}: ${error.message}`);
+      } finally {
+        updateSourceActionButtons(module, sourceAppStatus(module));
+      }
+    }
+    return;
+  }
+
+  const refreshButton = event.target.closest("#sourceRefresh");
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    try {
+      await loadSourceAppsStatus();
+      setSourceStatus("Source app status refreshed from backend.");
+    } catch (error) {
+      setSourceStatus(`Source status refresh failed: ${error.message}`);
+    } finally {
+      refreshButton.disabled = false;
     }
   }
 });

@@ -6,6 +6,7 @@ import random
 import re
 import shutil
 import socket
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -667,30 +668,72 @@ def generation_stack_status() -> dict[str, Any]:
 
 @app.get("/api/source-apps/status")
 def source_apps_status() -> dict[str, Any]:
-    source_root = settings.repo_root / "source-lab" / "sources"
+    source_root = _source_root()
     apps = []
-    for item in SOURCE_APP_REGISTRY:
-        source_path = source_root / item["target"]
-        cli_path = _tool_path(item["tool_key"], item["cli_commands"])
-        gui_path = _tool_path(item.get("gui_tool_key", item["tool_key"]), item["gui_commands"])
-        apps.append(
-            {
-                "id": item["id"],
-                "name": item["name"],
-                "source_path": str(source_path),
-                "source_exists": source_path.exists(),
-                "source_has_git": (source_path / ".git").exists(),
-                "cli_executable": cli_path or "",
-                "installed_executable": gui_path or cli_path or "",
-                "embed_mode": "native-window-bridge-required",
-                "ui_host": "Hermes3D resizable Source OS workbench",
-                "safe_actions": ["inspect source", "configure executable path", "run CLI dry-run after approval"],
-            }
-        )
+    for item in _source_modules():
+        apps.append(_source_app_payload(item, source_root))
     return {
         "source_root": str(source_root),
         "apps": apps,
-        "note": "Native GUI embedding requires a desktop bridge such as Electron/Tauri/webview capture; the browser shell only hosts status and adapters.",
+        "note": "The browser shell does not embed native slicer GUIs. It exposes real source checkouts, executable detection, and launch/open actions.",
+    }
+
+
+@app.post("/api/source-apps/{app_id}/launch")
+def launch_source_app(app_id: str) -> dict[str, Any]:
+    source_root = _source_root()
+    module = _source_module_by_id(app_id)
+    payload = _source_app_payload(module, source_root)
+    executable = payload.get("installed_executable")
+    if not executable:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{payload['name']} has source available but no installed GUI executable was detected.",
+        )
+    subprocess.Popen(
+        [str(executable)],
+        cwd=str(Path(payload["source_path"])) if payload.get("source_exists") else str(settings.repo_root),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    db.add_event(
+        None,
+        "SOURCE_APP_LAUNCHED",
+        f"{payload['name']} native application launched from Source OS.",
+        {"app_id": app_id, "executable": executable, "source_path": payload["source_path"]},
+    )
+    return {
+        "ok": True,
+        "action": "launch",
+        "id": app_id,
+        "name": payload["name"],
+        "executable": executable,
+    }
+
+
+@app.post("/api/source-apps/{app_id}/open-source")
+def open_source_app(app_id: str) -> dict[str, Any]:
+    source_root = _source_root()
+    module = _source_module_by_id(app_id)
+    payload = _source_app_payload(module, source_root)
+    source_path = Path(payload["source_path"])
+    if not source_path.exists():
+        raise HTTPException(status_code=404, detail=f"{payload['name']} source checkout is not present.")
+    _open_local_path(source_path)
+    db.add_event(
+        None,
+        "SOURCE_CHECKOUT_OPENED",
+        f"{payload['name']} source checkout opened from Source OS.",
+        {"app_id": app_id, "source_path": str(source_path)},
+    )
+    return {
+        "ok": True,
+        "action": "open_source",
+        "id": app_id,
+        "name": payload["name"],
+        "source_path": str(source_path),
     }
 
 
@@ -1404,6 +1447,131 @@ def _tool_path(key: str, commands: list[str]) -> str | None:
         if Path(candidate).exists():
             return candidate
     return None
+
+
+def _source_manifest_path() -> Path:
+    lab_manifest = settings.repo_root / "source-lab" / "source_manifest.json"
+    if lab_manifest.exists():
+        return lab_manifest
+    return settings.repo_root / "apps" / "web" / "source_manifest.json"
+
+
+def _source_manifest() -> dict[str, Any]:
+    path = _source_manifest_path()
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Source manifest is not installed")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _source_root() -> Path:
+    manifest = _source_manifest()
+    return settings.repo_root / str(manifest.get("sourceRoot") or "source-lab/sources")
+
+
+def _source_modules() -> list[dict[str, Any]]:
+    manifest = _source_manifest()
+    modules: list[dict[str, Any]] = []
+    groups = manifest.get("groups") or {}
+    for group_name, group_modules in groups.items():
+        for module in group_modules or []:
+            item = dict(module)
+            item["group"] = group_name
+            modules.append(item)
+    return modules
+
+
+def _source_module_by_id(app_id: str) -> dict[str, Any]:
+    for module in _source_modules():
+        if module.get("id") == app_id or module.get("name") == app_id:
+            return module
+    raise HTTPException(status_code=404, detail="Source module not found")
+
+
+def _source_executable_config(module: dict[str, Any]) -> dict[str, Any]:
+    for item in SOURCE_APP_REGISTRY:
+        if item["id"] == module.get("id") or item["name"] == module.get("name"):
+            return item
+    return {}
+
+
+def _source_app_payload(module: dict[str, Any], source_root: Path) -> dict[str, Any]:
+    executable_config = _source_executable_config(module)
+    target = Path(str(module.get("target") or ""))
+    source_path = source_root / target
+    cli_path = ""
+    gui_path = ""
+    if executable_config:
+        cli_path = _tool_path(executable_config["tool_key"], executable_config["cli_commands"]) or ""
+        gui_path = (
+            _tool_path(
+                executable_config.get("gui_tool_key", executable_config["tool_key"]),
+                executable_config["gui_commands"],
+            )
+            or ""
+        )
+    source_exists = source_path.exists()
+    source_has_git = (source_path / ".git").exists()
+    sparse_checkout = _git_output(source_path, ["config", "--bool", "core.sparseCheckout"]) if source_has_git else ""
+    checkout_mode = "sparse" if sparse_checkout == "true" else "full" if source_has_git else "folder"
+    return {
+        "id": module.get("id"),
+        "name": module.get("name"),
+        "group": module.get("group"),
+        "repo": module.get("repo") or "",
+        "license": module.get("license") or "unknown",
+        "priority": module.get("priority") or "candidate",
+        "ux_section": module.get("uxSection") or "",
+        "source_path": str(source_path),
+        "source_exists": source_exists,
+        "source_has_git": source_has_git,
+        "checkout_mode": checkout_mode,
+        "source_branch": _git_output(source_path, ["branch", "--show-current"]) if source_has_git else "",
+        "source_head": _git_output(source_path, ["rev-parse", "--short", "HEAD"]) if source_has_git else "",
+        "source_highlights": _source_highlights(source_path) if source_exists else [],
+        "cli_executable": cli_path,
+        "installed_executable": gui_path or cli_path,
+        "launch_available": bool(gui_path or cli_path),
+        "open_source_available": source_exists,
+        "embed_mode": "not_embedded",
+        "ui_host": "Source OS action bridge",
+        "safe_actions": [
+            "open source checkout",
+            "open upstream repository",
+            "launch detected native app",
+            "refresh source status",
+        ],
+    }
+
+
+def _source_highlights(path: Path) -> list[str]:
+    try:
+        return [item.name for item in sorted(path.iterdir(), key=lambda item: item.name.lower())[:8]]
+    except OSError:
+        return []
+
+
+def _git_output(cwd: Path, args: list[str]) -> str:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=str(cwd),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def _open_local_path(path: Path) -> None:
+    if hasattr(os, "startfile"):
+        os.startfile(str(path))  # type: ignore[attr-defined]
+        return
+    subprocess.Popen(["explorer", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def _camera_count(printers: list[dict[str, Any]]) -> int:

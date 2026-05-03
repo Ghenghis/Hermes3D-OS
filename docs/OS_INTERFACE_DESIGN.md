@@ -8,6 +8,7 @@ It should feel like an OS control center, not a collection of disconnected scrip
 
 ```text
 Hermes OS Print Factory
+├─ Source OS
 ├─ Dashboard
 ├─ Autopilot
 ├─ Design
@@ -25,7 +26,9 @@ Hermes OS Print Factory
 └─ Roadmap
 ```
 
-Near-term OS page expansion:
+Current page count: 16.
+
+Near-term OS page expansion remains below the current shell:
 
 ```text
 Hermes OS Print Factory
@@ -49,6 +52,44 @@ The interface should make the 2026 roadmap visible through operator workflows:
 - Fleet Digital Twin: inventory, telemetry, maintenance, material/profile compatibility, reliability
 - Agentic OS: plugin permissions, trust panel, signed updates, local-first export/import
 - Advanced Generation: repair automation, production planning, calibration intelligence, optional photo-to-3D inputs
+
+## Source OS
+
+Purpose: make Hermes3D a source-backed operating system instead of a thin dashboard.
+
+Shows:
+
+- open-source module groups for slicers, modelers, print-farm tools, firmware, generation, orchestration, libraries, materials, hardware, utilities, and research
+- selected native-app/source host
+- bridge tasks for the selected project
+- local checkout path, license, priority, section, and integration status
+- group-specific pipeline timeline
+- SVG flow diagram with aligned lanes for the selected source group
+- readable card fallback for narrow screens
+
+Source OS must keep the workbench visible before long module lists on narrow viewports so mobile or side-panel usage still shows the actual operating surface.
+
+## Digital Thread Flow Map
+
+The Dashboard includes the OS-level flow map:
+
+```text
+Source Bench -> Design/CAD -> 3D Generation -> Slicer Compiler
+Dispatch -> Observation -> Materials -> Trust/Audit
+```
+
+Each flow is rendered as a compact lane with the current gate shape:
+
+| Flow | Gate shape |
+| --- | --- |
+| Source Bench | repo -> adapter -> checkout -> bridge -> promote |
+| Design/CAD | brief -> source CAD -> execute -> geometry QA -> model approval |
+| 3D Generation | image -> 3D engine -> repair -> printability -> candidate |
+| Slicer Compiler | profile lock -> slice -> preview -> G-code QA -> print approval |
+| Dispatch | select printer -> upload only -> operator check -> start -> monitor |
+| Observation | snapshot -> first layer -> anomaly -> event -> report |
+| Materials | spool -> profile -> coupon -> measurement -> confidence |
+| Trust/Audit | scope -> permission -> ledger -> artifact -> export |
 
 ## Theme System
 

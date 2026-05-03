@@ -2,6 +2,22 @@
 
 The source bench currently tracks 55 Hermes3D modules and 54 unique local source checkouts. Klipper appears in both Print Farm and Firmware because it is both the user's active printer runtime and the firmware reference layer.
 
+## Checkout Status
+
+As of 2026-05-03, every manifest entry has a local git checkout under `source-lab/sources`.
+
+- Full source checkouts: PrusaSlicer (`c47697d`), OrcaSlicer (`dae0694e`), FLSUN Slicer (`fb02854`).
+- Sparse source checkouts: the remaining 52 modules, kept sparse to limit disk usage until each one is promoted into an active bridge.
+- Missing checkouts: none.
+
+Run a full conversion for a specific module with:
+
+```powershell
+.\source-lab\download-open-source.ps1 -Only prusaslicer -FullCheckout
+```
+
+The downloader now disables sparse checkout for an existing repo when `-FullCheckout` is passed.
+
 ## Slicers
 
 - PrusaSlicer

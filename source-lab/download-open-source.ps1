@@ -127,13 +127,17 @@ foreach ($module in Get-Modules) {
   if ((Test-Path -LiteralPath (Join-Path $target ".git")) -and -not $Force) {
     Push-Location $target
     try {
-      Invoke-Git sparse-checkout set --no-cone @sparsePaths
+      if ($FullCheckout) {
+        Invoke-Git sparse-checkout disable
+      } else {
+        Invoke-Git sparse-checkout set --no-cone @sparsePaths
+      }
     } catch {
-      Write-Warning "Could not refresh sparse paths for $($module.name): $($_.Exception.Message)"
+      Write-Warning "Could not refresh checkout mode for $($module.name): $($_.Exception.Message)"
     } finally {
       Pop-Location
     }
-    Add-ReportLine "present" $module.group $module.name $relativeTarget "Already cloned; skipped."
+    Add-ReportLine "present" $module.group $module.name $relativeTarget "Already cloned; refreshed $(if ($FullCheckout) { 'full checkout' } else { 'sparse paths' })."
     continue
   }
 
