@@ -1336,4 +1336,25 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+document.querySelector("#telemetryToggleBtn")?.addEventListener("click", async () => {
+  const result = await api("/api/telemetry/toggle", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#voiceMuteBtn")?.addEventListener("click", async () => {
+  const result = await api("/api/voice/mute", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelectorAll("[data-test-printer]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const printerId = btn.dataset.testPrinter;
+    const result = await api(`/api/printers/${printerId}/test-connection`, { method: "POST", body: "{}" });
+    alert(result.message);
+    await refresh();
+  });
+});
+
 refresh();
