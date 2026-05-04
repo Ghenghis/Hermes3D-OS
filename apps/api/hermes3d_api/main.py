@@ -249,11 +249,9 @@ def workspace() -> dict[str, Any]:
         "settings": {
             "services_config": str(settings.services_config_path),
             "printers_config": str(settings.printers_config_path),
-            "data_dir": str(settings.data_dir),
-            "storage_dir": str(settings.storage_dir),
             "runtime_config": str(settings.runtime_config_path),
+            "storage_dir": str(settings.storage_dir),
             "dry_run_printers": settings.dry_run_printers,
-            "runtime": _runtime_payload(),
         },
         "printers": _list_printers(),
         "jobs": _list_jobs(),
@@ -262,6 +260,50 @@ def workspace() -> dict[str, Any]:
         "events": _list_events(),
         "autopilot": _autopilot_status(),
     }
+
+
+@app.get("/api/dashboard/summary")
+def dashboard_summary() -> dict[str, Any]:
+    return {
+        "fleet": _list_printers()[:4],
+        "queue": _list_jobs()[:8],
+        "events": _list_events()[:12],
+    }
+
+
+@app.post("/api/jobs/clear-completed", response_model=ApiMessage)
+def clear_completed_jobs() -> ApiMessage:
+    count = db.clear_completed_jobs()
+    db.add_event(None, "COMPLETED_JOBS_CLEARED", f"Cleared {count} completed jobs.", {"count": count})
+    return ApiMessage(message=f"Cleared {count} completed jobs.")
+
+
+@app.get("/api/jobs/export.csv")
+def export_jobs_csv() -> FileResponse:
+    import csv
+    import io
+    from datetime import datetime
+
+    jobs = _list_jobs()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Title", "Description", "Status", "Created At", "Target Printer"])
+    for job in jobs:
+        writer.writerow([
+            job.get("id"),
+            job.get("title"),
+            job.get("description"),
+            job.get("status"),
+            job.get("created_at"),
+            job.get("target_printer_id"),
+        ])
+    output.seek(0)
+    filename = f"hermes3d-jobs-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
+    return FileResponse(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        media_type='text/csv',
+        filename=filename,
+    )
 
 
 @app.get("/api/autopilot/status")

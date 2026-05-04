@@ -155,10 +155,13 @@ function renderPrinterSelect() {
   ].join("");
 }
 
-function renderDashboard() {
-  setHtml("#dashboardFleet", renderPrinterCards(state.printers.slice(0, 4), true));
-  setHtml("#dashboardJobs", renderJobCards(state.jobs.slice(0, 8)));
-  setHtml("#dashboardEvents", renderEventCards(state.events.slice(0, 12)));
+function renderDashboard(summary) {
+  const fleet = summary?.fleet || state.printers.slice(0, 4);
+  const queue = summary?.queue || state.jobs.slice(0, 8);
+  const events = summary?.events || state.events.slice(0, 12);
+  setHtml("#dashboardFleet", renderPrinterCards(fleet, !summary));
+  setHtml("#dashboardJobs", renderJobCards(queue));
+  setHtml("#dashboardEvents", renderEventCards(events));
 }
 
 function renderSetup() {
@@ -514,6 +517,7 @@ function renderLearningTopic(topic) {
 function renderJobs() {
   setHtml("#jobs", renderJobCards(state.jobs));
 }
+
 
 function renderPrinters() {
   setHtml("#printers", renderPrinterCards(state.printers, false));
@@ -1291,6 +1295,27 @@ advanceBtn.addEventListener("click", async () => {
     body: JSON.stringify({ target_printer_id: printerSelect.value || null }),
   });
   await refresh();
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const summary = await api("/api/dashboard/summary");
+  renderDashboard(summary);
+});
+
+document.querySelector("#jobsClearCompletedBtn")?.addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to clear all completed jobs? This action cannot be undone.")) {
+    return;
+  }
+  const result = await api("/api/jobs/clear-completed", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#jobsExportCsvBtn")?.addEventListener("click", async () => {
+  if (!confirm("Export all jobs to CSV? This will download a file with current job data.")) {
+    return;
+  }
+  window.open("/api/jobs/export.csv", "_blank");
 });
 
 approveModelBtn.addEventListener("click", async () => {
