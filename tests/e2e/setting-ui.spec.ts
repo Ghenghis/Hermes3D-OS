@@ -80,7 +80,7 @@ test.describe("UI Settings", () => {
     
     await page.click('button[data-reset="font_scale"]');
     
-    await expect(slider).toHaveValue("1.0");
+    await expect(slider).toHaveValue("1");
     await expect(valueDisplay).toHaveText("1.0x");
   });
 

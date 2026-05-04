@@ -162,3 +162,5 @@ window.hermesSettingsPanel = {
   reset: resetUiSettings,
   getSettings: () => uiSettings,
 };
+
+loadUiSettings();
