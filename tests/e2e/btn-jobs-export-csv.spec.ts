@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('jobs export csv button requires confirmation and triggers download', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   
   // Navigate to jobs page

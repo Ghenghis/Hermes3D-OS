@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('jobs clear completed button requires confirmation and clears jobs', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   
   // Navigate to jobs page

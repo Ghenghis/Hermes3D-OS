@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('dashboard refresh button updates dashboard data', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   
   // Navigate to dashboard
