@@ -23,7 +23,8 @@ async function loadUiSettings() {
     const response = await fetch("/api/settings/ui");
     if (response.ok) {
       const serverSettings = await response.json();
-      uiSettings = { ...DEFAULT_UI_SETTINGS, ...serverSettings };
+      const localOverrides = cached ? JSON.parse(cached) : {};
+      uiSettings = { ...DEFAULT_UI_SETTINGS, ...serverSettings, ...localOverrides };
       localStorage.setItem("hermes3d-ui-settings", JSON.stringify(uiSettings));
     }
   } catch (error) {
