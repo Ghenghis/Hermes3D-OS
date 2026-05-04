@@ -1,0 +1,636 @@
+"""
+Source-app install dispatcher (foundation/install-endpoint).
+
+One endpoint, many install methods. Each app's source_manifest.json entry
+gets an optional `install` block:
+
+    "install": {
+      "method": "pip" | "clone-shallow" | "clone-full" | "clone-full-venv" | "npm-build" | "binary-download" | "noop",
+      "package": "<pypi-name>",          # for pip
+      "import_name": "<python module>",  # optional pip probe
+      "repo": "<git url>",               # for clone-*
+      "system_command": "blender",       # optional clone-* CLI probe/link
+      "system_env": "HERMES3D_BLENDER_PATH",
+      "link_name": "blender",
+      "smoke_args": ["--background", "--version"],
+      "build_cmds": [["npm", "ci"], ["npm", "run", "build"]], # for npm-build
+      "binary_url": "...",               # for binary-download
+      "binary_target": "<vendor path>"   # for binary-download
+    }
+
+This module handles dispatch and in-memory state tracking. Per-app
+branches (Kilocode/Codex/Claude lanes) just add the manifest entry and
+write the Playwright spec — the dispatcher already routes their method.
+"""
+from __future__ import annotations
+
+import importlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import urllib.request
+import zipfile
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+
+@dataclass
+class InstallState:
+    status: str = "not_installed"  # not_installed | installing | installed | failed
+    log: list[str] = field(default_factory=list)
+    error: str | None = None
+    started_at: float | None = None
+    ended_at: float | None = None
+
+
+_states: dict[str, InstallState] = {}
+_lock = threading.Lock()
+
+
+def _manifest_path(repo_root: Path) -> Path:
+    return repo_root / "source-lab" / "source_manifest.json"
+
+
+def load_manifest(repo_root: Path) -> dict[str, Any]:
+    path = _manifest_path(repo_root)
+    if not path.exists():
+        return {"groups": {}}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def find_app(repo_root: Path, app_id: str) -> dict[str, Any] | None:
+    manifest = load_manifest(repo_root)
+    for entries in manifest.get("groups", {}).values():
+        for entry in entries:
+            if entry.get("id") == app_id:
+                return entry
+    return None
+
+
+def get_state(app_id: str) -> InstallState:
+    with _lock:
+        return _states.setdefault(app_id, InstallState())
+
+
+def _set_status(app_id: str, status: str, *, error: str | None = None) -> None:
+    import time
+
+    with _lock:
+        state = _states.setdefault(app_id, InstallState())
+        state.status = status
+        if error is not None:
+            state.error = error
+        if status == "installing":
+            state.started_at = time.time()
+        elif status in ("installed", "failed"):
+            state.ended_at = time.time()
+
+
+def _append_log(app_id: str, line: str) -> None:
+    with _lock:
+        state = _states.setdefault(app_id, InstallState())
+        state.log.append(line)
+
+
+def resolve_apps_root(repo_root: Path | None = None) -> Path:
+    """Where downloaded apps live.
+
+    Default: G:\\Github\\Hermes3D\\apps. Override with HERMES3D_APPS_ROOT.
+    """
+    explicit = os.environ.get("HERMES3D_APPS_ROOT")
+    if explicit:
+        return Path(explicit)
+    sibling = Path(r"G:\Github\Hermes3D\apps")
+    if sibling.exists():
+        return sibling
+    return (repo_root or Path(os.environ.get("HERMES3D_REPO_ROOT", "."))) / "source-lab" / "sources"
+
+
+def app_install_path(repo_root: Path | None, entry: dict[str, Any]) -> Path | None:
+    target_rel = entry.get("target")
+    if not target_rel:
+        return None
+    return resolve_apps_root(repo_root) / target_rel
+
+
+def _venv_python(venv: Path) -> Path:
+    if os.name == "nt":
+        return venv / "Scripts" / "python.exe"
+    return venv / "bin" / "python"
+
+
+def _candidate_tool_paths(command: str, env_name: str | None) -> list[Path]:
+    candidates: list[Path] = []
+    if env_name:
+        env_path = os.environ.get(env_name)
+        if env_path:
+            candidates.append(Path(env_path))
+    found = shutil.which(command)
+    if found:
+        candidates.append(Path(found))
+    if command == "blender":
+        candidates.extend(
+            [
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"),
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"),
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"),
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe"),
+            ]
+        )
+    return candidates
+
+
+def _install_system_command_link(app_id: str, entry: dict[str, Any], target: Path) -> tuple[bool, str]:
+    install = entry["install"]
+    command = install.get("system_command")
+    if not command:
+        return True, "no system command link requested"
+
+    executable = next(
+        (candidate for candidate in _candidate_tool_paths(command, install.get("system_env")) if candidate.exists()),
+        None,
+    )
+    if executable is None:
+        return False, f"system command '{command}' not found; set {install.get('system_env') or 'PATH'}"
+
+    smoke_args = install.get("smoke_args") or []
+    smoke_cmd = [str(executable), *smoke_args]
+    _append_log(app_id, f"$ {' '.join(smoke_cmd)}")
+    try:
+        proc = subprocess.run(smoke_cmd, capture_output=True, text=True, timeout=60)
+    except Exception as exc:  # pragma: no cover
+        return False, f"{command} smoke subprocess error: {exc}"
+    _append_log(app_id, (proc.stdout or "")[-2000:])
+    if proc.returncode != 0:
+        _append_log(app_id, (proc.stderr or "")[-2000:])
+        return False, f"{command} smoke exit {proc.returncode}"
+
+    bin_dir = target / "hermes-bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    link_name = install.get("link_name") or command
+    if os.name == "nt":
+        shim = bin_dir / f"{link_name}.cmd"
+        shim.write_text(f'@echo off\r\n"{executable}" %*\r\n', encoding="utf-8")
+        _append_log(app_id, f"linked {command} shim: {shim}")
+    else:
+        link = bin_dir / link_name
+        if link.exists() or link.is_symlink():
+            link.unlink()
+        link.symlink_to(executable)
+        _append_log(app_id, f"linked {command} symlink: {link}")
+    return True, f"{command} smoke ok"
+
+
+def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None = None) -> bool:
+    """Best-effort detection — used by status endpoint."""
+    install = entry.get("install") or {}
+    method = install.get("method")
+    if method == "pip":
+        import_name = install.get("import_name") or install.get("package")
+        if not import_name:
+            return False
+        if install.get("venv"):
+            python = app_venv_python(repo_root, entry)
+            if not python.exists():
+                return False
+            try:
+                proc = subprocess.run(
+                    [str(python), "-c", f"import {import_name.replace('-', '_')}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                return proc.returncode == 0
+            except Exception:
+                return False
+        try:
+            importlib.import_module(import_name.replace("-", "_"))
+            return True
+        except Exception:
+            return False
+    if method in ("clone-shallow", "clone-full"):
+        target = app_install_path(repo_root, entry)
+        return bool(target and (target / ".git").exists())
+    if method == "clone-full-venv":
+        target = app_install_path(repo_root, entry)
+        if not target or not (target / ".git").exists():
+            return False
+        venv = target / install.get("venv", ".venv")
+        if not _venv_python(venv).exists():
+            return False
+        marker = target / install.get("setup_marker", ".hermes3d-venv-ready")
+        return marker.exists()
+    if method == "binary-download":
+        return find_installed_binary(entry) is not None
+    if method == "npm-build":
+        try:
+            root = repo_root or Path(sys.modules[__name__].__dict__.get("_CURRENT_REPO_ROOT", "."))
+            output_rel = install.get("build_output") or "dist"
+            return (app_target_path(root, entry) / output_rel / "index.html").exists()
+        except Exception:
+            return False
+    return False
+
+
+def install_target_path(entry: dict[str, Any]) -> Path | None:
+    install = entry.get("install") or {}
+    target_rel = install.get("binary_target") or entry.get("target")
+    if not target_rel:
+        return None
+    return resolve_apps_root() / target_rel
+
+
+def find_installed_binary(entry: dict[str, Any]) -> Path | None:
+    target = install_target_path(entry)
+    if target is None or not target.exists():
+        return None
+    install = entry.get("install") or {}
+    names = install.get("binary_names") or install.get("launch_candidates") or []
+    if isinstance(names, str):
+        names = [names]
+    for name in names:
+        candidate = target / str(name)
+        if candidate.exists():
+            return candidate
+    for pattern in ("prusa-slicer.exe", "prusa-slicer-console.exe", "*.exe"):
+        found = next(target.rglob(pattern), None)
+        if found:
+            return found
+    return None
+
+
+def app_target_path(repo_root: Path | None, entry: dict[str, Any]) -> Path:
+    target_rel = entry.get("target")
+    if not target_rel:
+        raise ValueError("manifest target missing")
+    return resolve_apps_root(repo_root) / target_rel
+
+
+def app_venv_python(repo_root: Path | None, entry: dict[str, Any]) -> Path:
+    venv = app_target_path(repo_root, entry) / (entry.get("install") or {}).get("venv_dir", ".venv")
+    return _venv_python(venv)
+
+
+def app_venv_script(repo_root: Path | None, entry: dict[str, Any], script_name: str) -> Path:
+    suffix = ".exe" if os.name == "nt" else ""
+    scripts_dir = "Scripts" if os.name == "nt" else "bin"
+    venv = app_target_path(repo_root, entry) / (entry.get("install") or {}).get("venv_dir", ".venv")
+    return venv / scripts_dir / f"{script_name}{suffix}"
+
+
+def _resolve_seed_python(requested: str) -> Path:
+    if not requested:
+        return Path(sys.executable)
+    env_key = f"HERMES3D_PYTHON_{requested.replace('.', '_')}"
+    candidates = [
+        os.environ.get(env_key, ""),
+        rf"C:\Program Files\Python{requested.replace('.', '')}\python.exe",
+        rf"C:\Python{requested.replace('.', '')}\python.exe",
+        sys.executable,
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return Path(candidate)
+    return Path(sys.executable)
+
+
+def _venv_matches_python(repo_root: Path | None, entry: dict[str, Any], requested: str) -> bool:
+    try:
+        proc = subprocess.run(
+            [str(app_venv_python(repo_root, entry)), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except Exception:
+        return False
+    version = f"{proc.stdout} {proc.stderr}"
+    return f"Python {requested}" in version
+
+
+def _remove_app_venv(target: Path, venv_dir: Path) -> None:
+    resolved_target = target.resolve()
+    resolved_venv = venv_dir.resolve()
+    if resolved_venv.name != ".venv" or resolved_target not in resolved_venv.parents:
+        raise ValueError(f"Refusing to remove unexpected venv path: {venv_dir}")
+    shutil.rmtree(resolved_venv)
+
+
+# ─── Dispatchers ───────────────────────────────────────────────────────────
+
+def _install_pip(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    install = entry["install"]
+    package = install.get("package")
+    if not package:
+        return False, "manifest install.package missing"
+    repo_root = Path(sys.modules[__name__].__dict__.get("_CURRENT_REPO_ROOT", "."))
+    python = sys.executable
+    if install.get("venv"):
+        target = app_target_path(repo_root, entry)
+        target.mkdir(parents=True, exist_ok=True)
+        venv_dir = target / install.get("venv_dir", ".venv")
+        requested_python = install.get("python")
+        if app_venv_python(repo_root, entry).exists() and requested_python and not _venv_matches_python(repo_root, entry, requested_python):
+            _append_log(app_id, f"recreating venv for Python {requested_python}: {venv_dir}")
+            _remove_app_venv(target, venv_dir)
+        if not app_venv_python(repo_root, entry).exists():
+            seed_python = _resolve_seed_python(str(requested_python or ""))
+            _append_log(app_id, f"creating venv: {venv_dir}")
+            proc = subprocess.run(
+                [str(seed_python), "-m", "venv", str(venv_dir)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if proc.returncode != 0:
+                _append_log(app_id, (proc.stderr or proc.stdout or "")[-2000:])
+                return False, f"venv exit {proc.returncode}"
+        python = str(app_venv_python(repo_root, entry))
+    cmd = [python, "-m", "pip", "install", "--disable-pip-version-check", package]
+    _append_log(app_id, f"$ {' '.join(cmd)}")
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    except Exception as exc:  # pragma: no cover - subprocess failure
+        return False, f"pip subprocess error: {exc}"
+    _append_log(app_id, proc.stdout[-2000:])
+    if proc.returncode != 0:
+        _append_log(app_id, proc.stderr[-2000:])
+        return False, f"pip exit {proc.returncode}"
+    return True, "pip install ok"
+
+
+def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tuple[bool, str]:
+    install = entry["install"]
+    repo = install.get("repo") or entry.get("repo")
+    if not repo:
+        return False, "manifest install.repo missing"
+    target_rel = entry.get("target")
+    if not target_rel:
+        return False, "manifest target missing"
+    apps_root = resolve_apps_root()
+    target = apps_root / target_rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if (target / ".git").exists():
+        _append_log(app_id, f"already cloned: {target}")
+    else:
+        cmd = ["git", "clone"]
+        if depth:
+            cmd.extend(["--depth", str(depth)])
+        cmd.extend([repo, str(target)])
+        _append_log(app_id, f"$ {' '.join(cmd)}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        except Exception as exc:  # pragma: no cover
+            return False, f"git subprocess error: {exc}"
+        _append_log(app_id, (proc.stdout or "")[-2000:])
+        if proc.returncode != 0:
+            _append_log(app_id, (proc.stderr or "")[-2000:])
+            return False, f"git exit {proc.returncode}"
+    ok, message = _install_system_command_link(app_id, entry, target)
+    if not ok:
+        return False, message
+    return True, "clone ok"
+
+
+def _run_setup_command(app_id: str, cmd: list[str], cwd: Path, timeout: int = 900) -> tuple[bool, str]:
+    _append_log(app_id, f"$ {' '.join(cmd)}")
+    try:
+        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except Exception as exc:  # pragma: no cover
+        return False, f"setup subprocess error: {exc}"
+    _append_log(app_id, (proc.stdout or "")[-2000:])
+    if proc.returncode != 0:
+        _append_log(app_id, (proc.stderr or "")[-2000:])
+        return False, f"setup exit {proc.returncode}"
+    return True, "ok"
+
+
+def _install_clone_full_venv(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    ok, message = _install_clone(app_id, entry, depth=None)
+    if not ok:
+        return ok, message
+
+    install = entry["install"]
+    target = app_install_path(None, entry)
+    if target is None:
+        return False, "manifest target missing"
+
+    venv = target / install.get("venv", ".venv")
+    python_exe = _venv_python(venv)
+    if not python_exe.exists():
+        ok, message = _run_setup_command(app_id, [sys.executable, "-m", "venv", str(venv)], target)
+        if not ok:
+            return ok, message
+
+    ok, message = _run_setup_command(
+        app_id,
+        [str(python_exe), "-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "setuptools"],
+        target,
+    )
+    if not ok:
+        return ok, message
+
+    requirements = install.get("requirements")
+    if requirements:
+        req_path = target / requirements
+        if not req_path.exists():
+            return False, f"requirements file missing: {requirements}"
+        ok, message = _run_setup_command(
+            app_id,
+            [str(python_exe), "-m", "pip", "install", "--disable-pip-version-check", "-r", str(req_path)],
+            target,
+            timeout=1800,
+        )
+        if not ok:
+            return ok, message
+
+    probe_files = install.get("probe_files") or []
+    for rel_path in probe_files:
+        probe_path = target / rel_path
+        if not probe_path.exists():
+            return False, f"probe file missing: {rel_path}"
+        if probe_path.suffix == ".py":
+            ok, message = _run_setup_command(app_id, [str(python_exe), "-m", "py_compile", str(probe_path)], target)
+            if not ok:
+                return ok, message
+
+    marker = target / install.get("setup_marker", ".hermes3d-venv-ready")
+    marker.write_text("ok\n", encoding="utf-8")
+    return True, "clone + venv requirements ok"
+
+
+def _install_binary_download(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    install = entry["install"]
+    url = install.get("binary_url")
+    if not url:
+        return False, "manifest install.binary_url missing"
+    target = install_target_path(entry)
+    if target is None:
+        return False, "manifest install.binary_target missing"
+    existing = find_installed_binary(entry)
+    if existing:
+        _append_log(app_id, f"already installed: {existing}")
+        return True, "already installed"
+
+    target.mkdir(parents=True, exist_ok=True)
+    _append_log(app_id, f"download: {url}")
+    _append_log(app_id, f"target: {target}")
+    try:
+        with tempfile.TemporaryDirectory(prefix=f"{app_id}-") as tmp:
+            tmp_path = Path(tmp)
+            archive = tmp_path / "download.zip"
+            with urllib.request.urlopen(url, timeout=120) as response:
+                with archive.open("wb") as handle:
+                    shutil.copyfileobj(response, handle)
+            extract_root = tmp_path / "extract"
+            extract_root.mkdir()
+            with zipfile.ZipFile(archive) as zip_ref:
+                _safe_extract(zip_ref, extract_root)
+            payload_root = _single_payload_root(extract_root)
+            shutil.copytree(payload_root, target, dirs_exist_ok=True)
+    except Exception as exc:  # pragma: no cover - network/filesystem failure
+        return False, f"binary download error: {exc}"
+
+    installed = find_installed_binary(entry)
+    if not installed:
+        return False, f"download extracted but no executable was found in {target}"
+    _append_log(app_id, f"installed executable: {installed}")
+    return True, "binary download ok"
+
+
+def _run_checked(app_id: str, cmd: list[str], cwd: Path, timeout: int) -> tuple[bool, str]:
+    _append_log(app_id, f"{cwd}> {' '.join(cmd)}")
+    try:
+        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except Exception as exc:  # pragma: no cover
+        return False, f"{cmd[0]} subprocess error: {exc}"
+    if proc.stdout:
+        _append_log(app_id, proc.stdout[-2000:])
+    if proc.returncode != 0:
+        if proc.stderr:
+            _append_log(app_id, proc.stderr[-2000:])
+        return False, f"{cmd[0]} exit {proc.returncode}"
+    return True, "ok"
+
+
+def _install_npm_build(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    ok, message = _install_clone(app_id, entry, depth=None)
+    if not ok:
+        return ok, message
+
+    npm = shutil.which("npm") or shutil.which("npm.cmd")
+    if not npm:
+        return False, "npm not found on PATH"
+
+    repo_root = Path(sys.modules[__name__].__dict__.get("_CURRENT_REPO_ROOT", "."))
+    target = app_target_path(repo_root, entry)
+    install = entry["install"]
+    build_cmds = install.get("build_cmds") or [["npm", "ci"], ["npm", "run", "build"]]
+    for raw_cmd in build_cmds:
+        if not isinstance(raw_cmd, list) or not raw_cmd:
+            return False, "manifest install.build_cmds must be a list of command arrays"
+        cmd = [npm if raw_cmd[0] == "npm" else str(raw_cmd[0]), *[str(part) for part in raw_cmd[1:]]]
+        ok, message = _run_checked(app_id, cmd, target, timeout=1800)
+        if not ok:
+            return ok, message
+
+    output_rel = install.get("build_output") or "dist"
+    output_path = target / output_rel
+    if not (output_path / "index.html").exists():
+        return False, f"build output missing index.html: {output_path}"
+    return True, "npm build ok"
+
+
+def _single_payload_root(extract_root: Path) -> Path:
+    children = [path for path in extract_root.iterdir() if path.name != "__MACOSX"]
+    if len(children) == 1 and children[0].is_dir():
+        return children[0]
+    return extract_root
+
+
+def _safe_extract(zip_ref: zipfile.ZipFile, destination: Path) -> None:
+    root = destination.resolve()
+    for member in zip_ref.infolist():
+        resolved = (destination / member.filename).resolve()
+        if root != resolved and root not in resolved.parents:
+            raise ValueError(f"refusing unsafe archive path: {member.filename}")
+    zip_ref.extractall(destination)
+
+
+def _install_noop(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    _append_log(app_id, "noop: install method is intentionally a no-op (used for tests / reference cards)")
+    return True, "noop"
+
+
+_DISPATCH = {
+    "pip": lambda aid, e: _install_pip(aid, e),
+    "clone-shallow": lambda aid, e: _install_clone(aid, e, depth=1),
+    "clone-full": lambda aid, e: _install_clone(aid, e, depth=None),
+    "clone-full-venv": lambda aid, e: _install_clone_full_venv(aid, e),
+    "binary-download": lambda aid, e: _install_binary_download(aid, e),
+    "npm-build": lambda aid, e: _install_npm_build(aid, e),
+    "noop": lambda aid, e: _install_noop(aid, e),
+}
+
+
+def supported_methods() -> list[str]:
+    return sorted(_DISPATCH.keys())
+
+
+def start_install(repo_root: Path, app_id: str) -> dict[str, Any]:
+    """Kick off install in a background thread; return current state."""
+    entry = find_app(repo_root, app_id)
+    if entry is None:
+        return {"ok": False, "error": f"unknown app id: {app_id}", "status": "not_installed"}
+    install = entry.get("install")
+    if not install or not isinstance(install, dict):
+        return {"ok": False, "error": "manifest entry has no install block", "status": "not_installed"}
+    method = install.get("method")
+    handler = _DISPATCH.get(method)
+    if handler is None:
+        return {
+            "ok": False,
+            "error": f"install method '{method}' not yet supported by dispatcher",
+            "supported": supported_methods(),
+            "status": "not_installed",
+        }
+
+    state = get_state(app_id)
+    if state.status == "installing":
+        return {"ok": True, "status": "installing", "note": "already running"}
+
+    _set_status(app_id, "installing")
+
+    def _run() -> None:
+        import os as _os
+
+        _os.environ["HERMES3D_REPO_ROOT"] = str(repo_root)
+        globals()["_CURRENT_REPO_ROOT"] = repo_root
+        try:
+            ok, message = handler(app_id, entry)
+        except Exception as exc:  # pragma: no cover
+            _set_status(app_id, "failed", error=str(exc))
+            return
+        if ok:
+            _set_status(app_id, "installed")
+        else:
+            _set_status(app_id, "failed", error=message)
+
+    threading.Thread(target=_run, daemon=True, name=f"install-{app_id}").start()
+    return {"ok": True, "status": "installing", "method": method}
+
+
+def install_state_payload(app_id: str) -> dict[str, Any]:
+    state = get_state(app_id)
+    return {
+        "status": state.status,
+        "log_tail": state.log[-12:],
+        "error": state.error,
+        "started_at": state.started_at,
+        "ended_at": state.ended_at,
+    }

@@ -12,7 +12,13 @@
         "license": "AGPL-3.0",
         "priority": "primary",
         "uxSection": "Slicer Bench / Prusa",
-        "bridge": ["CLI slicing", "3MF import/export", "printer profiles", "G-code preview concepts", "network upload patterns"]
+        "bridge": ["CLI slicing", "3MF import/export", "printer profiles", "G-code preview concepts", "network upload patterns"],
+        "install": {
+          "method": "binary-download",
+          "binary_url": "https://github.com/prusa3d/PrusaSlicer/releases/download/version_2.9.4/PrusaSlicer-2.9.4.zip",
+          "binary_target": "slicers/PrusaSlicer",
+          "binary_names": ["prusa-slicer.exe", "prusa-slicer-console.exe"]
+        }
       },
       {
         "id": "orcaslicer",
@@ -125,7 +131,15 @@
         "license": "GPL-3.0-or-later",
         "priority": "primary",
         "uxSection": "Modeling / Blender",
-        "bridge": ["background CLI", "Python repair/export scripts", "mesh analysis", "camera/render previews", "modifier stack concepts"]
+        "bridge": ["background CLI", "Python repair/export scripts", "mesh analysis", "camera/render previews", "modifier stack concepts"],
+        "install": {
+          "method": "clone-shallow",
+          "repo": "https://github.com/blender/blender.git",
+          "system_command": "blender",
+          "system_env": "HERMES3D_BLENDER_PATH",
+          "link_name": "blender",
+          "smoke_args": ["--background", "--version"]
+        }
       },
       {
         "id": "freecad",
@@ -175,7 +189,8 @@
         "license": "MIT",
         "priority": "primary",
         "uxSection": "Truth Gate / Mesh QA",
-        "bridge": ["mesh stats", "repair helpers", "bounds and volume checks", "format conversion"]
+        "bridge": ["mesh stats", "repair helpers", "bounds and volume checks", "format conversion"],
+        "install": { "method": "pip", "package": "trimesh", "import_name": "trimesh" }
       },
       {
         "id": "manifold",
@@ -267,7 +282,14 @@
         "license": "GPL-3.0",
         "priority": "reference",
         "uxSection": "Printer Farm / Device UI",
-        "bridge": ["Moonraker UI patterns", "console/files/macros", "compact telemetry"]
+        "bridge": ["Moonraker UI patterns", "console/files/macros", "compact telemetry"],
+        "install": {
+          "method": "npm-build",
+          "repo": "https://github.com/fluidd-core/fluidd.git",
+          "build_cmds": [["npm", "ci", "--include=dev"], ["npm", "run", "build"]],
+          "build_output": "dist",
+          "static_url": "/static/fluidd/"
+        }
       },
       {
         "id": "mainsail",
@@ -287,7 +309,8 @@
         "license": "AGPL-3.0",
         "priority": "secondary",
         "uxSection": "Printer Farm / Plugin Bridge",
-        "bridge": ["plugin ecosystem", "camera/control patterns", "file/job API", "legacy printer support"]
+        "bridge": ["plugin ecosystem", "camera/control patterns", "file/job API", "legacy printer support"],
+        "install": { "method": "pip", "package": "OctoPrint", "import_name": "octoprint", "venv": true, "python": "3.11" }
       },
       {
         "id": "printrun",
@@ -441,7 +464,16 @@
         "license": "MIT",
         "priority": "fast-preview",
         "uxSection": "3D Generation / Fast Preview",
-        "bridge": ["fast preview mesh", "early reject/accept UX", "fallback path before expensive generation"]
+        "bridge": ["fast preview mesh", "early reject/accept UX", "fallback path before expensive generation"],
+        "install": {
+          "method": "clone-full-venv",
+          "repo": "https://github.com/VAST-AI-Research/TripoSR.git",
+          "requirements": "requirements.txt",
+          "venv": ".venv",
+          "probe_files": ["run.py", "gradio_app.py"],
+          "setup_marker": ".hermes3d-venv-ready",
+          "note": "Free OSS local setup. PyTorch/CUDA must be supplied by the host per TripoSR upstream guidance; no cloud service is required."
+        }
       }
     ],
     "orchestration": [

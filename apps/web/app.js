@@ -24,75 +24,6 @@ const PAGE_IDS = [
   "roadmap",
 ];
 
-const OS_FLOW_LANES = [
-  {
-    title: "Source Bench",
-    status: "live",
-    steps: ["repo", "adapter", "checkout", "bridge", "promote"],
-  },
-  {
-    title: "Design/CAD",
-    status: "gated",
-    steps: ["brief", "source CAD", "execute", "geometry QA", "model approval"],
-  },
-  {
-    title: "Generation",
-    status: "evidence",
-    steps: ["image", "3D engine", "repair", "printability", "candidate"],
-  },
-  {
-    title: "Slicer Compiler",
-    status: "proof",
-    steps: ["profile lock", "slice", "preview", "G-code QA", "print approval"],
-  },
-  {
-    title: "Dispatch",
-    status: "human gate",
-    steps: ["select printer", "upload only", "operator check", "start", "monitor"],
-  },
-  {
-    title: "Observation",
-    status: "camera",
-    steps: ["snapshot", "first layer", "anomaly", "event", "report"],
-  },
-  {
-    title: "Materials",
-    status: "planned",
-    steps: ["spool", "profile", "coupon", "measurement", "confidence"],
-  },
-  {
-    title: "Trust/Audit",
-    status: "always on",
-    steps: ["scope", "permission", "ledger", "artifact", "export"],
-  },
-];
-
-// UI typography presets — keys map to CSS font-family stacks. The user can
-// pick any of these via the gear popover next to Theme; choice persists in
-// localStorage("hermes3d-font-family"). The font-scale slider in the same
-// popover writes localStorage("hermes3d-font-scale") (a number 0.55–1.30).
-// Both values are applied through CSS custom properties on :root, so every
-// rule that uses calc(Npx * var(--font-scale)) or var(--font-family-ui) in
-// styles.css picks them up live.
-const FONT_FAMILY_OPTIONS = {
-  inter:
-    'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  system:
-    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  mono:
-    'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-  serif:
-    'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
-  roboto:
-    'Roboto, "Helvetica Neue", Arial, sans-serif',
-  atkinson:
-    '"Atkinson Hyperlegible", Inter, system-ui, sans-serif',
-};
-const DEFAULT_FONT_SCALE = 0.70;
-const DEFAULT_FONT_FAMILY = "inter";
-const FONT_SCALE_MIN = 0.55;
-const FONT_SCALE_MAX = 1.30;
-
 const state = {
   activePage: pageFromHash(),
   theme: savedTheme(),
@@ -113,14 +44,9 @@ const state = {
 };
 
 applyTheme(state.theme);
-applyFontSettings(savedFontScale(), savedFontFamily());
 
 const healthEl = document.querySelector("#health");
 const themeSelect = document.querySelector("#themeSelect");
-const fontScaleInput = document.querySelector("#fontScale");
-const fontScaleValue = document.querySelector("#fontScaleValue");
-const fontFamilySelect = document.querySelector("#fontFamily");
-const fontResetBtn = document.querySelector("#fontReset");
 const printerSelect = document.querySelector("#printerSelect");
 const advanceBtn = document.querySelector("#advanceBtn");
 const approveModelBtn = document.querySelector("#approveModelBtn");
@@ -198,6 +124,7 @@ function renderAll() {
   renderDesign();
   renderGenerationStack();
   renderAgenticWork();
+  renderAgentsList();
   renderLearningMode();
   renderJobs();
   renderPrinters();
@@ -229,11 +156,13 @@ function renderPrinterSelect() {
   ].join("");
 }
 
-function renderDashboard() {
-  setHtml("#dashboardFleet", renderPrinterCards(state.printers.slice(0, 4), true));
-  setHtml("#dashboardJobs", renderJobCards(state.jobs.slice(0, 8)));
-  setHtml("#dashboardEvents", renderEventCards(state.events.slice(0, 12)));
-  setHtml("#dashboardFlow", renderOsFlowBoard(OS_FLOW_LANES));
+function renderDashboard(summary) {
+  const fleet = summary?.fleet || state.printers.slice(0, 4);
+  const queue = summary?.queue || state.jobs.slice(0, 8);
+  const events = summary?.events || state.events.slice(0, 12);
+  setHtml("#dashboardFleet", renderPrinterCards(fleet, !summary));
+  setHtml("#dashboardJobs", renderJobCards(queue));
+  setHtml("#dashboardEvents", renderEventCards(events));
 }
 
 function renderSetup() {
@@ -314,59 +243,6 @@ function renderThemeSelect() {
     return;
   }
   themeSelect.value = state.theme;
-}
-
-// ─── Font scale + family ──────────────────────────────────────────────────
-// Reads/writes two localStorage keys and applies them to :root as CSS custom
-// properties. Defaults: scale=0.70 (the user's "fonts 22 should be 14–16"
-// directive translates to ~70% of the original sizes), family=inter. The
-// applyFontSettings call at boot installs them before any render so the
-// initial paint is already at the requested size.
-function clampFontScale(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return DEFAULT_FONT_SCALE;
-  return Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, num));
-}
-
-function savedFontScale() {
-  const raw = localStorage.getItem("hermes3d-font-scale");
-  if (raw === null) return DEFAULT_FONT_SCALE;
-  return clampFontScale(raw);
-}
-
-function savedFontFamily() {
-  const raw = localStorage.getItem("hermes3d-font-family");
-  return Object.prototype.hasOwnProperty.call(FONT_FAMILY_OPTIONS, raw)
-    ? raw
-    : DEFAULT_FONT_FAMILY;
-}
-
-function applyFontSettings(scale, familyKey) {
-  const safeScale = clampFontScale(scale);
-  const safeFamily = Object.prototype.hasOwnProperty.call(FONT_FAMILY_OPTIONS, familyKey)
-    ? familyKey
-    : DEFAULT_FONT_FAMILY;
-  document.documentElement.style.setProperty("--font-scale", String(safeScale));
-  document.documentElement.style.setProperty(
-    "--font-family-ui",
-    FONT_FAMILY_OPTIONS[safeFamily],
-  );
-  localStorage.setItem("hermes3d-font-scale", String(safeScale));
-  localStorage.setItem("hermes3d-font-family", safeFamily);
-}
-
-function renderFontSettingsControls() {
-  const scale = savedFontScale();
-  const family = savedFontFamily();
-  if (fontScaleInput) {
-    fontScaleInput.value = String(scale);
-  }
-  if (fontScaleValue) {
-    fontScaleValue.textContent = `${scale.toFixed(2)}×`;
-  }
-  if (fontFamilySelect) {
-    fontFamilySelect.value = family;
-  }
 }
 
 function pageFromHash() {
@@ -587,6 +463,21 @@ function renderAgenticBlocker(blocker) {
   `;
 }
 
+async function renderAgentsList() {
+  try {
+    const agents = await api("/api/agents/list").catch(() => []);
+    const el = document.getElementById("agentsList");
+    if (!el) return;
+    if (!agents.length) { el.innerHTML = "<p class=muted>No agents registered.</p>"; return; }
+    el.innerHTML = agents.map(function(a) {
+      return "<article class=agent-card data-agent-id=" + escapeAttr(a.id) + ">" +
+        "<div class=row><h3>" + escapeHtml(a.name || a.id) + "</h3>" +
+        "<span class=badge>" + escapeHtml(a.status || "unknown") + "</span></div>" +
+        "<p class=muted>" + escapeHtml(a.role || "") + "</p></article>";
+    }).join("");
+  } catch(e) {}
+}
+
 function renderLearningMode() {
   const learning = state.learningMode || {};
   const topics = learning.topics || [];
@@ -639,9 +530,35 @@ function renderLearningTopic(topic) {
   `;
 }
 
-function renderJobs() {
-  setHtml("#jobs", renderJobCards(state.jobs));
+let jobSearchText = "";
+let jobStatusFilter = "";
+
+document.querySelector("#jobsSearch")?.addEventListener("input", (e) => {
+  jobSearchText = e.target.value.toLowerCase();
+  renderFilteredJobs();
+});
+
+document.querySelector("#page-jobs .jobs-status-chips")?.addEventListener("click", (e) => {
+  const chip = e.target.closest(".status-chip[data-status]");
+  if (!chip) return;
+  jobStatusFilter = chip.dataset.status;
+  document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c === chip));
+  renderFilteredJobs();
+});
+
+function renderFilteredJobs() {
+  const filtered = state.jobs.filter(job => {
+    const matchText = !jobSearchText || (job.name || job.title || "").toLowerCase().includes(jobSearchText);
+    const matchStatus = !jobStatusFilter || job.status === jobStatusFilter || job.state === jobStatusFilter;
+    return matchText && matchStatus;
+  });
+  setHtml("#jobs", renderJobCards(filtered));
 }
+
+function renderJobs() {
+  renderFilteredJobs();
+}
+
 
 function renderPrinters() {
   setHtml("#printers", renderPrinterCards(state.printers, false));
@@ -854,7 +771,7 @@ function renderPlugins() {
     ["Hunyuan3D-2.1", "Comparison/fallback image-to-3D engine", "planned"],
     ["TripoSR", "Fast preview fallback for early shape review", "planned"],
     ["Blender / Trimesh", "Mesh repair, validation, previews, exports", "planned"],
-    ["Voice Layer", "Agent TTS/STT, safety alerts, preview, and transcripts", "active"],
+    ["Azure Voice", "Agent TTS/STT, safety alerts, preview, and transcripts", "active"],
     ["MiniMax-MCP Vision", "Required multimodal layer for image, screenshot, mesh, slicer, and camera evidence", "active"],
     ["DeepSeek V4", "Optional planning, CAD reasoning, research summaries, roadmaps, and reports", "ready"],
     ["Visual Evidence", "Job-scoped evidence uploads, local file serving, and thumbnails", "active"],
@@ -884,9 +801,8 @@ function renderPlugins() {
 
 function renderRoadmap() {
   const items = [
-    "Keep Source OS, README, interface docs, and visual proof aligned with the live 16-page OS shell",
     "Confirm safe printer set: T1-A, T1-B, and V400 only while S1 is locked",
-    "Maintain responsive OS shell navigation: themes, page deep links, flow maps, and UI screenshots",
+    "Complete OS shell navigation and visual proof: themes, page deep links, responsive layout, UI screenshots",
     "Add model endpoint picker from /v1/models",
     "Add DesignSpec fields for dimensions, constraints, tolerances, material, and target printer",
     "Add executable CAD worker with source, preview, bounding box, volume, and export validation",
@@ -906,26 +822,6 @@ function renderRoadmap() {
     "#roadmapPage",
     items.map((item, index) => `<article class="roadmap-item"><strong>${index + 1}</strong><span>${escapeHtml(item)}</span></article>`).join(""),
   );
-}
-
-function renderOsFlowBoard(lanes) {
-  return lanes
-    .map(
-      (lane) => `
-        <article class="flow-lane">
-          <header>
-            <strong>${escapeHtml(lane.title)}</strong>
-            ${stateBadge(String(lane.status || "planned").toUpperCase())}
-          </header>
-          <div class="flow-steps">
-            ${(lane.steps || [])
-              .map((step, index) => `<span data-step="${index + 1}">${escapeHtml(step)}</span>`)
-              .join("")}
-          </div>
-        </article>
-      `,
-    )
-    .join("");
 }
 
 async function renderActiveJob() {
@@ -1269,12 +1165,66 @@ window.addEventListener("hashchange", () => {
   renderTabs();
 });
 
+// Slot 10: agents list row -> Action Window
+document.querySelector("#agentsList")?.addEventListener("click", function(e) {
+  var card = e.target.closest(".agent-card");
+  if (!card) return;
+  var agentId = card.dataset.agentId;
+  var payload = {
+    tab_id: "agents", kind: "agent", item_id: agentId,
+    title: (card.querySelector("h3") || {}).textContent || agentId,
+    subtitle: (card.querySelector("p") || {}).textContent || "",
+    status_pill: (card.querySelector(".badge") || {}).textContent || "unknown",
+    primary_actions: [
+      { id: "health", label: "Check Health", endpoint: "/api/agents/" + agentId + "/health", method: "GET" },
+      { id: "dispatch", label: "Dispatch Task", endpoint: "/api/agents/" + agentId + "/dispatch", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Agent Info", body: "ID: " + agentId }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow && window.HermesActionWindow.dispatch) {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
+});
+
 document.addEventListener("click", async (event) => {
+  if (!event.target.closest("#page-jobs")) return;
   const jobCard = event.target.closest(".job-card");
   if (jobCard) {
     state.activeJobId = Number(jobCard.dataset.jobId);
     setActivePage("jobs");
     renderAll();
+    const jobId = jobCard.dataset.jobId;
+    const job = state.jobs.find((j) => String(j.id) === String(jobId)) || { id: jobId };
+    const awPayload = {
+      tab_id: "jobs",
+      kind: "job",
+      item_id: String(job.id),
+      title: job.title || job.name || `Job #${job.id}`,
+      subtitle: job.state || job.status || "",
+      status_pill: job.state || job.status || "queued",
+      primary_actions: [
+        { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+        { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" },
+      ],
+      secondary_actions: [],
+      panels: [
+        {
+          id: "details",
+          title: "Details",
+          body: `Status: ${job.state || job.status || "n/a"}\nNotes: ${job.notes || ""}`,
+        },
+      ],
+      stream_url: null,
+    };
+    if (window.HermesActionWindow?.dispatch) {
+      window.HermesActionWindow.dispatch(awPayload);
+    } else {
+      document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: awPayload }));
+    }
   }
 
   const printerButton = event.target.closest("[data-test-printer]");
@@ -1396,34 +1346,26 @@ document.addEventListener("submit", async (event) => {
 
 });
 
-document.querySelector("#refreshBtn").addEventListener("click", refresh);
+document.querySelector("#refreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#refreshBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+  try {
+    await refresh();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+  }
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#dashboardRefreshBtn");
+  if (btn) { btn.disabled = true; }
+  try { await refresh(); } finally { if (btn) btn.disabled = false; }
+});
 
 themeSelect?.addEventListener("change", () => {
   applyTheme(themeSelect.value);
   renderAll();
 });
-
-// Font-scale slider — live update on input so the user sees the rescale as
-// they drag. Family select switches the typeface immediately. Reset button
-// returns both to the documented defaults (0.70× / Inter).
-fontScaleInput?.addEventListener("input", () => {
-  applyFontSettings(fontScaleInput.value, fontFamilySelect?.value);
-  if (fontScaleValue) {
-    fontScaleValue.textContent = `${clampFontScale(fontScaleInput.value).toFixed(2)}×`;
-  }
-});
-
-fontFamilySelect?.addEventListener("change", () => {
-  applyFontSettings(fontScaleInput?.value, fontFamilySelect.value);
-});
-
-fontResetBtn?.addEventListener("click", () => {
-  applyFontSettings(DEFAULT_FONT_SCALE, DEFAULT_FONT_FAMILY);
-  renderFontSettingsControls();
-});
-
-// Sync the popover controls with the persisted values on first paint.
-renderFontSettingsControls();
 
 document.querySelector("#bootstrapBtn").addEventListener("click", async () => {
   await api("/api/bootstrap", { method: "POST", body: "{}" });
@@ -1462,6 +1404,27 @@ advanceBtn.addEventListener("click", async () => {
     body: JSON.stringify({ target_printer_id: printerSelect.value || null }),
   });
   await refresh();
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const summary = await api("/api/dashboard/summary");
+  renderDashboard(summary);
+});
+
+document.querySelector("#jobsClearCompletedBtn")?.addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to clear all completed jobs? This action cannot be undone.")) {
+    return;
+  }
+  const result = await api("/api/jobs/clear-completed", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#jobsExportCsvBtn")?.addEventListener("click", async () => {
+  if (!confirm("Export all jobs to CSV? This will download a file with current job data.")) {
+    return;
+  }
+  window.open("/api/jobs/export.csv", "_blank");
 });
 
 approveModelBtn.addEventListener("click", async () => {
@@ -1507,4 +1470,208 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+document.querySelector("#dashboardFleet").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "dashboard", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: printer.vendor || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [], panels: [{ id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}` }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+function showToast(msg, durationMs = 3000) {
+  const toast = document.getElementById("hermes-toast");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, durationMs);
+}
+
+document.querySelector("#printersDiscover")?.addEventListener("click", async () => {
+  try {
+    const result = await api("/api/printers/discover", { method: "POST", body: "{}" });
+    showToast(`Discovered ${result.discovered ?? 0} printer(s)`);
+    await refresh();
+  } catch (e) {
+    showToast("Discovery failed: " + (e.message || "unknown error"));
+  }
+});
+
 refresh();
+
+document.querySelector("#printers").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  // skip if clicking the test button
+  if (e.target.closest("button[data-test-printer]")) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "printers", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: `${printer.vendor || ""} ${printer.model || ""}`.trim() || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [],
+    panels: [
+      { id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}\nConnector: ${printer.connector || "n/a"}` },
+      { id: "camera", title: "Camera", body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0"></iframe>` : "No camera configured." }
+    ],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+document.querySelector("#dashboardEvents")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".event-card");
+  if (!card) return;
+  const eventType = card.querySelector("strong")?.textContent || "event";
+  const message = card.querySelector("p")?.textContent || "";
+  const evt = state.events?.find(ev => ev.event_type === eventType) || { event_type: eventType, message };
+  const payload = {
+    tab_id: "dashboard", kind: "event", item_id: evt.event_type,
+    title: evt.event_type, subtitle: evt.message || "",
+    status_pill: "info",
+    primary_actions: [],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Details", body: evt.message || "" }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 2: dashboard queue — click job card → Action Window (kind=job)
+document.querySelector("#dashboardJobs")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".job-card");
+  if (!card) return;
+  const jobId = card.dataset.jobId;
+  const job = state.jobs.find(j => String(j.id) === String(jobId)) || { id: jobId, title: "Job" };
+  const payload = {
+    tab_id: "dashboard", kind: "job", item_id: String(job.id),
+    title: job.title || `Job #${job.id}`, subtitle: job.state || "",
+    status_pill: { text: job.state || "queued", tone: "info" },
+    primary_actions: [
+      { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+      { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", label: "Details", body_html: escapeHtml(job.description || job.title || "") }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 9: voice state status pill
+async function pollVoiceState() {
+  try {
+    const state_data = await api("/api/voice/state").catch(() => null);
+    const pill = document.getElementById("voiceStatusPill");
+    if (pill && state_data) {
+      pill.textContent = `Voice: ${state_data.status || "idle"}`;
+      pill.dataset.voiceStatus = state_data.status || "idle";
+    }
+  } catch (e) { /* silent */ }
+}
+
+document.getElementById("voiceStatusPill")?.addEventListener("click", async () => {
+  const voiceState = await api("/api/voice/state").catch(() => ({ status: "unknown" }));
+  const payload = {
+    tab_id: "voice", kind: "voice", item_id: "voice-state",
+    title: "Voice System", subtitle: voiceState.status || "idle",
+    status_pill: voiceState.status || "idle",
+    primary_actions: [{ id: "mute", label: "Mute", endpoint: "/api/voice/mute", method: "POST" }],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Status", body: JSON.stringify(voiceState, null, 2) }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+setInterval(pollVoiceState, 5000);
+pollVoiceState();
+
+// Slot 11: learning topic cards -> Action Window
+document.querySelector('#learningTopics')?.addEventListener('click', function (e) {
+  const card = e.target.closest('.setup-card, .topic-card, .learning-card, article');
+  if (!card) return;
+  const title = card.querySelector('h3, strong, .title')?.textContent || 'Topic';
+  const body = card.querySelector('p, .muted, .body')?.textContent || '';
+  const payload = {
+    tab_id: 'learning', kind: 'topic',
+    item_id: title.toLowerCase().replace(/\s+/g, '-'),
+    title: title, subtitle: body.substring(0, 80),
+    status_pill: 'learn',
+    primary_actions: [{ id: 'bookmark', label: 'Bookmark', endpoint: '/api/learning/bookmark', method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'details', title: 'Topic Details', body: body },
+      { id: 'papers', title: 'Linked Papers', body: 'No papers linked yet.' },
+    ],
+    stream_url: null,
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
+// Slot 8: observe tab — click camera card → Action Window (kind=printer, live SSE log panel)
+document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
+  const card = e.target.closest('.camera-card');
+  if (!card) return;
+  const name = card.querySelector('h3')?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || 'Printer' };
+  const payload = {
+    tab_id: 'observe', kind: 'printer', item_id: printer.id || name,
+    title: printer.name || name, subtitle: 'Live camera feed',
+    status_pill: printer.connector || 'observe',
+    primary_actions: [{ id: 'mute', label: 'Mute Camera', endpoint: `/api/observe/mute/${printer.id}`, method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'camera', title: 'Camera', body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0;height:300px"></iframe>` : 'No camera configured.' },
+      { id: 'log', title: 'Live Log', body: `<pre id="cameraLog-${printer.id}">Loading...</pre>` }
+    ],
+    stream_url: `/api/observe/stream/${printer.id}`
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
+// Slot 13: approvals pending card → Action Window
+document.querySelector("#approvalsPageList")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".approval-card, article[data-approval-id]");
+  if (!card) return;
+  if (e.target.closest("button[data-approve], button[data-reject]")) return;
+  const approvalId = card.dataset.approvalId;
+  const title = card.querySelector("h3, strong")?.textContent || ("Approval " + approvalId);
+  const note = card.querySelector("p, .muted")?.textContent || "";
+  const payload = {
+    tab_id: "approvals", kind: "approval", item_id: String(approvalId || title),
+    title: title, subtitle: note.substring(0, 80),
+    status_pill: "pending",
+    primary_actions: [
+      { id: "approve", label: "Approve", endpoint: "/api/approvals/" + approvalId + "/approve", method: "POST" },
+      { id: "reject", label: "Reject", endpoint: "/api/approvals/" + approvalId + "/reject", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Approval Details", body: note }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
