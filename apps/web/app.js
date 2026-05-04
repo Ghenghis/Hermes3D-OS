@@ -1356,4 +1356,23 @@ document.querySelector("#dashboardFleet").addEventListener("click", function(e) 
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
 
+document.querySelector("#dashboardEvents")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".event-card");
+  if (!card) return;
+  const eventType = card.querySelector("strong")?.textContent || "event";
+  const message = card.querySelector("p")?.textContent || "";
+  const evt = state.events?.find(ev => ev.event_type === eventType) || { event_type: eventType, message };
+  const payload = {
+    tab_id: "dashboard", kind: "event", item_id: evt.event_type,
+    title: evt.event_type, subtitle: evt.message || "",
+    status_pill: "info",
+    primary_actions: [],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Details", body: evt.message || "" }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
 refresh();
