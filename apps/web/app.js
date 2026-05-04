@@ -124,6 +124,7 @@ function renderAll() {
   renderDesign();
   renderGenerationStack();
   renderAgenticWork();
+  renderAgentsList();
   renderLearningMode();
   renderJobs();
   renderPrinters();
@@ -457,6 +458,21 @@ function renderAgenticBlocker(blocker) {
       <p class="muted">${escapeHtml(blocker.detail || "")}</p>
     </article>
   `;
+}
+
+async function renderAgentsList() {
+  try {
+    const agents = await api("/api/agents/list").catch(() => []);
+    const el = document.getElementById("agentsList");
+    if (!el) return;
+    if (!agents.length) { el.innerHTML = "<p class=muted>No agents registered.</p>"; return; }
+    el.innerHTML = agents.map(function(a) {
+      return "<article class=agent-card data-agent-id=" + escapeAttr(a.id) + ">" +
+        "<div class=row><h3>" + escapeHtml(a.name || a.id) + "</h3>" +
+        "<span class=badge>" + escapeHtml(a.status || "unknown") + "</span></div>" +
+        "<p class=muted>" + escapeHtml(a.role || "") + "</p></article>";
+    }).join("");
+  } catch(e) {}
 }
 
 function renderLearningMode() {
@@ -1118,6 +1134,31 @@ document.querySelectorAll(".tab").forEach((tab) => {
 window.addEventListener("hashchange", () => {
   state.activePage = pageFromHash();
   renderTabs();
+});
+
+// Slot 10: agents list row -> Action Window
+document.querySelector("#agentsList")?.addEventListener("click", function(e) {
+  var card = e.target.closest(".agent-card");
+  if (!card) return;
+  var agentId = card.dataset.agentId;
+  var payload = {
+    tab_id: "agents", kind: "agent", item_id: agentId,
+    title: (card.querySelector("h3") || {}).textContent || agentId,
+    subtitle: (card.querySelector("p") || {}).textContent || "",
+    status_pill: (card.querySelector(".badge") || {}).textContent || "unknown",
+    primary_actions: [
+      { id: "health", label: "Check Health", endpoint: "/api/agents/" + agentId + "/health", method: "GET" },
+      { id: "dispatch", label: "Dispatch Task", endpoint: "/api/agents/" + agentId + "/dispatch", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Agent Info", body: "ID: " + agentId }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow && window.HermesActionWindow.dispatch) {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
 });
 
 document.addEventListener("click", async (event) => {
