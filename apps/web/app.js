@@ -928,7 +928,7 @@ function renderVisualEvidence(artifacts) {
 function renderArtifactCard(artifact, includeJob) {
   const evidence = artifact.metadata?.evidence || {};
   return `
-    <article class="artifact-card" data-artifact-id="${escapeAttr(artifact.id)}">
+    <article class="artifact-card">
       <div class="row">
         <strong>${escapeHtml(evidence.label || artifact.kind)}</strong>
         <span class="muted">${includeJob ? `Job #${escapeHtml(artifact.job_id)}` : `#${escapeHtml(artifact.id)}`}</span>
@@ -936,7 +936,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${renderEvidenceAttachment(artifact)}
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
-      <p class="muted path">${escapeHtml(artifact.path)}</p>
+      <p class="muted">${escapeHtml(artifact.path)}</p>
     </article>
   `;
 }
@@ -1606,6 +1606,51 @@ document.getElementById("voiceStatusPill")?.addEventListener("click", async () =
 
 setInterval(pollVoiceState, 5000);
 pollVoiceState();
+
+// Slot 11: learning topic cards -> Action Window
+document.querySelector('#learningTopics')?.addEventListener('click', function (e) {
+  const card = e.target.closest('.setup-card, .topic-card, .learning-card, article');
+  if (!card) return;
+  const title = card.querySelector('h3, strong, .title')?.textContent || 'Topic';
+  const body = card.querySelector('p, .muted, .body')?.textContent || '';
+  const payload = {
+    tab_id: 'learning', kind: 'topic',
+    item_id: title.toLowerCase().replace(/\s+/g, '-'),
+    title: title, subtitle: body.substring(0, 80),
+    status_pill: 'learn',
+    primary_actions: [{ id: 'bookmark', label: 'Bookmark', endpoint: '/api/learning/bookmark', method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'details', title: 'Topic Details', body: body },
+      { id: 'papers', title: 'Linked Papers', body: 'No papers linked yet.' },
+    ],
+    stream_url: null,
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
+// Slot 8: observe tab — click camera card → Action Window (kind=printer, live SSE log panel)
+document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
+  const card = e.target.closest('.camera-card');
+  if (!card) return;
+  const name = card.querySelector('h3')?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || 'Printer' };
+  const payload = {
+    tab_id: 'observe', kind: 'printer', item_id: printer.id || name,
+    title: printer.name || name, subtitle: 'Live camera feed',
+    status_pill: printer.connector || 'observe',
+    primary_actions: [{ id: 'mute', label: 'Mute Camera', endpoint: `/api/observe/mute/${printer.id}`, method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'camera', title: 'Camera', body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0;height:300px"></iframe>` : 'No camera configured.' },
+      { id: 'log', title: 'Live Log', body: `<pre id="cameraLog-${printer.id}">Loading...</pre>` }
+    ],
+    stream_url: `/api/observe/stream/${printer.id}`
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
 
 // Slot 12: artifact row click → Action Window
 document.querySelector("#artifactPageList")?.addEventListener("click", function(e) {
