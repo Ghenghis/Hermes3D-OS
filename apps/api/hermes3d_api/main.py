@@ -1112,6 +1112,109 @@ def approve_gate(job_id: int, gate: str, payload: ApprovalCreate) -> dict[str, A
     return get_job(job_id)
 
 
+# Windsurf-3 endpoints
+@app.post("/api/printers/{printer_id}/test-connection", response_model=ApiMessage)
+def test_printer_connection(printer_id: str) -> ApiMessage:
+    printer = _get_printer(printer_id)
+    if not printer:
+        raise HTTPException(status_code=404, detail="Printer not found")
+    moonraker = MoonrakerClient(dry_run=settings.dry_run_printers)
+    base_url = printer.get("moonraker", {}).get("base_url") or printer.get("base_url")
+    if not base_url:
+        return ApiMessage(message=f"{printer.get('name', printer_id)} has no base URL configured.")
+    try:
+        result = moonraker.test_connection(base_url)
+        db.add_event(None, "PRINTER_CONNECTION_TEST", f"{printer.get('name', printer_id)} connection test: {'success' if result else 'failed'}", {"printer_id": printer_id, "success": result})
+        return ApiMessage(message=f"{printer.get('name', printer_id)} connection test: {'success' if result else 'failed'}")
+    except Exception as exc:
+        db.add_event(None, "PRINTER_CONNECTION_TEST", f"{printer.get('name', printer_id)} connection test failed: {str(exc)}", {"printer_id": printer_id, "error": str(exc)})
+        return ApiMessage(message=f"{printer.get('name', printer_id)} connection test failed: {str(exc)}")
+
+
+@app.post("/api/telemetry/toggle", response_model=ApiMessage)
+def toggle_telemetry_stream() -> ApiMessage:
+    runtime = load_runtime_config(settings)
+    telemetry_enabled = runtime.get("extras", {}).get("telemetry_enabled", True)
+    telemetry_enabled = not telemetry_enabled
+    if not runtime.get("extras"):
+        runtime["extras"] = {}
+    runtime["extras"]["telemetry_enabled"] = telemetry_enabled
+    save_runtime_config(settings, runtime)
+    db.add_event(None, "TELEMETRY_TOGGLED", f"Telemetry stream {'enabled' if telemetry_enabled else 'disabled'}", {"telemetry_enabled": telemetry_enabled})
+    return ApiMessage(message=f"Telemetry stream {'enabled' if telemetry_enabled else 'disabled'}")
+
+
+@app.post("/api/voice/mute", response_model=ApiMessage)
+def toggle_voice_mute() -> ApiMessage:
+    runtime = load_runtime_config(settings)
+    voice_muted = runtime.get("extras", {}).get("voice_muted", False)
+    voice_muted = not voice_muted
+    if not runtime.get("extras"):
+        runtime["extras"] = {}
+    runtime["extras"]["voice_muted"] = voice_muted
+    save_runtime_config(settings, runtime)
+    db.add_event(None, "VOICE_MUTE_TOGGLED", f"Voice {'muted' if voice_muted else 'unmuted'}", {"voice_muted": voice_muted})
+    return ApiMessage(message=f"Voice {'muted' if voice_muted else 'unmuted'}")
+
+
+# Windsurf-4 endpoints
+@app.post("/api/agents/dispatch", response_model=ApiMessage)
+def dispatch_agents() -> ApiMessage:
+    db.add_event(None, "AGENTS_DISPATCHED", "Agents dispatched to work queue", {"mode": "safe-research"})
+    return ApiMessage(message="Agents dispatched to work queue")
+
+
+@app.post("/api/learning/bookmark", response_model=ApiMessage)
+def bookmark_learning_topic(payload: dict[str, Any] | None = None) -> ApiMessage:
+    topic_id = payload.get("topic_id") if payload else None
+    db.add_event(None, "LEARNING_TOPIC_BOOKMARKED", f"Learning topic bookmarked: {topic_id}", {"topic_id": topic_id})
+    return ApiMessage(message=f"Learning topic bookmarked: {topic_id}")
+
+
+@app.get("/api/artifacts/{artifact_id}/download")
+def download_artifact(artifact_id: int) -> FileResponse:
+    artifact = _get_artifact(artifact_id)
+    path = _artifact_storage_path(artifact)
+    return FileResponse(path)
+
+
+@app.post("/api/approvals/{approval_id}/approve", response_model=ApiMessage)
+def approve_approval(approval_id: int) -> ApiMessage:
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Approval not found")
+    approval = row_to_dict(row)
+    with db.connect() as conn:
+        conn.execute("UPDATE approvals SET approved = 1 WHERE id = ?", (approval_id,))
+    job_id = approval.get("job_id")
+    gate = approval.get("gate")
+    db.add_event(job_id, "APPROVAL_APPROVED", f"{gate} approval approved", {"approval_id": approval_id})
+    if job_id:
+        job = get_job(job_id)
+        if job["state"] == gate:
+            transition = next_transition(job["state"])
+            _set_job_state(job_id, transition.next_state)
+            db.add_event(job_id, "WORKFLOW_ADVANCED", f"Workflow advanced from {job['state']} to {transition.next_state}.")
+    return ApiMessage(message=f"Approval {approval_id} approved")
+
+
+@app.post("/api/approvals/{approval_id}/reject", response_model=ApiMessage)
+def reject_approval(approval_id: int, payload: dict[str, Any] | None = None) -> ApiMessage:
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Approval not found")
+    approval = row_to_dict(row)
+    with db.connect() as conn:
+        conn.execute("UPDATE approvals SET approved = 0 WHERE id = ?", (approval_id,))
+    job_id = approval.get("job_id")
+    gate = approval.get("gate")
+    note = payload.get("note") if payload else None
+    db.add_event(job_id, "APPROVAL_REJECTED", f"{gate} approval rejected", {"approval_id": approval_id, "note": note})
+    return ApiMessage(message=f"Approval {approval_id} rejected")
+
+
 def _set_job_state(job_id: int, state: str) -> None:
     with db.connect() as conn:
         conn.execute(

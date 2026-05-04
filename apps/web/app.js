@@ -568,6 +568,10 @@ function renderApprovalsPage() {
             ${stateBadge(job.state)}
           </div>
           <p class="muted">Job #${job.id}</p>
+          <div class="actions">
+            <button type="button" data-approve-job="${escapeAttr(job.id)}">Approve</button>
+            <button type="button" data-reject-job="${escapeAttr(job.id)}">Reject</button>
+          </div>
         </article>
       `,
     )
@@ -892,6 +896,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
       <p class="muted">${escapeHtml(artifact.path)}</p>
+      <button type="button" data-download-artifact="${escapeAttr(artifact.id)}">Download</button>
     </article>
   `;
 }
@@ -1171,6 +1176,40 @@ document.addEventListener("click", async (event) => {
     applyTheme(themeChoice.dataset.themeChoice);
     renderAll();
   }
+
+  const artifactDownloadButton = event.target.closest("[data-download-artifact]");
+  if (artifactDownloadButton) {
+    const artifactId = artifactDownloadButton.dataset.downloadArtifact;
+    window.location.href = `/api/artifacts/${artifactId}/download`;
+  }
+
+  const approveJobButton = event.target.closest("[data-approve-job]");
+  if (approveJobButton) {
+    const jobId = approveJobButton.dataset.approveJob;
+    const job = state.jobs.find(j => j.id === Number(jobId));
+    if (job) {
+      const gate = job.state;
+      await api(`/api/jobs/${jobId}/approvals/${gate}`, {
+        method: "POST",
+        body: JSON.stringify({ approved: true, note: "Approved from UI" }),
+      });
+      await refresh();
+    }
+  }
+
+  const rejectJobButton = event.target.closest("[data-reject-job]");
+  if (rejectJobButton) {
+    const jobId = rejectJobButton.dataset.rejectJob;
+    const job = state.jobs.find(j => j.id === Number(jobId));
+    if (job) {
+      const gate = job.state;
+      await api(`/api/jobs/${jobId}/approvals/${gate}`, {
+        method: "POST",
+        body: JSON.stringify({ approved: false, note: "Rejected from UI" }),
+      });
+      await refresh();
+    }
+  }
 });
 
 document.addEventListener("submit", async (event) => {
@@ -1335,5 +1374,42 @@ startPrintBtn.addEventListener("click", async () => {
   });
   await refresh();
 });
+
+// Windsurf-3 event handlers
+document.querySelector("#telemetryToggleBtn")?.addEventListener("click", async () => {
+  const result = await api("/api/telemetry/toggle", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#voiceMuteBtn")?.addEventListener("click", async () => {
+  const result = await api("/api/voice/mute", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelectorAll("[data-test-printer]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const printerId = btn.dataset.testPrinter;
+    const result = await api(`/api/printers/${printerId}/test-connection`, { method: "POST", body: "{}" });
+    alert(result.message);
+    await refresh();
+  });
+});
+
+// Windsurf-4 event handlers
+document.querySelector("#agentsDispatchBtn")?.addEventListener("click", async () => {
+  const result = await api("/api/agents/dispatch", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#learningBookmarkBtn")?.addEventListener("click", async () => {
+  const result = await api("/api/learning/bookmark", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+// Artifacts download and approvals buttons will be handled dynamically in rendering functions
 
 refresh();
