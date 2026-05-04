@@ -9,7 +9,7 @@ test("jobs search filter narrows job list", async ({ page }) => {
   );
   await page.goto("/#jobs");
   await page.click('button[data-page="jobs"]');
-  await page.waitForSelector("#jobsSearchInput");
-  await page.fill("#jobsSearchInput", "alpha");
-  await expect(page.locator(".job-card")).toHaveCount(1);
+  await page.waitForSelector("#jobsSearch");
+  await page.fill("#jobsSearch", "alpha");
+  await expect(page.locator("#page-jobs .job-card")).toHaveCount(1);
 });
