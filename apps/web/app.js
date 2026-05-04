@@ -1336,4 +1336,32 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+function showToast(msg, duration = 3000) {
+  let toast = document.querySelector("#hermes-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "hermes-toast";
+    toast.style.cssText = "position:fixed;bottom:1rem;right:1rem;background:#222;color:#fff;padding:0.5rem 1rem;border-radius:6px;z-index:9999;transition:opacity 0.3s;";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = "1";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, duration);
+}
+
+document.querySelector("#printersDiscover")?.addEventListener("click", async function() {
+  this.disabled = true;
+  try {
+    const result = await api("/api/printers/discover", { method: "POST" });
+    const count = result.discovered ?? result.count ?? (Array.isArray(result.printers) ? result.printers.length : 0);
+    await refresh();
+    showToast(`Discovered ${count} printer${count !== 1 ? "s" : ""}`);
+  } catch (err) {
+    showToast(`Discover failed: ${err.message}`);
+  } finally {
+    this.disabled = false;
+  }
+});
+
 refresh();
