@@ -171,6 +171,23 @@ function renderSourceMix() {
   setSourceHtml("#sourceDownloadState", `${total} source modules / ${unique} local source checkouts`);
 }
 
+function renderModuleStatusPill(module) {
+  const appStatus = sourceAppStatus(module);
+  const status = appStatus.install_status
+    || (appStatus.installed_executable ? "installed" : null)
+    || module.install_status
+    || module.status
+    || "unknown";
+  const cls = status === "installed"
+    ? "pill-green"
+    : status === "installing"
+      ? "pill-yellow"
+      : status === "available" || status === "source ready"
+        ? "pill-blue"
+        : "pill-gray";
+  return `<span class="status-pill ${sourceEscapeAttr(cls)}" data-module-status="${sourceEscapeAttr(status)}">${sourceEscape(status)}</span>`;
+}
+
 function renderSourceModuleList() {
   const modules = currentSourceGroup();
   const countLabel = `${modules.length} ${modules.length === 1 ? "module" : "modules"}`;
@@ -184,6 +201,7 @@ function renderSourceModuleList() {
           <button class="source-module-card ${index === sourceState.selectedIndex ? "active" : ""} ${sourceEscapeAttr(module.priority || "")}" type="button" data-source-index="${index}">
             <b>${sourceEscape(module.name)}</b><i>${sourceEscape(module.priority || "candidate")}</i>
             <span>${sourceEscape(module.uxSection || "Hermes3D module")}</span><span>${sourceEscape(module.license || "unknown")}</span>
+            ${renderModuleStatusPill(module)}
           </button>
         `,
       )
