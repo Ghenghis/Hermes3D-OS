@@ -1547,3 +1547,33 @@ document.querySelector("#dashboardJobs")?.addEventListener("click", function(e) 
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
+
+// Slot 9: voice state status pill
+async function pollVoiceState() {
+  try {
+    const state_data = await api("/api/voice/state").catch(() => null);
+    const pill = document.getElementById("voiceStatusPill");
+    if (pill && state_data) {
+      pill.textContent = `Voice: ${state_data.status || "idle"}`;
+      pill.dataset.voiceStatus = state_data.status || "idle";
+    }
+  } catch (e) { /* silent */ }
+}
+
+document.getElementById("voiceStatusPill")?.addEventListener("click", async () => {
+  const voiceState = await api("/api/voice/state").catch(() => ({ status: "unknown" }));
+  const payload = {
+    tab_id: "voice", kind: "voice", item_id: "voice-state",
+    title: "Voice System", subtitle: voiceState.status || "idle",
+    status_pill: voiceState.status || "idle",
+    primary_actions: [{ id: "mute", label: "Mute", endpoint: "/api/voice/mute", method: "POST" }],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Status", body: JSON.stringify(voiceState, null, 2) }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+setInterval(pollVoiceState, 5000);
+pollVoiceState();
