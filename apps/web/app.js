@@ -930,7 +930,7 @@ function renderVisualEvidence(artifacts) {
 function renderArtifactCard(artifact, includeJob) {
   const evidence = artifact.metadata?.evidence || {};
   return `
-    <article class="artifact-card">
+    <article class="artifact-card" data-artifact-id="${escapeAttr(artifact.id)}">
       <div class="row">
         <strong>${escapeHtml(evidence.label || artifact.kind)}</strong>
         <span class="muted">${includeJob ? `Job #${escapeHtml(artifact.job_id)}` : `#${escapeHtml(artifact.id)}`}</span>
@@ -938,7 +938,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${renderEvidenceAttachment(artifact)}
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
-      <p class="muted">${escapeHtml(artifact.path)}</p>
+      <p class="muted path">${escapeHtml(artifact.path)}</p>
     </article>
   `;
 }
@@ -1692,3 +1692,26 @@ if (new URLSearchParams(window.location.search).get("debug") === "1") {
   });
   console.log("[Hermes3D] ActionWindow debug logger active (remove ?debug=1 to disable)");
 }
+
+// Slot 12: artifact row click → Action Window
+document.addEventListener("click", function(e) {
+  const row = e.target.closest(".artifact-card[data-artifact-id]");
+  if (!row) return;
+  const artifactId = row.dataset.artifactId;
+  const name = row.querySelector("strong")?.textContent || ("Artifact " + artifactId);
+  const path = row.querySelector(".path")?.textContent || "";
+  const payload = {
+    tab_id: "artifacts", kind: "artifact", item_id: String(artifactId || name),
+    title: name, subtitle: path,
+    status_pill: "ready",
+    primary_actions: [
+      { id: "download", label: "Download", endpoint: "/api/artifacts/" + artifactId + "/download", method: "GET" },
+      { id: "open-folder", label: "Open Folder", endpoint: "/api/artifacts/" + artifactId + "/open-folder", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Artifact Details", body: "Path: " + path }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
