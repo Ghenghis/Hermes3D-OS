@@ -1361,4 +1361,68 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+document.querySelector("#dashboardFleet").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "dashboard", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: printer.vendor || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [], panels: [{ id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}` }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+function showToast(msg, durationMs = 3000) {
+  const toast = document.getElementById("hermes-toast");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, durationMs);
+}
+
+document.querySelector("#printersDiscover")?.addEventListener("click", async () => {
+  try {
+    const result = await api("/api/printers/discover", { method: "POST", body: "{}" });
+    showToast(`Discovered ${result.discovered ?? 0} printer(s)`);
+    await refresh();
+  } catch (e) {
+    showToast("Discovery failed: " + (e.message || "unknown error"));
+  }
+});
+
 refresh();
+
+document.querySelector("#printers").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  // skip if clicking the test button
+  if (e.target.closest("button[data-test-printer]")) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "printers", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: `${printer.vendor || ""} ${printer.model || ""}`.trim() || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [],
+    panels: [
+      { id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}\nConnector: ${printer.connector || "n/a"}` },
+      { id: "camera", title: "Camera", body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0"></iframe>` : "No camera configured." }
+    ],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
