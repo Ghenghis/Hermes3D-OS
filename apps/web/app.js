@@ -1,4 +1,4 @@
-﻿const THEME_OPTIONS = [
+const THEME_OPTIONS = [
   ["midnight", "Midnight", "Deep command-center dark with blue and teal accents"],
   ["alloy", "Alloy", "Neutral graphite workshop theme"],
   ["ember", "Ember", "Warm dark theme for long shop sessions"],
@@ -124,6 +124,7 @@ function renderAll() {
   renderDesign();
   renderGenerationStack();
   renderAgenticWork();
+  renderAgentsList();
   renderLearningMode();
   renderJobs();
   renderPrinters();
@@ -155,10 +156,13 @@ function renderPrinterSelect() {
   ].join("");
 }
 
-function renderDashboard() {
-  setHtml("#dashboardFleet", renderPrinterCards(state.printers.slice(0, 4), true));
-  setHtml("#dashboardJobs", renderJobCards(state.jobs.slice(0, 8)));
-  setHtml("#dashboardEvents", renderEventCards(state.events.slice(0, 12)));
+function renderDashboard(summary) {
+  const fleet = summary?.fleet || state.printers.slice(0, 4);
+  const queue = summary?.queue || state.jobs.slice(0, 8);
+  const events = summary?.events || state.events.slice(0, 12);
+  setHtml("#dashboardFleet", renderPrinterCards(fleet, !summary));
+  setHtml("#dashboardJobs", renderJobCards(queue));
+  setHtml("#dashboardEvents", renderEventCards(events));
 }
 
 function renderSetup() {
@@ -459,6 +463,21 @@ function renderAgenticBlocker(blocker) {
   `;
 }
 
+async function renderAgentsList() {
+  try {
+    const agents = await api("/api/agents/list").catch(() => []);
+    const el = document.getElementById("agentsList");
+    if (!el) return;
+    if (!agents.length) { el.innerHTML = "<p class=muted>No agents registered.</p>"; return; }
+    el.innerHTML = agents.map(function(a) {
+      return "<article class=agent-card data-agent-id=" + escapeAttr(a.id) + ">" +
+        "<div class=row><h3>" + escapeHtml(a.name || a.id) + "</h3>" +
+        "<span class=badge>" + escapeHtml(a.status || "unknown") + "</span></div>" +
+        "<p class=muted>" + escapeHtml(a.role || "") + "</p></article>";
+    }).join("");
+  } catch(e) {}
+}
+
 function renderLearningMode() {
   const learning = state.learningMode || {};
   const topics = learning.topics || [];
@@ -484,7 +503,7 @@ function renderLearningMode() {
     reports
       .map(
         (report) => `
-          <article class="artifact-card" data-artifact-id="${escapeAttr(artifact.id)}">
+          <article class="artifact-card">
             <div class="row">
               <strong>${escapeHtml(report.name || "learning report")}</strong>
               ${stateBadge("MD")}
@@ -514,6 +533,7 @@ function renderLearningTopic(topic) {
 function renderJobs() {
   setHtml("#jobs", renderJobCards(state.jobs));
 }
+
 
 function renderPrinters() {
   setHtml("#printers", renderPrinterCards(state.printers, false));
@@ -891,7 +911,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${renderEvidenceAttachment(artifact)}
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
-      <p class="muted path">${escapeHtml(artifact.path)}</p>
+      <p class="muted">${escapeHtml(artifact.path)}</p>
     </article>
   `;
 }
@@ -1120,40 +1140,37 @@ window.addEventListener("hashchange", () => {
   renderTabs();
 });
 
+// Slot 10: agents list row -> Action Window
+document.querySelector("#agentsList")?.addEventListener("click", function(e) {
+  var card = e.target.closest(".agent-card");
+  if (!card) return;
+  var agentId = card.dataset.agentId;
+  var payload = {
+    tab_id: "agents", kind: "agent", item_id: agentId,
+    title: (card.querySelector("h3") || {}).textContent || agentId,
+    subtitle: (card.querySelector("p") || {}).textContent || "",
+    status_pill: (card.querySelector(".badge") || {}).textContent || "unknown",
+    primary_actions: [
+      { id: "health", label: "Check Health", endpoint: "/api/agents/" + agentId + "/health", method: "GET" },
+      { id: "dispatch", label: "Dispatch Task", endpoint: "/api/agents/" + agentId + "/dispatch", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Agent Info", body: "ID: " + agentId }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow && window.HermesActionWindow.dispatch) {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
+});
+
 document.addEventListener("click", async (event) => {
   const jobCard = event.target.closest(".job-card");
   if (jobCard) {
     state.activeJobId = Number(jobCard.dataset.jobId);
     setActivePage("jobs");
     renderAll();
-    const jobId = jobCard.dataset.jobId;
-    const job = state.jobs.find((j) => String(j.id) === String(jobId)) || { id: jobId };
-    const awPayload = {
-      tab_id: "jobs",
-      kind: "job",
-      item_id: String(job.id),
-      title: job.title || job.name || `Job #${job.id}`,
-      subtitle: job.state || job.status || "",
-      status_pill: job.state || job.status || "queued",
-      primary_actions: [
-        { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
-        { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" },
-      ],
-      secondary_actions: [],
-      panels: [
-        {
-          id: "details",
-          title: "Details",
-          body: `Status: ${job.state || job.status || "n/a"}\nNotes: ${job.notes || ""}`,
-        },
-      ],
-      stream_url: null,
-    };
-    if (window.HermesActionWindow?.dispatch) {
-      window.HermesActionWindow.dispatch(awPayload);
-    } else {
-      document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: awPayload }));
-    }
   }
 
   const printerButton = event.target.closest("[data-test-printer]");
@@ -1335,6 +1352,27 @@ advanceBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const summary = await api("/api/dashboard/summary");
+  renderDashboard(summary);
+});
+
+document.querySelector("#jobsClearCompletedBtn")?.addEventListener("click", async () => {
+  if (!confirm("Are you sure you want to clear all completed jobs? This action cannot be undone.")) {
+    return;
+  }
+  const result = await api("/api/jobs/clear-completed", { method: "POST", body: "{}" });
+  alert(result.message);
+  await refresh();
+});
+
+document.querySelector("#jobsExportCsvBtn")?.addEventListener("click", async () => {
+  if (!confirm("Export all jobs to CSV? This will download a file with current job data.")) {
+    return;
+  }
+  window.open("/api/jobs/export.csv", "_blank");
+});
+
 approveModelBtn.addEventListener("click", async () => {
   await api(`/api/jobs/${state.activeJobId}/approvals/MODEL_APPROVAL`, {
     method: "POST",
@@ -1378,6 +1416,113 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+document.querySelector("#dashboardFleet").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "dashboard", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: printer.vendor || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [], panels: [{ id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}` }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+function showToast(msg, durationMs = 3000) {
+  const toast = document.getElementById("hermes-toast");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, durationMs);
+}
+
+document.querySelector("#printersDiscover")?.addEventListener("click", async () => {
+  try {
+    const result = await api("/api/printers/discover", { method: "POST", body: "{}" });
+    showToast(`Discovered ${result.discovered ?? 0} printer(s)`);
+    await refresh();
+  } catch (e) {
+    showToast("Discovery failed: " + (e.message || "unknown error"));
+  }
+});
+
+refresh();
+
+document.querySelector("#printers").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  // skip if clicking the test button
+  if (e.target.closest("button[data-test-printer]")) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "printers", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: `${printer.vendor || ""} ${printer.model || ""}`.trim() || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [],
+    panels: [
+      { id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}\nConnector: ${printer.connector || "n/a"}` },
+      { id: "camera", title: "Camera", body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0"></iframe>` : "No camera configured." }
+    ],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+document.querySelector("#dashboardEvents")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".event-card");
+  if (!card) return;
+  const eventType = card.querySelector("strong")?.textContent || "event";
+  const message = card.querySelector("p")?.textContent || "";
+  const evt = state.events?.find(ev => ev.event_type === eventType) || { event_type: eventType, message };
+  const payload = {
+    tab_id: "dashboard", kind: "event", item_id: evt.event_type,
+    title: evt.event_type, subtitle: evt.message || "",
+    status_pill: "info",
+    primary_actions: [],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Details", body: evt.message || "" }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 2: dashboard queue — click job card → Action Window (kind=job)
+document.querySelector("#dashboardJobs")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".job-card");
+  if (!card) return;
+  const jobId = card.dataset.jobId;
+  const job = state.jobs.find(j => String(j.id) === String(jobId)) || { id: jobId, title: "Job" };
+  const payload = {
+    tab_id: "dashboard", kind: "job", item_id: String(job.id),
+    title: job.title || `Job #${job.id}`, subtitle: job.state || "",
+    status_pill: { text: job.state || "queued", tone: "info" },
+    primary_actions: [
+      { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+      { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", label: "Details", body_html: escapeHtml(job.description || job.title || "") }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
 // Slot 8: observe tab — click camera card → Action Window (kind=printer, live SSE log panel)
 document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
   const card = e.target.closest('.camera-card');
@@ -1399,71 +1544,3 @@ document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
 });
-
-
-// Dev-only: log every actionwindow:render event when ?debug=1 is in URL
-if (new URLSearchParams(window.location.search).get("debug") === "1") {
-  document.addEventListener("actionwindow:render", (event) => {
-    const payload = event.detail;
-    console.group(`[ActionWindow] ${payload?.kind || "?"}: ${payload?.title || "?"}`);
-    console.log("tab_id:", payload?.tab_id);
-    console.log("item_id:", payload?.item_id);
-    console.log("status_pill:", payload?.status_pill);
-    console.log("primary_actions:", payload?.primary_actions);
-    console.log("payload:", payload);
-    console.groupEnd();
-  });
-  console.log("[Hermes3D] ActionWindow debug logger active (remove ?debug=1 to disable)");
-}
-
-// Slot 13: approvals pending card → Action Window
-document.querySelector("#approvalsPageList")?.addEventListener("click", function(e) {
-  const card = e.target.closest(".approval-card, article[data-approval-id]");
-  if (!card) return;
-  // Skip if clicking approve/reject buttons directly
-  if (e.target.closest("button[data-approve], button[data-reject]")) return;
-  const approvalId = card.dataset.approvalId;
-  const title = card.querySelector("h3, strong")?.textContent || `Approval ${approvalId}`;
-  const note = card.querySelector("p, .muted")?.textContent || "";
-  const payload = {
-    tab_id: "approvals", kind: "approval", item_id: String(approvalId || title),
-    title: title, subtitle: note.substring(0, 80),
-    status_pill: "pending",
-    primary_actions: [
-      { id: "approve", label: "Approve", endpoint: `/api/approvals/${approvalId}/approve`, method: "POST" },
-      { id: "reject", label: "Reject", endpoint: `/api/approvals/${approvalId}/reject`, method: "POST" }
-    ],
-    secondary_actions: [],
-    panels: [{ id: "details", title: "Approval Details", body: note }],
-    stream_url: null
-  };
-  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
-  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
-});
-
-// Slot 11: learning topic cards -> Action Window
-document.querySelector('#learningTopics')?.addEventListener('click', function (e) {
-  const card = e.target.closest('.setup-card, .topic-card, .learning-card, article');
-  if (!card) return;
-  const title = card.querySelector('h3, strong, .title')?.textContent || 'Topic';
-  const body = card.querySelector('p, .muted, .body')?.textContent || '';
-  const payload = {
-    tab_id: 'learning',
-    kind: 'topic',
-    item_id: title.toLowerCase().replace(/s+/g, '-'),
-    title: title,
-    subtitle: body.substring(0, 80),
-    status_pill: 'learn',
-    primary_actions: [{ id: 'bookmark', label: 'Bookmark', endpoint: '/api/learning/bookmark', method: 'POST' }],
-    secondary_actions: [],
-    panels: [
-      { id: 'details', title: 'Topic Details', body: body },
-      { id: 'papers', title: 'Linked Papers', body: 'No papers linked yet.' },
-    ],
-    stream_url: null,
-  };
-  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
-  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
-});
-
-refresh();
