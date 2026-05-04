@@ -1375,3 +1375,29 @@ document.querySelector("#printersDiscover")?.addEventListener("click", async () 
 });
 
 refresh();
+
+document.querySelector("#printers").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  // skip if clicking the test button
+  if (e.target.closest("button[data-test-printer]")) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "printers", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: `${printer.vendor || ""} ${printer.model || ""}`.trim() || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [],
+    panels: [
+      { id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}\nConnector: ${printer.connector || "n/a"}` },
+      { id: "camera", title: "Camera", body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0"></iframe>` : "No camera configured." }
+    ],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
