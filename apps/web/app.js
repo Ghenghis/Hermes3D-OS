@@ -928,7 +928,7 @@ function renderVisualEvidence(artifacts) {
 function renderArtifactCard(artifact, includeJob) {
   const evidence = artifact.metadata?.evidence || {};
   return `
-    <article class="artifact-card">
+    <article class="artifact-card" data-artifact-id="${escapeAttr(artifact.id)}">
       <div class="row">
         <strong>${escapeHtml(evidence.label || artifact.kind)}</strong>
         <span class="muted">${includeJob ? `Job #${escapeHtml(artifact.job_id)}` : `#${escapeHtml(artifact.id)}`}</span>
@@ -936,7 +936,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${renderEvidenceAttachment(artifact)}
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
-      <p class="muted">${escapeHtml(artifact.path)}</p>
+      <p class="muted path">${escapeHtml(artifact.path)}</p>
     </article>
   `;
 }
