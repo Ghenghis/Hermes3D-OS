@@ -155,10 +155,13 @@ function renderPrinterSelect() {
   ].join("");
 }
 
-function renderDashboard() {
-  setHtml("#dashboardFleet", renderPrinterCards(state.printers.slice(0, 4), true));
-  setHtml("#dashboardJobs", renderJobCards(state.jobs.slice(0, 8)));
-  setHtml("#dashboardEvents", renderEventCards(state.events.slice(0, 12)));
+function renderDashboard(summary) {
+  const fleet = summary?.fleet || state.printers.slice(0, 4);
+  const queue = summary?.queue || state.jobs.slice(0, 8);
+  const events = summary?.events || state.events.slice(0, 12);
+  setHtml("#dashboardFleet", renderPrinterCards(fleet, !summary));
+  setHtml("#dashboardJobs", renderJobCards(queue));
+  setHtml("#dashboardEvents", renderEventCards(events));
 }
 
 function renderSetup() {
@@ -515,11 +518,6 @@ function renderJobs() {
   setHtml("#jobs", renderJobCards(state.jobs));
 }
 
-function renderDashboard(summary) {
-  setHtml("#dashboardFleet", renderPrinterCards(summary.fleet || state.printers, false));
-  setHtml("#dashboardJobs", renderJobCards(summary.queue || state.jobs));
-  setHtml("#dashboardEvents", (summary.events || state.events).map(renderEvent).join("") || '<div class="empty-state">No events yet.</div>');
-}
 
 function renderPrinters() {
   setHtml("#printers", renderPrinterCards(state.printers, false));
@@ -1317,7 +1315,7 @@ document.querySelector("#jobsExportCsvBtn")?.addEventListener("click", async () 
   if (!confirm("Export all jobs to CSV? This will download a file with current job data.")) {
     return;
   }
-  window.location.href = "/api/jobs/export.csv";
+  window.open("/api/jobs/export.csv", "_blank");
 });
 
 approveModelBtn.addEventListener("click", async () => {
