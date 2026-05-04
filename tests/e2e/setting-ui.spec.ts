@@ -39,16 +39,16 @@ test.describe("UI Settings", () => {
 
   test("theme persists across reloads", async ({ page }) => {
     await page.click('button[data-page="settings"]');
-    await page.waitForSelector("#themeSelect");
+    await page.waitForSelector("#uiPanelThemeSelect");
     
-    const select = page.locator("#themeSelect");
+    const select = page.locator("#uiPanelThemeSelect");
     await select.selectOption("alloy");
     
     await expect(page.body).toHaveAttribute("data-theme", "alloy");
     
     await page.reload();
     await page.click('button[data-page="settings"]');
-    await page.waitForSelector("#themeSelect");
+    await page.waitForSelector("#uiPanelThemeSelect");
     
     await expect(select).toHaveValue("alloy");
     await expect(page.body).toHaveAttribute("data-theme", "alloy");
@@ -98,9 +98,9 @@ test.describe("UI Settings", () => {
 
   test("reset button restores default theme", async ({ page }) => {
     await page.click('button[data-page="settings"]');
-    await page.waitForSelector("#themeSelect");
+    await page.waitForSelector("#uiPanelThemeSelect");
     
-    const select = page.locator("#themeSelect");
+    const select = page.locator("#uiPanelThemeSelect");
     await select.selectOption("alloy");
     
     await page.click('button[data-reset="theme"]');

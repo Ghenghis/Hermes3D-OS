@@ -95,7 +95,7 @@ function renderSettingsPanel() {
       <article class="setting-row">
         <label>
           <strong>Theme</strong>
-          <select id="themeSelect">
+          <select id="uiPanelThemeSelect">
             <option value="midnight" ${uiSettings.theme === "midnight" ? "selected" : ""}>Midnight</option>
             <option value="alloy" ${uiSettings.theme === "alloy" ? "selected" : ""}>Alloy</option>
             <option value="ember" ${uiSettings.theme === "ember" ? "selected" : ""}>Ember</option>
@@ -135,7 +135,7 @@ function renderSettingsPanel() {
     saveUiSettings({ font_family: e.target.value });
   });
 
-  panel.querySelector("#themeSelect")?.addEventListener("change", (e) => {
+  panel.querySelector("#uiPanelThemeSelect")?.addEventListener("change", (e) => {
     uiSettings.theme = e.target.value;
     applyUiSettings();
     saveUiSettings({ theme: e.target.value });
