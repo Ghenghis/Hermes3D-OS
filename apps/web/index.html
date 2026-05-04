@@ -65,6 +65,7 @@
                 <strong id="sourceGroupTitle">Source Modules</strong>
                 <span id="sourceGroupCount"></span>
               </div>
+              <input id="sourceSearch" type="search" placeholder="Search modules..." style="margin:.5rem 0;width:100%;" />
               <div id="sourceModuleList" class="source-module-buttons"></div>
             </aside>
 
@@ -78,6 +79,7 @@
                   <div id="sourceLayoutControls" class="source-layout-controls" aria-label="Source workbench size"></div>
                   <button id="sourceOpenRepo" type="button">Repo</button>
                   <button id="sourceInstallApp" type="button">Install</button>
+                  <button id="sourceLaunchApp" type="button">Launch</button>
                   <button id="sourceBridgePlan" type="button">Bridge</button>
                   <button id="sourceSetupPlan" type="button">Setup</button>
                 </div>
@@ -157,6 +159,9 @@
       </section>
 
       <section id="page-dashboard" class="page">
+        <div class="dashboard-toolbar">
+          <button id="dashboardRefreshBtn" type="button">Refresh</button>
+        </div>
         <div class="dashboard-grid">
           <section class="panel">
             <div class="panel-header">
@@ -292,6 +297,20 @@
               <h2>Job Queue</h2>
               <span class="muted">Select a job</span>
             </div>
+            <div class="jobs-toolbar">
+              <button id="jobsClearCompletedBtn" type="button">Clear Completed</button>
+              <button id="jobsExportCsvBtn" type="button">Export CSV</button>
+            </div>
+            <div class="jobs-filter-bar">
+              <input id="jobsSearch" type="search" placeholder="Search jobs..." autocomplete="off" />
+              <div class="jobs-status-chips" role="group" aria-label="Filter by status">
+                <button type="button" class="status-chip" data-status="queued" aria-pressed="false">Queued</button>
+                <button type="button" class="status-chip" data-status="running" aria-pressed="false">Running</button>
+                <button type="button" class="status-chip" data-status="done" aria-pressed="false">Done</button>
+                <button type="button" class="status-chip" data-status="failed" aria-pressed="false">Failed</button>
+                <button type="button" class="status-chip" data-status="canceled" aria-pressed="false">Canceled</button>
+              </div>
+            </div>
             <div id="jobs" class="jobs"></div>
           </section>
           <section class="panel">
@@ -317,6 +336,9 @@
             <h2>Printers</h2>
             <span class="muted">Moonraker fleet inventory</span>
           </div>
+          <div class="page-toolbar">
+            <button id="printersDiscover" type="button">Discover Printers</button>
+          </div>
           <div id="printers" class="printers printer-grid"></div>
         </section>
       </section>
@@ -326,6 +348,7 @@
           <div class="panel-header">
             <h2>Observe Prints</h2>
             <span class="muted">Integrated and USB camera slots</span>
+            <button id="telemetryToggleBtn" type="button">Toggle Stream</button>
           </div>
           <div id="observeGrid" class="camera-grid"></div>
         </section>
@@ -336,6 +359,7 @@
           <div class="panel-header">
             <h2>Hermes Voice Layer</h2>
             <span class="muted">Azure Speech for agents</span>
+            <button id="voiceMuteBtn" type="button">Mute</button>
           </div>
           <div id="voicePanel"></div>
         </section>
@@ -343,7 +367,14 @@
 
       <section id="page-agents" class="page">
         <div class="split-grid">
-          <section class="panel">
+                  <section class="panel">
+          <div class="panel-header">
+            <h2>Agents</h2>
+            <span class="muted">Registered agents</span>
+          </div>
+          <div id="agentsList" class="setup-list"></div>
+        </section>
+        <section class="panel">
             <div class="panel-header">
               <h2>Agentic Work Loop</h2>
               <span class="muted">Safe active work</span>
@@ -519,6 +550,7 @@
     </main>
 
     <aside id="actionWindow" class="action-window" hidden aria-label="Action Window"></aside>
+    <div id="hermes-toast" role="status" aria-live="polite" style="position:fixed;bottom:1rem;right:1rem;background:#222;color:#fff;padding:.5rem 1rem;border-radius:6px;display:none;z-index:9999"></div>
 
     <script src="/static/action-window.js?v=20260503-fnd"></script>
     <script src="/static/source-os.js?v=20260428-source"></script>
