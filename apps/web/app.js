@@ -1445,3 +1445,25 @@ document.querySelector("#dashboardEvents")?.addEventListener("click", function(e
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
+
+// Slot 2: dashboard queue — click job card → Action Window (kind=job)
+document.querySelector("#dashboardJobs")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".job-card");
+  if (!card) return;
+  const jobId = card.dataset.jobId;
+  const job = state.jobs.find(j => String(j.id) === String(jobId)) || { id: jobId, title: "Job" };
+  const payload = {
+    tab_id: "dashboard", kind: "job", item_id: String(job.id),
+    title: job.title || `Job #${job.id}`, subtitle: job.state || "",
+    status_pill: { text: job.state || "queued", tone: "info" },
+    primary_actions: [
+      { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+      { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", label: "Details", body_html: escapeHtml(job.description || job.title || "") }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
