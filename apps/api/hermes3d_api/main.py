@@ -44,6 +44,7 @@ from .schemas import (
     RuntimeAutoPortRequest,
     RuntimeSettingsUpdate,
     SpeechSynthesizeRequest,
+    UiSettingsUpdate,
     VoicePreviewRequest,
 )
 from .services.artifacts import job_dir, write_text_artifact
@@ -65,6 +66,7 @@ from .services.speech.voice_catalog import (
     fetch_azure_voice_catalog,
     speech_config_from_services,
 )
+from .ui_settings import router as ui_settings_router
 from .workflow import (
     COMPLETE,
     MODEL_APPROVAL,
@@ -204,6 +206,8 @@ def fluidd_static(asset_path: str = "") -> FileResponse:
 
 if web_dir.exists():
     app.mount("/static", StaticFiles(directory=web_dir), name="static")
+
+app.include_router(ui_settings_router)
 
 
 @app.on_event("startup")

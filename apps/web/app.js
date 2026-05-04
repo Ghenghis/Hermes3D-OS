@@ -641,6 +641,9 @@ function renderApprovalsPage() {
 }
 
 function renderSettings() {
+  if (window.hermesSettingsPanel) {
+    window.hermesSettingsPanel.render();
+  }
   const runtime = state.settings.runtime || {};
   const ports = runtime.ports || {};
   const serviceUrls = runtime.service_urls || {};
@@ -652,7 +655,6 @@ function renderSettings() {
   setHtml(
     "#settingsPage",
     [
-      renderAppearanceSettings(),
       `
         <form id="runtimeSettingsForm" class="settings-form">
           <div class="settings-toolbar">
@@ -1652,25 +1654,41 @@ document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
   else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
 });
 
-// Slot 12: artifact row click → Action Window
-document.querySelector("#artifactPageList")?.addEventListener("click", function(e) {
-  const row = e.target.closest(".artifact-card[data-artifact-id]");
-  if (!row) return;
-  const artifactId = row.dataset.artifactId;
-  const name = row.querySelector("strong")?.textContent || ("Artifact " + artifactId);
-  const path = row.querySelector(".path")?.textContent || "";
+// Slot 13: approvals pending card → Action Window
+document.querySelector("#approvalsPageList")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".approval-card, article[data-approval-id]");
+  if (!card) return;
+  if (e.target.closest("button[data-approve], button[data-reject]")) return;
+  const approvalId = card.dataset.approvalId;
+  const title = card.querySelector("h3, strong")?.textContent || ("Approval " + approvalId);
+  const note = card.querySelector("p, .muted")?.textContent || "";
   const payload = {
-    tab_id: "artifacts", kind: "artifact", item_id: String(artifactId || name),
-    title: name, subtitle: path,
-    status_pill: "ready",
+    tab_id: "approvals", kind: "approval", item_id: String(approvalId || title),
+    title: title, subtitle: note.substring(0, 80),
+    status_pill: "pending",
     primary_actions: [
-      { id: "download", label: "Download", endpoint: "/api/artifacts/" + artifactId + "/download", method: "GET" },
-      { id: "open-folder", label: "Open Folder", endpoint: "/api/artifacts/" + artifactId + "/open-folder", method: "POST" }
+      { id: "approve", label: "Approve", endpoint: "/api/approvals/" + approvalId + "/approve", method: "POST" },
+      { id: "reject", label: "Reject", endpoint: "/api/approvals/" + approvalId + "/reject", method: "POST" }
     ],
     secondary_actions: [],
-    panels: [{ id: "details", title: "Artifact Details", body: "Path: " + path }],
+    panels: [{ id: "details", title: "Approval Details", body: note }],
     stream_url: null
   };
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
+
+// Dev-only: log every actionwindow:render event when ?debug=1 is in URL
+if (new URLSearchParams(window.location.search).get("debug") === "1") {
+  document.addEventListener("actionwindow:render", (event) => {
+    const payload = event.detail;
+    console.group(`[ActionWindow] ${payload?.kind || "?"}: ${payload?.title || "?"}`);
+    console.log("tab_id:", payload?.tab_id);
+    console.log("item_id:", payload?.item_id);
+    console.log("status_pill:", payload?.status_pill);
+    console.log("primary_actions:", payload?.primary_actions);
+    console.log("payload:", payload);
+    console.groupEnd();
+  });
+  console.log("[Hermes3D] ActionWindow debug logger active (remove ?debug=1 to disable)");
+}
