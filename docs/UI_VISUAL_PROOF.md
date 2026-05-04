@@ -1,6 +1,8 @@
 # UI Visual Proof
 
-Captured on 2026-04-28 local time against the live local app at `http://127.0.0.1:8081/`.
+Captured originally on 2026-04-28 local time against the live local app at `http://127.0.0.1:8081/`.
+
+Updated Source OS verification was performed on 2026-05-03 against `http://127.0.0.1:18081/#sources`.
 
 The current Hermes OS Print Factory UI uses a dark default `Midnight` theme and supports saved theme switching for:
 
@@ -13,7 +15,12 @@ The current Hermes OS Print Factory UI uses a dark default `Midnight` theme and 
 
 - Live app title: `Hermes OS Print Factory`
 - Default theme: `midnight`
-- OS tabs present: 15
+- OS tabs present: 16
+- Source OS is the first tab and loads all 55 source modules from the manifest
+- Source app backend status returns 55 modules, 0 missing checkout folders, 3 full working trees, and 52 sparse working trees
+- PrusaSlicer, OrcaSlicer, and FLSUN Slicer are full working-tree source checkouts
+- Source OS action buttons are wired through `source-os.js` and `/api/source-apps/*` instead of being swallowed by the root layout click handler
+- The embedded fake slicer panel was replaced by real source checkout, executable, git head, checkout mode, and source-highlight status
 - Theme selector present in the topbar
 - Settings page theme swatches switch the live `body[data-theme]` value
 - FLSUN S1 is visible but maintenance locked
@@ -44,6 +51,12 @@ The screenshot set was sampled for brightness. Average luminance stayed between 
 | Plugins | [13-plugins.png](ui-proof/13-plugins.png) |
 | Settings | [14-settings.png](ui-proof/14-settings.png) |
 | Roadmap | [15-roadmap.png](ui-proof/15-roadmap.png) |
+
+The screenshot set predates the Source OS tab. Regenerate proof after the next visual pass so the table includes:
+
+| Page | Proof |
+| --- | --- |
+| Source OS | `00-source-os.png` |
 
 ## Dashboard Proof
 
