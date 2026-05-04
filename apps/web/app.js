@@ -1356,4 +1356,22 @@ document.querySelector("#dashboardFleet").addEventListener("click", function(e) 
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
 
+function showToast(msg, durationMs = 3000) {
+  const toast = document.getElementById("hermes-toast");
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, durationMs);
+}
+
+document.querySelector("#printersDiscover")?.addEventListener("click", async () => {
+  try {
+    const result = await api("/api/printers/discover", { method: "POST", body: "{}" });
+    showToast(`Discovered ${result.discovered ?? 0} printer(s)`);
+    await refresh();
+  } catch (e) {
+    showToast("Discovery failed: " + (e.message || "unknown error"));
+  }
+});
+
 refresh();
