@@ -1336,18 +1336,20 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
-document.querySelector("#dashboardEvents").addEventListener("click", function(e) {
-  const card = e.target.closest(".event-card");
+document.querySelector("#dashboardFleet").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
   if (!card) return;
-  const eventType = card.querySelector("strong")?.textContent || "event";
-  const message = card.querySelector(".muted")?.textContent || "";
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
   const payload = {
-    tab_id: "dashboard", kind: "event", item_id: eventType, title: eventType,
-    subtitle: "System event",
-    status_pill: "info",
-    primary_actions: [],
-    secondary_actions: [],
-    panels: [{ id: "detail", title: "Event Detail", body: message }],
+    tab_id: "dashboard", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: printer.vendor || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [], panels: [{ id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}` }],
     stream_url: null
   };
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
