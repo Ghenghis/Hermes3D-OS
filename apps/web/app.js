@@ -1336,32 +1336,24 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
-function showToast(msg, duration = 3000) {
-  let toast = document.querySelector("#hermes-toast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "hermes-toast";
-    toast.style.cssText = "position:fixed;bottom:1rem;right:1rem;background:#222;color:#fff;padding:0.5rem 1rem;border-radius:6px;z-index:9999;transition:opacity 0.3s;";
-    document.body.appendChild(toast);
-  }
-  toast.textContent = msg;
-  toast.style.opacity = "1";
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, duration);
-}
-
-document.querySelector("#printersDiscover")?.addEventListener("click", async function() {
-  this.disabled = true;
-  try {
-    const result = await api("/api/printers/discover", { method: "POST" });
-    const count = result.discovered ?? result.count ?? (Array.isArray(result.printers) ? result.printers.length : 0);
-    await refresh();
-    showToast(`Discovered ${count} printer${count !== 1 ? "s" : ""}`);
-  } catch (err) {
-    showToast(`Discover failed: ${err.message}`);
-  } finally {
-    this.disabled = false;
-  }
+document.querySelector("#dashboardFleet").addEventListener("click", function(e) {
+  const card = e.target.closest(".printer-card");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const payload = {
+    tab_id: "dashboard", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: printer.vendor || "Printer",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" },
+      { id: "open-camera", label: "Open Camera", endpoint: `/api/observe/stream/${printer.id}`, method: "GET" }
+    ],
+    secondary_actions: [], panels: [{ id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}` }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
 
 refresh();
