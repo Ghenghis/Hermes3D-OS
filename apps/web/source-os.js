@@ -48,7 +48,7 @@ const SOURCE_PREFERRED_ORDER = {
 const sourceState = {
   manifest: null,
   sourceAppsStatus: null,
-  groupKey: "slicers",
+  groupKey: localStorage.getItem("hermes3d.sourceGroupFilter") || "slicers",
   selectedIndex: 0,
   layout: localStorage.getItem("hermes3d.sourceLayout") || "wide",
 };
@@ -62,7 +62,8 @@ async function loadSourceManifest() {
       throw new Error(response.statusText);
     }
     sourceState.manifest = await response.json();
-    sourceState.groupKey = firstSourceGroup();
+    const _savedGroup = localStorage.getItem("hermes3d.sourceGroupFilter");
+    sourceState.groupKey = (_savedGroup && sourceGroups().includes(_savedGroup)) ? _savedGroup : firstSourceGroup();
     renderSourceOs();
     loadSourceAppsStatus();
   } catch (error) {
@@ -171,6 +172,23 @@ function renderSourceMix() {
   setSourceHtml("#sourceDownloadState", `${total} source modules / ${unique} local source checkouts`);
 }
 
+function renderModuleStatusPill(module) {
+  const appStatus = sourceAppStatus(module);
+  const status = appStatus.install_status
+    || (appStatus.installed_executable ? "installed" : null)
+    || module.install_status
+    || module.status
+    || "unknown";
+  const cls = status === "installed"
+    ? "pill-green"
+    : status === "installing"
+      ? "pill-yellow"
+      : status === "available" || status === "source ready"
+        ? "pill-blue"
+        : "pill-gray";
+  return `<span class="status-pill ${sourceEscapeAttr(cls)}" data-module-status="${sourceEscapeAttr(status)}">${sourceEscape(status)}</span>`;
+}
+
 function renderSourceModuleList() {
   const modules = currentSourceGroup();
   const countLabel = `${modules.length} ${modules.length === 1 ? "module" : "modules"}`;
@@ -184,6 +202,7 @@ function renderSourceModuleList() {
           <button class="source-module-card ${index === sourceState.selectedIndex ? "active" : ""} ${sourceEscapeAttr(module.priority || "")}" type="button" data-source-index="${index}">
             <b>${sourceEscape(module.name)}</b><i>${sourceEscape(module.priority || "candidate")}</i>
             <span>${sourceEscape(module.uxSection || "Hermes3D module")}</span><span>${sourceEscape(module.license || "unknown")}</span>
+            ${renderModuleStatusPill(module)}
           </button>
         `,
       )
@@ -408,9 +427,17 @@ function sourceAppStatus(module) {
     source_exists: false,
     installed_executable: "",
     cli_executable: "",
+    install_method: module.install?.method || null,
+    install_status: "not_installed",
+    install_state: { status: "not_installed", log_tail: [] },
   };
   const apps = sourceState.sourceAppsStatus?.apps || [];
-  return apps.find((item) => item.id === module.id || item.name === module.name) || empty;
+  const status = apps.find((item) => item.id === module.id || item.name === module.name) || empty;
+  return {
+    ...status,
+    install_method: status.install_method || module.install?.method || null,
+    install_state: status.install_state || empty.install_state,
+  };
 }
 
 function sourcePreferredRank(module) {
@@ -426,6 +453,10 @@ function sourceGroupLabel(group) {
 function localSourcePath(module) {
   if (!module.target) {
     return "source-lab/sources";
+  }
+  const status = sourceAppStatus(module);
+  if (status.source_path) {
+    return status.source_path.replaceAll("\\", "/");
   }
   return `${sourceState.manifest?.sourceRoot || "source-lab/sources"}/${module.target}`.replaceAll("\\", "/");
 }
@@ -452,12 +483,121 @@ function sourceStatus(module) {
   return "source downloaded / bridge planned";
 }
 
+function dispatchSourceModuleToActionWindow() {
+  const module = currentSourceModule();
+  if (!module) return;
+  const status = sourceAppStatus(module);
+  const installStatus = status.install_status || "not_installed";
+  const installMethod = status.install_method || null;
+  const installToneMap = { installed: "ok", installing: "info", failed: "err" };
+  const processStatus = status.process_state?.status || (status.process_state?.running ? "running" : "stopped");
+  const serviceUrl = status.service_url || "";
+  const tone = processStatus === "running" ? "ok" : installToneMap[installStatus]
+    || (status.installed_executable ? "ok" : (status.source_exists ? "info" : "warn"));
+  const pillText = processStatus === "running"
+    ? "running"
+    : installStatus !== "not_installed"
+    ? installStatus
+    : status.installed_executable
+      ? "installed"
+      : status.source_exists
+        ? "source ready"
+        : "not installed";
+  const primary = [];
+  const launchUrl = status.launch_url || status.process_state?.url || module.install?.static_url || "";
+  if (installMethod) {
+    primary.push({ id: "install-app", label: installStatus === "installing" ? "Installing…" : "Install", endpoint: `/api/source-apps/${module.id}/install`, method: "POST" });
+  }
+  if (status.launch_supported) {
+    primary.push({ id: "launch-app", label: launchUrl && status.process_state?.running ? "Open" : "Launch", endpoint: `/api/source-apps/${module.id}/launch`, method: "POST" });
+  }
+  if (status.process_state?.kind === "managed-process") {
+    primary.push({ id: "stop-app", label: "Stop", endpoint: `/api/source-apps/${module.id}/stop`, method: "POST" });
+  }
+  primary.push({ id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" });
+  if (serviceUrl) {
+    primary.push({ id: "open-browser", label: "Open Browser", endpoint: serviceUrl, method: "GET" });
+  }
+  const logTail = status.install_state?.log_tail || [];
+  const installNote = module.install?.note || "Local open-source install; no cloud service required.";
+  const launcherText = module.id === "triposr"
+    ? "N/A; TripoSR is prepared as a local research module and probed through its Python setup."
+    : status.launch_supported
+      ? launchUrl
+        ? `${status.process_state?.running ? "running" : "ready"} at ${launchUrl}`
+        : `${status.launch_status || "stopped"}${status.launch_pid ? ` pid ${status.launch_pid}` : ""}`
+      : "Native or service launch wiring depends on this app's adapter.";
+  const triposrPanels = module.id === "triposr"
+    ? [
+        {
+          id: "install",
+          label: "Install",
+          body_html: `
+            <ul style="margin:0;padding-left:1.1rem;line-height:1.55;">
+              <li><b>Target:</b> ${localSourcePath(module)}</li>
+              <li><b>Method:</b> ${installMethod || "none"}</li>
+              <li><b>Status:</b> ${installStatus}</li>
+              <li><b>Note:</b> ${sourceEscape(installNote)}</li>
+            </ul>
+            ${logTail.length ? `<pre style="white-space:pre-wrap;margin:.75rem 0 0;">${sourceEscape(logTail.join("\n"))}</pre>` : ""}`,
+        },
+        {
+          id: "readme",
+          label: "README",
+          body_html: `
+            <p style="margin:0;line-height:1.55;">TripoSR is the MIT-licensed VAST-AI-Research single-image 3D reconstruction codebase. Hermes installs it locally as source plus a Python venv, then probes the runnable scripts without starting a cloud service.</p>`,
+        },
+        {
+          id: "license",
+          label: "License",
+          body_html: `<p style="margin:0;line-height:1.55;">${sourceEscape(module.license || "unknown")}</p>`,
+        },
+      ]
+    : [];
+  const payload = {
+    tab_id: "sources",
+    kind: "app",
+    item_id: module.id,
+    title: module.name,
+    subtitle: module.uxSection || "Hermes3D module",
+    status_pill: { text: pillText, tone },
+    primary_actions: primary,
+    secondary_actions: [
+      { id: "open-local", label: "Open Local", endpoint: localSourcePath(module) },
+    ],
+    panels: [
+      {
+        id: "facts",
+        label: "Facts",
+        body_html: `
+          <ul style="margin:0;padding-left:1.1rem;line-height:1.55;">
+            <li><b>Repo:</b> ${module.repo || "user-provided"}</li>
+            <li><b>License:</b> ${module.license || "unknown"}</li>
+            <li><b>Priority:</b> ${module.priority || "candidate"}</li>
+            <li><b>Section:</b> ${module.uxSection || "Hermes3D module"}</li>
+            <li><b>Install:</b> ${installMethod ? `${installMethod} → ${installStatus}` : "no install block"}</li>
+            <li><b>Launcher:</b> ${sourceEscape(launcherText)}</li>
+            <li><b>Process:</b> ${sourceEscape(processStatus)}</li>
+            <li><b>URL:</b> ${sourceEscape(serviceUrl || launchUrl || "not launched")}</li>
+          </ul>`,
+      },
+      ...triposrPanels,
+    ],
+  };
+  if (window.HermesActionWindow && typeof window.HermesActionWindow.dispatch === "function") {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
+}
+
 function setSourceGroup(group) {
   if (!sourceState.manifest?.groups?.[group]) {
     return;
   }
   sourceState.groupKey = group;
   sourceState.selectedIndex = 0;
+  localStorage.setItem("hermes3d.sourceGroupFilter", group);
   renderSourceOs();
 }
 
@@ -488,13 +628,13 @@ function sourceEscapeAttr(value) {
 }
 
 document.addEventListener("click", (event) => {
-  const groupButton = event.target.closest("[data-source-group]");
+  const groupButton = event.target.closest("button[data-source-group]");
   if (groupButton) {
     setSourceGroup(groupButton.dataset.sourceGroup);
     return;
   }
 
-  const layoutButton = event.target.closest("[data-source-layout]");
+  const layoutButton = event.target.closest("button[data-source-layout]");
   if (layoutButton) {
     sourceState.layout = layoutButton.dataset.sourceLayout;
     localStorage.setItem("hermes3d.sourceLayout", sourceState.layout);
@@ -502,10 +642,11 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const moduleButton = event.target.closest("[data-source-index]");
+  const moduleButton = event.target.closest("button[data-source-index]");
   if (moduleButton) {
     sourceState.selectedIndex = Number(moduleButton.dataset.sourceIndex);
     renderSourceOs();
+    dispatchSourceModuleToActionWindow();
     return;
   }
 
@@ -533,5 +674,159 @@ document.addEventListener("click", (event) => {
     if (module) {
       setSourceHtml("#sourceDownloadState", `${module.name}: ${module.repo || localSourcePath(module)}`);
     }
+    return;
   }
+
+  const installButton = event.target.closest("#sourceInstallApp");
+  if (installButton) {
+    const module = currentSourceModule();
+    if (module) {
+      installSourceModule(module);
+    }
+    return;
+  }
+
+  const launchButton = event.target.closest("#sourceLaunchApp");
+  if (launchButton) {
+    const module = currentSourceModule();
+    if (module) {
+      launchSourceModule(module);
+    }
+    return;
+  }
+
+  const awInstallButton = event.target.closest("#actionWindow [data-action-id='install-app']");
+  if (awInstallButton) {
+    const moduleId = awInstallButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) installSourceModule(module);
+    return;
+  }
+
+  const awLaunchButton = event.target.closest("#actionWindow [data-action-id='launch-app']");
+  if (awLaunchButton) {
+    const moduleId = awLaunchButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) launchSourceModule(module);
+    return;
+  }
+
+  const awStopButton = event.target.closest("#actionWindow [data-action-id='stop-app']");
+  if (awStopButton) {
+    const moduleId = awStopButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) runSourceProcessAction(module, "stop");
+    return;
+  }
+
+  const awOpenBrowserButton = event.target.closest("#actionWindow [data-action-id='open-browser']");
+  if (awOpenBrowserButton) {
+    const url = awOpenBrowserButton.dataset.endpoint;
+    if (url) {
+      window.open(url, "_blank", "noopener");
+    }
+    return;
+  }
+});
+
+async function installSourceModule(module) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: install requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/install`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: install failed — ${reason}`);
+      return;
+    }
+    setSourceHtml("#sourceDownloadState", `${module.name}: install ${payload.status || "running"}`);
+    await pollSourceInstall(module);
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: install error — ${err}`);
+  }
+}
+
+async function pollSourceInstall(module) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    await loadSourceAppsStatus();
+    const status = sourceAppStatus(module);
+    setSourceHtml("#sourceDownloadState", `${module.name}: install ${status.install_status || "not_installed"}`);
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+    if (status.install_status === "installed" || status.install_status === "failed") {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
+async function launchSourceModule(module) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: launch requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/launch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.detail || payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: launch failed - ${sourceEscape(reason)}`);
+      return;
+    }
+    const launchUrl = payload.url || payload.state?.url || "";
+    if (launchUrl) {
+      setSourceHtml("#sourceDownloadState", `${module.name}: running at ${launchUrl}`);
+    } else {
+      setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.launch_status || payload.status || "running"}${payload.pid ? ` pid ${payload.pid}` : ""}`);
+    }
+    await loadSourceAppsStatus();
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: launch error - ${sourceEscape(err)}`);
+  }
+}
+
+async function runSourceProcessAction(module, action) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: ${action} requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/${action}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.detail || payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: ${action} failed - ${sourceEscape(reason)}`);
+      return;
+    }
+    const status = payload.state?.status || payload.status || action;
+    setSourceHtml("#sourceDownloadState", `${module.name}: ${status}`);
+    await loadSourceAppsStatus();
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: ${action} error - ${sourceEscape(err)}`);
+  }
+}
+
+document.getElementById("sourceSearch")?.addEventListener("input", (e) => {
+  const query = e.target.value.toLowerCase();
+  document.querySelectorAll("#sourceModuleList .source-module-btn, #sourceModuleList button").forEach(btn => {
+    const text = btn.textContent.toLowerCase();
+    btn.style.display = text.includes(query) ? "" : "none";
+  });
 });

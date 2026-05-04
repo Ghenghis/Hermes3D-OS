@@ -1,0 +1,17 @@
+{
+  "name": "hermes3d-os-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Playwright E2E harness for Hermes3D-OS — boots apps/web/ static + apps/api FastAPI, exercises the full GUI.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "serve:web": "python -m http.server 8000 --directory apps/web",
+    "serve:api": "python -m uvicorn apps.api.hermes3d_api.main:app --host 127.0.0.1 --port 18081"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "typescript": "^5.6.0"
+  }
+}
