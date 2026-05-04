@@ -1607,6 +1607,29 @@ document.getElementById("voiceStatusPill")?.addEventListener("click", async () =
 setInterval(pollVoiceState, 5000);
 pollVoiceState();
 
+// Slot 11: learning topic cards -> Action Window
+document.querySelector('#learningTopics')?.addEventListener('click', function (e) {
+  const card = e.target.closest('.setup-card, .topic-card, .learning-card, article');
+  if (!card) return;
+  const title = card.querySelector('h3, strong, .title')?.textContent || 'Topic';
+  const body = card.querySelector('p, .muted, .body')?.textContent || '';
+  const payload = {
+    tab_id: 'learning', kind: 'topic',
+    item_id: title.toLowerCase().replace(/\s+/g, '-'),
+    title: title, subtitle: body.substring(0, 80),
+    status_pill: 'learn',
+    primary_actions: [{ id: 'bookmark', label: 'Bookmark', endpoint: '/api/learning/bookmark', method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'details', title: 'Topic Details', body: body },
+      { id: 'papers', title: 'Linked Papers', body: 'No papers linked yet.' },
+    ],
+    stream_url: null,
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
 // Dev-only: log every actionwindow:render event when ?debug=1 is in URL
 if (new URLSearchParams(window.location.search).get("debug") === "1") {
   document.addEventListener("actionwindow:render", (event) => {
