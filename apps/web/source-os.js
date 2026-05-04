@@ -53,6 +53,18 @@ const sourceState = {
   layout: localStorage.getItem("hermes3d.sourceLayout") || "wide",
 };
 
+let _sourceSearchQuery = "";
+
+function filteredModules(modules) {
+  if (!_sourceSearchQuery) return modules;
+  const q = _sourceSearchQuery.toLowerCase();
+  return modules.filter(m =>
+    (m.id || "").toLowerCase().includes(q) ||
+    (m.name || "").toLowerCase().includes(q) ||
+    (m.uxSection || "").toLowerCase().includes(q)
+  );
+}
+
 loadSourceManifest();
 
 async function loadSourceManifest() {
@@ -190,10 +202,18 @@ function renderModuleStatusPill(module) {
 }
 
 function renderSourceModuleList() {
-  const modules = currentSourceGroup();
+  const allModules = currentSourceGroup();
+  const modules = filteredModules(allModules);
   const countLabel = `${modules.length} ${modules.length === 1 ? "module" : "modules"}`;
   setSourceHtml("#sourceGroupTitle", sourceGroupLabel(sourceState.groupKey));
   setSourceHtml("#sourceGroupCount", countLabel);
+  if (modules.length === 0) {
+    setSourceHtml(
+      "#sourceModuleList",
+      `<div class="empty-state">No apps match "${sourceEscape(_sourceSearchQuery)}".</div>`,
+    );
+    return;
+  }
   setSourceHtml(
     "#sourceModuleList",
     modules
@@ -824,9 +844,6 @@ async function runSourceProcessAction(module, action) {
 }
 
 document.getElementById("sourceSearch")?.addEventListener("input", (e) => {
-  const query = e.target.value.toLowerCase();
-  document.querySelectorAll("#sourceModuleList .source-module-btn, #sourceModuleList button").forEach(btn => {
-    const text = btn.textContent.toLowerCase();
-    btn.style.display = text.includes(query) ? "" : "none";
-  });
+  _sourceSearchQuery = e.target.value;
+  renderSourceModuleList();
 });
