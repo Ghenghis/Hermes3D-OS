@@ -25,6 +25,7 @@ from .config import (
     save_runtime_config,
 )
 from .db import Database, row_to_dict, utc_now
+from . import source_install
 from .schemas import (
     AdvanceRequest,
     AgentVoiceUpdate,
@@ -128,6 +129,14 @@ SOURCE_APP_REGISTRY = [
         "gui_tool_key": "cura_gui",
         "cli_commands": ["cura"],
         "gui_commands": ["cura"],
+    },
+    {
+        "id": "triposr",
+        "name": "TripoSR",
+        "target": Path("generation") / "TripoSR",
+        "tool_key": "triposr",
+        "cli_commands": [],
+        "gui_commands": [],
     },
 ]
 
@@ -667,12 +676,17 @@ def generation_stack_status() -> dict[str, Any]:
 
 @app.get("/api/source-apps/status")
 def source_apps_status() -> dict[str, Any]:
-    source_root = settings.repo_root / "source-lab" / "sources"
+    source_root = source_install.resolve_apps_root(settings.repo_root)
     apps = []
     for item in SOURCE_APP_REGISTRY:
         source_path = source_root / item["target"]
         cli_path = _tool_path(item["tool_key"], item["cli_commands"])
         gui_path = _tool_path(item.get("gui_tool_key", item["tool_key"]), item["gui_commands"])
+        manifest_entry = source_install.find_app(settings.repo_root, item["id"]) or {}
+        install_state = source_install.install_state_payload(item["id"])
+        if manifest_entry.get("install") and install_state["status"] == "not_installed":
+            if source_install.probe_installed(item["id"], manifest_entry, settings.repo_root):
+                install_state = {**install_state, "status": "installed", "log_tail": ["probed installation target"]}
         apps.append(
             {
                 "id": item["id"],
@@ -682,6 +696,9 @@ def source_apps_status() -> dict[str, Any]:
                 "source_has_git": (source_path / ".git").exists(),
                 "cli_executable": cli_path or "",
                 "installed_executable": gui_path or cli_path or "",
+                "install_method": (manifest_entry.get("install") or {}).get("method"),
+                "install_status": install_state["status"],
+                "install_state": install_state,
                 "embed_mode": "native-window-bridge-required",
                 "ui_host": "Hermes3D resizable Source OS workbench",
                 "safe_actions": ["inspect source", "configure executable path", "run CLI dry-run after approval"],
@@ -690,8 +707,23 @@ def source_apps_status() -> dict[str, Any]:
     return {
         "source_root": str(source_root),
         "apps": apps,
+        "supported_install_methods": source_install.supported_methods(),
         "note": "Native GUI embedding requires a desktop bridge such as Electron/Tauri/webview capture; the browser shell only hosts status and adapters.",
     }
+
+
+@app.post("/api/source-apps/{app_id}/install")
+def source_app_install(app_id: str) -> dict[str, Any]:
+    """Kick off an install for the given app id; returns current state."""
+    result = source_install.start_install(settings.repo_root, app_id)
+    if not result.get("ok"):
+        return {"app_id": app_id, **result}
+    return {"app_id": app_id, **result, "state": source_install.install_state_payload(app_id)}
+
+
+@app.get("/api/source-apps/{app_id}/install")
+def source_app_install_state(app_id: str) -> dict[str, Any]:
+    return {"app_id": app_id, "state": source_install.install_state_payload(app_id)}
 
 
 @app.post("/api/jobs/{job_id}/generate-3d-from-image")
