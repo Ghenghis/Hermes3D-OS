@@ -124,6 +124,7 @@ function renderAll() {
   renderDesign();
   renderGenerationStack();
   renderAgenticWork();
+  renderAgentsList();
   renderLearningMode();
   renderJobs();
   renderPrinters();
@@ -462,6 +463,21 @@ function renderAgenticBlocker(blocker) {
   `;
 }
 
+async function renderAgentsList() {
+  try {
+    const agents = await api("/api/agents/list").catch(() => []);
+    const el = document.getElementById("agentsList");
+    if (!el) return;
+    if (!agents.length) { el.innerHTML = "<p class=muted>No agents registered.</p>"; return; }
+    el.innerHTML = agents.map(function(a) {
+      return "<article class=agent-card data-agent-id=" + escapeAttr(a.id) + ">" +
+        "<div class=row><h3>" + escapeHtml(a.name || a.id) + "</h3>" +
+        "<span class=badge>" + escapeHtml(a.status || "unknown") + "</span></div>" +
+        "<p class=muted>" + escapeHtml(a.role || "") + "</p></article>";
+    }).join("");
+  } catch(e) {}
+}
+
 function renderLearningMode() {
   const learning = state.learningMode || {};
   const topics = learning.topics || [];
@@ -514,8 +530,33 @@ function renderLearningTopic(topic) {
   `;
 }
 
+let jobSearchText = "";
+let jobStatusFilter = "";
+
+document.querySelector("#jobsSearch")?.addEventListener("input", (e) => {
+  jobSearchText = e.target.value.toLowerCase();
+  renderFilteredJobs();
+});
+
+document.querySelector("#page-jobs .jobs-status-chips")?.addEventListener("click", (e) => {
+  const chip = e.target.closest(".status-chip[data-status]");
+  if (!chip) return;
+  jobStatusFilter = chip.dataset.status;
+  document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c === chip));
+  renderFilteredJobs();
+});
+
+function renderFilteredJobs() {
+  const filtered = state.jobs.filter(job => {
+    const matchText = !jobSearchText || (job.name || job.title || "").toLowerCase().includes(jobSearchText);
+    const matchStatus = !jobStatusFilter || job.status === jobStatusFilter || job.state === jobStatusFilter;
+    return matchText && matchStatus;
+  });
+  setHtml("#jobs", renderJobCards(filtered));
+}
+
 function renderJobs() {
-  setHtml("#jobs", renderJobCards(state.jobs));
+  renderFilteredJobs();
 }
 
 
@@ -1126,12 +1167,66 @@ window.addEventListener("hashchange", () => {
   renderTabs();
 });
 
+// Slot 10: agents list row -> Action Window
+document.querySelector("#agentsList")?.addEventListener("click", function(e) {
+  var card = e.target.closest(".agent-card");
+  if (!card) return;
+  var agentId = card.dataset.agentId;
+  var payload = {
+    tab_id: "agents", kind: "agent", item_id: agentId,
+    title: (card.querySelector("h3") || {}).textContent || agentId,
+    subtitle: (card.querySelector("p") || {}).textContent || "",
+    status_pill: (card.querySelector(".badge") || {}).textContent || "unknown",
+    primary_actions: [
+      { id: "health", label: "Check Health", endpoint: "/api/agents/" + agentId + "/health", method: "GET" },
+      { id: "dispatch", label: "Dispatch Task", endpoint: "/api/agents/" + agentId + "/dispatch", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Agent Info", body: "ID: " + agentId }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow && window.HermesActionWindow.dispatch) {
+    window.HermesActionWindow.dispatch(payload);
+  } else {
+    document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+  }
+});
+
 document.addEventListener("click", async (event) => {
+  if (!event.target.closest("#page-jobs")) return;
   const jobCard = event.target.closest(".job-card");
   if (jobCard) {
     state.activeJobId = Number(jobCard.dataset.jobId);
     setActivePage("jobs");
     renderAll();
+    const jobId = jobCard.dataset.jobId;
+    const job = state.jobs.find((j) => String(j.id) === String(jobId)) || { id: jobId };
+    const awPayload = {
+      tab_id: "jobs",
+      kind: "job",
+      item_id: String(job.id),
+      title: job.title || job.name || `Job #${job.id}`,
+      subtitle: job.state || job.status || "",
+      status_pill: job.state || job.status || "queued",
+      primary_actions: [
+        { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+        { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" },
+      ],
+      secondary_actions: [],
+      panels: [
+        {
+          id: "details",
+          title: "Details",
+          body: `Status: ${job.state || job.status || "n/a"}\nNotes: ${job.notes || ""}`,
+        },
+      ],
+      stream_url: null,
+    };
+    if (window.HermesActionWindow?.dispatch) {
+      window.HermesActionWindow.dispatch(awPayload);
+    } else {
+      document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: awPayload }));
+    }
   }
 
   const printerButton = event.target.closest("[data-test-printer]");
@@ -1253,7 +1348,21 @@ document.addEventListener("submit", async (event) => {
 
 });
 
-document.querySelector("#refreshBtn").addEventListener("click", refresh);
+document.querySelector("#refreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#refreshBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+  try {
+    await refresh();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+  }
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#dashboardRefreshBtn");
+  if (btn) { btn.disabled = true; }
+  try { await refresh(); } finally { if (btn) btn.disabled = false; }
+});
 
 themeSelect?.addEventListener("change", () => {
   applyTheme(themeSelect.value);
@@ -1423,6 +1532,146 @@ document.querySelector("#printers").addEventListener("click", function(e) {
       { id: "details", title: "Details", body: `URL: ${printer.base_url || "n/a"}\nConnector: ${printer.connector || "n/a"}` },
       { id: "camera", title: "Camera", body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0"></iframe>` : "No camera configured." }
     ],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+document.querySelector("#dashboardEvents")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".event-card");
+  if (!card) return;
+  const eventType = card.querySelector("strong")?.textContent || "event";
+  const message = card.querySelector("p")?.textContent || "";
+  const evt = state.events?.find(ev => ev.event_type === eventType) || { event_type: eventType, message };
+  const payload = {
+    tab_id: "dashboard", kind: "event", item_id: evt.event_type,
+    title: evt.event_type, subtitle: evt.message || "",
+    status_pill: "info",
+    primary_actions: [],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Details", body: evt.message || "" }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 2: dashboard queue — click job card → Action Window (kind=job)
+document.querySelector("#dashboardJobs")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".job-card");
+  if (!card) return;
+  const jobId = card.dataset.jobId;
+  const job = state.jobs.find(j => String(j.id) === String(jobId)) || { id: jobId, title: "Job" };
+  const payload = {
+    tab_id: "dashboard", kind: "job", item_id: String(job.id),
+    title: job.title || `Job #${job.id}`, subtitle: job.state || "",
+    status_pill: { text: job.state || "queued", tone: "info" },
+    primary_actions: [
+      { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+      { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", label: "Details", body_html: escapeHtml(job.description || job.title || "") }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 9: voice state status pill
+async function pollVoiceState() {
+  try {
+    const state_data = await api("/api/voice/state").catch(() => null);
+    const pill = document.getElementById("voiceStatusPill");
+    if (pill && state_data) {
+      pill.textContent = `Voice: ${state_data.status || "idle"}`;
+      pill.dataset.voiceStatus = state_data.status || "idle";
+    }
+  } catch (e) { /* silent */ }
+}
+
+document.getElementById("voiceStatusPill")?.addEventListener("click", async () => {
+  const voiceState = await api("/api/voice/state").catch(() => ({ status: "unknown" }));
+  const payload = {
+    tab_id: "voice", kind: "voice", item_id: "voice-state",
+    title: "Voice System", subtitle: voiceState.status || "idle",
+    status_pill: voiceState.status || "idle",
+    primary_actions: [{ id: "mute", label: "Mute", endpoint: "/api/voice/mute", method: "POST" }],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Status", body: JSON.stringify(voiceState, null, 2) }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+setInterval(pollVoiceState, 5000);
+pollVoiceState();
+
+// Slot 11: learning topic cards -> Action Window
+document.querySelector('#learningTopics')?.addEventListener('click', function (e) {
+  const card = e.target.closest('.setup-card, .topic-card, .learning-card, article');
+  if (!card) return;
+  const title = card.querySelector('h3, strong, .title')?.textContent || 'Topic';
+  const body = card.querySelector('p, .muted, .body')?.textContent || '';
+  const payload = {
+    tab_id: 'learning', kind: 'topic',
+    item_id: title.toLowerCase().replace(/\s+/g, '-'),
+    title: title, subtitle: body.substring(0, 80),
+    status_pill: 'learn',
+    primary_actions: [{ id: 'bookmark', label: 'Bookmark', endpoint: '/api/learning/bookmark', method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'details', title: 'Topic Details', body: body },
+      { id: 'papers', title: 'Linked Papers', body: 'No papers linked yet.' },
+    ],
+    stream_url: null,
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
+// Slot 8: observe tab — click camera card → Action Window (kind=printer, live SSE log panel)
+document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
+  const card = e.target.closest('.camera-card');
+  if (!card) return;
+  const name = card.querySelector('h3')?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || 'Printer' };
+  const payload = {
+    tab_id: 'observe', kind: 'printer', item_id: printer.id || name,
+    title: printer.name || name, subtitle: 'Live camera feed',
+    status_pill: printer.connector || 'observe',
+    primary_actions: [{ id: 'mute', label: 'Mute Camera', endpoint: `/api/observe/mute/${printer.id}`, method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'camera', title: 'Camera', body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0;height:300px"></iframe>` : 'No camera configured.' },
+      { id: 'log', title: 'Live Log', body: `<pre id="cameraLog-${printer.id}">Loading...</pre>` }
+    ],
+    stream_url: `/api/observe/stream/${printer.id}`
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
+// Slot 13: approvals pending card → Action Window
+document.querySelector("#approvalsPageList")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".approval-card, article[data-approval-id]");
+  if (!card) return;
+  if (e.target.closest("button[data-approve], button[data-reject]")) return;
+  const approvalId = card.dataset.approvalId;
+  const title = card.querySelector("h3, strong")?.textContent || ("Approval " + approvalId);
+  const note = card.querySelector("p, .muted")?.textContent || "";
+  const payload = {
+    tab_id: "approvals", kind: "approval", item_id: String(approvalId || title),
+    title: title, subtitle: note.substring(0, 80),
+    status_pill: "pending",
+    primary_actions: [
+      { id: "approve", label: "Approve", endpoint: "/api/approvals/" + approvalId + "/approve", method: "POST" },
+      { id: "reject", label: "Reject", endpoint: "/api/approvals/" + approvalId + "/reject", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Approval Details", body: note }],
     stream_url: null
   };
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
