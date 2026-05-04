@@ -48,7 +48,7 @@ const SOURCE_PREFERRED_ORDER = {
 const sourceState = {
   manifest: null,
   sourceAppsStatus: null,
-  groupKey: "slicers",
+  groupKey: localStorage.getItem("hermes3d.sourceGroupFilter") || "slicers",
   selectedIndex: 0,
   layout: localStorage.getItem("hermes3d.sourceLayout") || "wide",
 };
@@ -62,7 +62,8 @@ async function loadSourceManifest() {
       throw new Error(response.statusText);
     }
     sourceState.manifest = await response.json();
-    sourceState.groupKey = firstSourceGroup();
+    const _savedGroup = localStorage.getItem("hermes3d.sourceGroupFilter");
+    sourceState.groupKey = (_savedGroup && sourceGroups().includes(_savedGroup)) ? _savedGroup : firstSourceGroup();
     renderSourceOs();
     loadSourceAppsStatus();
   } catch (error) {
@@ -558,6 +559,7 @@ function setSourceGroup(group) {
   }
   sourceState.groupKey = group;
   sourceState.selectedIndex = 0;
+  localStorage.setItem("hermes3d.sourceGroupFilter", group);
   renderSourceOs();
 }
 
