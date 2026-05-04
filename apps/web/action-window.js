@@ -46,8 +46,11 @@
     const next = historyIndex + delta;
     if (next < 0 || next >= history.length) return;
     historyIndex = next;
-    renderActionWindowPayload(history[historyIndex], false); // false = don't push to history again
+    renderActionWindowPayload(history[historyIndex], false);
   }
+
+  // ── Pin state ──────────────────────────────────────────────────────────────
+  let pinned = false;
   // ──────────────────────────────────────────────────────────────────────────
 
   function escapeHtml(value) {
@@ -102,6 +105,7 @@
    * Returns the host element for testability.
    */
   function renderActionWindowPayload(payload, addToHistory) {
+    if (pinned) return host(); // Pinned — ignore incoming dispatch
     const root = host();
     if (!root) return null;
     if (!payload || typeof payload !== "object") {
@@ -134,6 +138,7 @@
           ${payload.subtitle ? `<p class="action-window__subtitle">${escapeHtml(payload.subtitle)}</p>` : ""}
           ${renderStatusPill(payload.status_pill)}
         </div>
+        <button type="button" data-aw-pin aria-label="Pin" title="Pin this panel">📌</button>
         <button type="button" class="action-window__close" aria-label="Close" data-action-window-close="">&times;</button>
       </header>
       <div class="action-window__actions">
@@ -156,6 +161,7 @@
   function closeActionWindow() {
     const root = host();
     if (!root) return;
+    pinned = false; // Reset pin state on close
     root.hidden = true;
   }
 
@@ -176,6 +182,16 @@
     if (backBtn) { navigateHistory(-1); return; }
     const fwdBtn = event.target && event.target.closest && event.target.closest("[data-aw-forward]");
     if (fwdBtn) { navigateHistory(1); }
+  });
+
+  // Pin button delegation.
+  document.addEventListener("click", (event) => {
+    const pinBtn = event.target && event.target.closest && event.target.closest("[data-aw-pin]");
+    if (pinBtn) {
+      pinned = !pinned;
+      pinBtn.classList.toggle("active", pinned);
+      pinBtn.title = pinned ? "Unpin" : "Pin this panel";
+    }
   });
 
   // Public API on window for non-module callers.
