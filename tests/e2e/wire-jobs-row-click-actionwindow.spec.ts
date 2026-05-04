@@ -8,7 +8,7 @@ test("jobs row click opens Action Window", async ({ page }) => {
   );
   await page.goto("/");
   await page.click('button[data-page="jobs"]');
-  await page.waitForSelector(".job-card");
-  await page.click(".job-card");
+  await page.waitForSelector("#page-jobs .job-card");
+  await page.click("#page-jobs .job-card");
   await expect(page.locator("#actionWindow")).toBeVisible();
 });
