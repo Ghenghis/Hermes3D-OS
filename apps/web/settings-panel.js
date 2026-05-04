@@ -35,6 +35,8 @@ async function loadUiSettings() {
 }
 
 async function saveUiSettings(updates) {
+  Object.assign(uiSettings, updates);
+  localStorage.setItem("hermes3d-ui-settings", JSON.stringify(uiSettings));
   try {
     const response = await fetch("/api/settings/ui", {
       method: "PATCH",
@@ -43,7 +45,7 @@ async function saveUiSettings(updates) {
     });
     if (response.ok) {
       const serverSettings = await response.json();
-      uiSettings = { ...DEFAULT_UI_SETTINGS, ...serverSettings };
+      uiSettings = { ...DEFAULT_UI_SETTINGS, ...serverSettings, ...updates };
       localStorage.setItem("hermes3d-ui-settings", JSON.stringify(uiSettings));
       return true;
     }
