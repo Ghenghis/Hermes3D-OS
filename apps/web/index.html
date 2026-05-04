@@ -292,6 +292,16 @@
               <h2>Job Queue</h2>
               <span class="muted">Select a job</span>
             </div>
+            <div class="jobs-filter-bar">
+              <input id="jobsSearchInput" type="search" placeholder="Search jobs..." />
+              <div id="jobsStatusFilters" class="chip-group">
+                <button class="chip active" data-status="">All</button>
+                <button class="chip" data-status="queued">Queued</button>
+                <button class="chip" data-status="running">Running</button>
+                <button class="chip" data-status="done">Done</button>
+                <button class="chip" data-status="error">Error</button>
+              </div>
+            </div>
             <div id="jobs" class="jobs"></div>
           </section>
           <section class="panel">

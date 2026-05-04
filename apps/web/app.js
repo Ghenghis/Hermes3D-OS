@@ -511,8 +511,33 @@ function renderLearningTopic(topic) {
   `;
 }
 
+let jobSearchText = "";
+let jobStatusFilter = "";
+
+document.querySelector("#jobsSearchInput")?.addEventListener("input", (e) => {
+  jobSearchText = e.target.value.toLowerCase();
+  renderFilteredJobs();
+});
+
+document.querySelector("#jobsStatusFilters")?.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip[data-status]");
+  if (!chip) return;
+  jobStatusFilter = chip.dataset.status;
+  document.querySelectorAll("#jobsStatusFilters .chip").forEach(c => c.classList.toggle("active", c === chip));
+  renderFilteredJobs();
+});
+
+function renderFilteredJobs() {
+  const filtered = state.jobs.filter(job => {
+    const matchText = !jobSearchText || (job.name || job.title || "").toLowerCase().includes(jobSearchText);
+    const matchStatus = !jobStatusFilter || job.status === jobStatusFilter || job.state === jobStatusFilter;
+    return matchText && matchStatus;
+  });
+  setHtml("#jobs", renderJobCards(filtered));
+}
+
 function renderJobs() {
-  setHtml("#jobs", renderJobCards(state.jobs));
+  renderFilteredJobs();
 }
 
 function renderPrinters() {
