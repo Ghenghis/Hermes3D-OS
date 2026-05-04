@@ -1126,6 +1126,34 @@ document.addEventListener("click", async (event) => {
     state.activeJobId = Number(jobCard.dataset.jobId);
     setActivePage("jobs");
     renderAll();
+    const jobId = jobCard.dataset.jobId;
+    const job = state.jobs.find((j) => String(j.id) === String(jobId)) || { id: jobId };
+    const awPayload = {
+      tab_id: "jobs",
+      kind: "job",
+      item_id: String(job.id),
+      title: job.title || job.name || `Job #${job.id}`,
+      subtitle: job.state || job.status || "",
+      status_pill: job.state || job.status || "queued",
+      primary_actions: [
+        { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+        { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" },
+      ],
+      secondary_actions: [],
+      panels: [
+        {
+          id: "details",
+          title: "Details",
+          body: `Status: ${job.state || job.status || "n/a"}\nNotes: ${job.notes || ""}`,
+        },
+      ],
+      stream_url: null,
+    };
+    if (window.HermesActionWindow?.dispatch) {
+      window.HermesActionWindow.dispatch(awPayload);
+    } else {
+      document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: awPayload }));
+    }
   }
 
   const printerButton = event.target.closest("[data-test-printer]");
