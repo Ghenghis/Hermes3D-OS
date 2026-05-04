@@ -1465,3 +1465,12 @@ document.querySelector("#printers").addEventListener("click", function(e) {
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
+
+document.getElementById("agentsDispatchBtn")?.addEventListener("click", async () => {
+  try { await api("/api/agents/dispatch", { method: "POST" }); } catch(e) { /* silent */ }
+  await refresh();
+});
+
+document.getElementById("learningBookmarkBtn")?.addEventListener("click", async () => {
+  try { await api("/api/learning/bookmark", { method: "POST" }); } catch(e) { /* silent */ }
+});

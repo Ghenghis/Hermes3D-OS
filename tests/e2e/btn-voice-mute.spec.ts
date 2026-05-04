@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('voice mute button toggles voice mute state', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
 
   // Navigate to voice page

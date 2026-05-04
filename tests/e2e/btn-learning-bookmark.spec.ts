@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('learning bookmark button bookmarks learning topic', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
 
   // Navigate to learning page

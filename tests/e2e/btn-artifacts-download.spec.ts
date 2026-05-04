@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('artifact download button downloads artifact', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
 
   // Navigate to artifacts page
