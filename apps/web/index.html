@@ -25,6 +25,7 @@
         </label>
         <button id="bootstrapBtn" type="button">Load Printers</button>
         <button id="refreshBtn" type="button">Refresh</button>
+        <button id="voicePill" type="button" class="voice-pill" aria-label="Voice state">Voice</button>
       </div>
     </header>
 
@@ -65,6 +66,7 @@
                 <strong id="sourceGroupTitle">Source Modules</strong>
                 <span id="sourceGroupCount"></span>
               </div>
+              <input id="sourceOsSearch" type="search" placeholder="Search apps..." autocomplete="off" style="width:100%;margin-bottom:0.5rem;" />
               <div id="sourceModuleList" class="source-module-buttons"></div>
             </aside>
 
@@ -292,6 +294,16 @@
               <h2>Job Queue</h2>
               <span class="muted">Select a job</span>
             </div>
+            <div class="jobs-filter-bar">
+              <input id="jobsSearch" type="search" placeholder="Search jobs..." autocomplete="off" />
+              <div class="jobs-status-chips" role="group" aria-label="Filter by status">
+                <button type="button" class="status-chip" data-status="queued" aria-pressed="false">Queued</button>
+                <button type="button" class="status-chip" data-status="running" aria-pressed="false">Running</button>
+                <button type="button" class="status-chip" data-status="done" aria-pressed="false">Done</button>
+                <button type="button" class="status-chip" data-status="failed" aria-pressed="false">Failed</button>
+                <button type="button" class="status-chip" data-status="canceled" aria-pressed="false">Canceled</button>
+              </div>
+            </div>
             <div id="jobs" class="jobs"></div>
           </section>
           <section class="panel">
@@ -343,6 +355,13 @@
 
       <section id="page-agents" class="page">
         <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Agents</h2>
+              <span class="muted">Registered agents</span>
+            </div>
+            <div id="agentsList" class="setup-list"></div>
+          </section>
           <section class="panel">
             <div class="panel-header">
               <h2>Agentic Work Loop</h2>

@@ -48,10 +48,22 @@ const SOURCE_PREFERRED_ORDER = {
 const sourceState = {
   manifest: null,
   sourceAppsStatus: null,
-  groupKey: "slicers",
+  groupKey: localStorage.getItem("hermes3d.sourceOsGroup") || "slicers",
   selectedIndex: 0,
   layout: localStorage.getItem("hermes3d.sourceLayout") || "wide",
 };
+
+let _sourceSearchQuery = "";
+
+function filteredModules(modules) {
+  if (!_sourceSearchQuery) return modules;
+  const q = _sourceSearchQuery.toLowerCase();
+  return modules.filter(m =>
+    (m.id || "").toLowerCase().includes(q) ||
+    (m.name || "").toLowerCase().includes(q) ||
+    (m.uxSection || "").toLowerCase().includes(q)
+  );
+}
 
 loadSourceManifest();
 
@@ -62,7 +74,8 @@ async function loadSourceManifest() {
       throw new Error(response.statusText);
     }
     sourceState.manifest = await response.json();
-    sourceState.groupKey = firstSourceGroup();
+    const _savedGroup = localStorage.getItem("hermes3d.sourceOsGroup");
+    sourceState.groupKey = (_savedGroup && sourceGroups().includes(_savedGroup)) ? _savedGroup : firstSourceGroup();
     renderSourceOs();
     loadSourceAppsStatus();
   } catch (error) {
@@ -172,10 +185,18 @@ function renderSourceMix() {
 }
 
 function renderSourceModuleList() {
-  const modules = currentSourceGroup();
+  const allModules = currentSourceGroup();
+  const modules = filteredModules(allModules);
   const countLabel = `${modules.length} ${modules.length === 1 ? "module" : "modules"}`;
   setSourceHtml("#sourceGroupTitle", sourceGroupLabel(sourceState.groupKey));
   setSourceHtml("#sourceGroupCount", countLabel);
+  if (modules.length === 0) {
+    setSourceHtml(
+      "#sourceModuleList",
+      `<div class="empty-state">No apps match "${sourceEscape(_sourceSearchQuery)}".</div>`,
+    );
+    return;
+  }
   setSourceHtml(
     "#sourceModuleList",
     modules
@@ -558,6 +579,7 @@ function setSourceGroup(group) {
   }
   sourceState.groupKey = group;
   sourceState.selectedIndex = 0;
+  localStorage.setItem("hermes3d.sourceOsGroup", group);
   renderSourceOs();
 }
 
@@ -692,3 +714,8 @@ async function pollSourceInstall(module) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
+
+document.querySelector("#sourceOsSearch")?.addEventListener("input", function(e) {
+  _sourceSearchQuery = e.target.value;
+  renderSourceModuleList();
+});

@@ -123,6 +123,7 @@ function renderAll() {
   renderSetup();
   renderDesign();
   renderGenerationStack();
+  renderAgentsList();
   renderAgenticWork();
   renderLearningMode();
   renderJobs();
@@ -343,6 +344,26 @@ function renderWorkflowStatus(workflow) {
   `;
 }
 
+async function renderAgentsList() {
+  const container = document.querySelector("#agentsList");
+  if (!container) return;
+  try {
+    const agents = await api("/api/agents/list").catch(() => []);
+    const html = (agents || []).map(agent => `
+      <article class="agent-card" data-agent-id="${escapeAttr(agent.id || agent.name)}">
+        <div class="row">
+          <h3>${escapeHtml(agent.name || agent.id)}</h3>
+          ${stateBadge((agent.state || agent.status || "idle").toUpperCase())}
+        </div>
+        <p class="muted">${escapeHtml(agent.role || agent.description || "Agent")}</p>
+      </article>
+    `).join("") || '<div class="empty-state">No agents registered.</div>';
+    setHtml("#agentsList", html);
+  } catch (err) {
+    setHtml("#agentsList", `<div class="empty-state">Could not load agents: ${escapeHtml(err.message)}</div>`);
+  }
+}
+
 function renderAgenticWork() {
   const work = state.agenticWork || {};
   const next = work.next_tick?.topic || {};
@@ -500,7 +521,7 @@ function renderLearningMode() {
 
 function renderLearningTopic(topic) {
   return `
-    <article class="setup-card">
+    <article class="setup-card" data-topic-id="${escapeAttr(topic.id || topic.title)}">
       <div class="row">
         <h3>${escapeHtml(topic.title)}</h3>
         ${stateBadge(String(topic.priority || "queued").toUpperCase())}
@@ -1336,4 +1357,65 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+const jobsSearchEl = document.querySelector("#jobsSearch");
+if (jobsSearchEl) {
+  jobsSearchEl.addEventListener("input", e => { _jobsFilterState.query = e.target.value; filterJobs(); });
+}
+document.querySelector(".jobs-status-chips")?.addEventListener("click", e => {
+  const chip = e.target.closest(".status-chip");
+  if (!chip) return;
+  const status = chip.dataset.status;
+  if (_jobsFilterState.statuses.has(status)) { _jobsFilterState.statuses.delete(status); chip.setAttribute("aria-pressed", "false"); }
+  else { _jobsFilterState.statuses.add(status); chip.setAttribute("aria-pressed", "true"); }
+  filterJobs();
+});
+
 refresh();
+
+document.querySelector("#observeGrid").addEventListener("click", function(e) {
+  const card = e.target.closest(".camera-card");
+  if (!card) return;
+  const name = card.querySelector("h3")?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || "Printer" };
+  const cameraUrl = printer.capabilities?.camera_url || null;
+  const payload = {
+    tab_id: "observe", kind: "printer", item_id: printer.id, title: printer.name,
+    subtitle: "Live observe",
+    status_pill: printer.connector || "connected",
+    primary_actions: [
+      { id: "test-conn", label: "Test Connection", endpoint: `/api/printers/${printer.id}/test`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [
+      { id: "camera", title: "Camera", body: cameraUrl ? `<iframe src="${cameraUrl}" style="width:100%;height:240px;border:0;"></iframe>` : "No camera URL configured." },
+      { id: "log", title: "Log Stream", body: `<div id="observe-log-${printer.id}" style="font-size:0.8em;max-height:200px;overflow:auto;font-family:monospace;">Connecting…</div>` }
+    ],
+    stream_url: `/api/observe/stream/${printer.id}`
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+document.querySelector("#learningTopics")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".setup-card[data-topic-id]");
+  if (!card) return;
+  const topicId = card.dataset.topicId;
+  const topics = state.learningMode?.topics || [];
+  const topic = topics.find(t => (t.id || t.title) === topicId) || { id: topicId, title: topicId };
+  const payload = {
+    tab_id: "learning", kind: "topic", item_id: topicId, title: topic.title || topicId,
+    subtitle: `Priority: ${topic.priority || "queued"}`,
+    status_pill: topic.priority || "queued",
+    primary_actions: [
+      { id: "start-topic", label: "Start Research", endpoint: `/api/learning/topics/${topicId}/start`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [
+      { id: "summary", title: "Summary", body: topic.why || topic.description || "No summary." },
+      { id: "papers", title: "Papers", body: "Loading papers..." },
+      { id: "models", title: "Related Models", body: "Loading models..." }
+    ],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
