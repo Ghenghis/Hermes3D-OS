@@ -7,6 +7,7 @@ import re
 import shutil
 import socket
 import subprocess
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ from .config import (
     save_runtime_config,
 )
 from .db import Database, row_to_dict, utc_now
+from . import process_state as source_process_state
 from . import source_install
 from .schemas import (
     AdvanceRequest,
@@ -83,6 +85,7 @@ app = FastAPI(title="Hermes3D OS", version="0.1.0")
 slicer = SlicerWorker(settings.storage_dir)
 moonraker = MoonrakerClient(dry_run=settings.dry_run_printers)
 source_app_processes: dict[str, subprocess.Popen[bytes]] = {}
+OCTOPRINT_SMOKE_API_KEY = "hermes3d-octoprint-smoke-key"
 
 VISUAL_EVIDENCE_KINDS = {
     "source_image",
@@ -159,6 +162,15 @@ SOURCE_APP_REGISTRY = [
         "cli_commands": [],
         "gui_commands": [],
         "static_url": "/static/fluidd/",
+    },
+    {
+        "id": "octoprint",
+        "name": "OctoPrint",
+        "target": Path("print-farm") / "OctoPrint",
+        "tool_key": "octoprint",
+        "cli_commands": ["octoprint"],
+        "gui_commands": ["octoprint"],
+        "service_url": "http://127.0.0.1:5000",
     },
 ]
 
@@ -730,9 +742,14 @@ def source_apps_status() -> dict[str, Any]:
         if manifest_entry.get("install") and install_state["status"] == "not_installed":
             if source_install.probe_installed(item["id"], manifest_entry, settings.repo_root):
                 install_state = {**install_state, "status": "installed", "log_tail": ["probed via install target"]}
+        if manifest_entry.get("install", {}).get("venv"):
+            script_path = source_install.app_venv_script(settings.repo_root, manifest_entry, item["tool_key"])
+            if script_path.exists():
+                cli_path = gui_path = str(script_path)
         process_state = _source_app_process_state(item["id"])
         launched = source_app_processes.get(item["id"])
         launch_running = bool(launched and launched.poll() is None)
+        launch_status = "running" if process_state.get("running") or launch_running else "stopped"
         apps.append(
             {
                 "id": item["id"],
@@ -746,11 +763,12 @@ def source_apps_status() -> dict[str, Any]:
                 "install_method": (manifest_entry.get("install") or {}).get("method"),
                 "install_status": install_state["status"],
                 "install_state": install_state,
-                "launch_supported": item["id"] == "prusaslicer" or bool(item.get("launch_args")) or bool(item.get("static_url")),
+                "launch_supported": item["id"] in {"prusaslicer", "octoprint"} or bool(item.get("launch_args")) or bool(item.get("static_url")),
                 "launch_kind": item.get("launch_kind") or "",
-                "launch_status": "running" if launch_running else "stopped",
-                "launch_pid": launched.pid if launch_running and launched else None,
-                "launch_url": process_state.get("url") or item.get("static_url", ""),
+                "launch_status": launch_status,
+                "launch_pid": process_state.get("pid") or (launched.pid if launch_running and launched else None),
+                "launch_url": process_state.get("url") or item.get("static_url", "") or item.get("service_url", ""),
+                "service_url": item.get("service_url", ""),
                 "process_state": process_state,
                 "embed_mode": "native-window-bridge-required",
                 "ui_host": "Hermes3D resizable Source OS workbench",
@@ -790,6 +808,8 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
         if not state["ready"]:
             return {"ok": False, "app_id": app_id, "error": "Fluidd build output is not installed", "state": state}
         return {"ok": True, "app_id": app_id, "state": state, "url": state["url"]}
+    if app_id == "octoprint":
+        return _launch_octoprint(manifest_entry)
     launch_args = registry_item.get("launch_args") or []
     if launch_args:
         executable = _tool_path(registry_item["tool_key"], registry_item["cli_commands"])
@@ -852,6 +872,9 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
 
 @app.post("/api/source-apps/{app_id}/stop")
 def source_app_stop(app_id: str) -> dict[str, Any]:
+    if app_id == "octoprint":
+        stopped = source_process_state.stop_process(app_id)
+        return {"ok": True, "app_id": app_id, "status": stopped.get("status"), "state": _source_app_process_state(app_id)}
     if app_id != "fluidd":
         return {"ok": False, "app_id": app_id, "error": "stop is not implemented for this app"}
     return {
@@ -865,6 +888,95 @@ def source_app_stop(app_id: str) -> dict[str, Any]:
 @app.get("/api/source-apps/{app_id}/process-state")
 def source_app_process_state(app_id: str) -> dict[str, Any]:
     return {"app_id": app_id, "state": _source_app_process_state(app_id)}
+
+
+def _launch_octoprint(manifest_entry: dict[str, Any]) -> dict[str, Any]:
+    if source_process_state.status("octoprint") == "running":
+        state = _source_app_process_state("octoprint")
+        return {"ok": True, "app_id": "octoprint", "state": state, "url": state["url"], "status": "running"}
+
+    octoprint = source_install.app_venv_script(settings.repo_root, manifest_entry, "octoprint")
+    if not octoprint.exists():
+        return {
+            "ok": False,
+            "app_id": "octoprint",
+            "error": "OctoPrint is not installed; run install first",
+            "state": _source_app_process_state("octoprint"),
+        }
+
+    target = source_install.app_target_path(settings.repo_root, manifest_entry)
+    target.mkdir(parents=True, exist_ok=True)
+    _ensure_octoprint_smoke_config(target)
+    command = [
+        str(octoprint),
+        "serve",
+        "--basedir",
+        str(target),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5000",
+    ]
+    env = os.environ.copy()
+    env.setdefault("PYTHONUNBUFFERED", "1")
+    try:
+        proc = subprocess.Popen(
+            command,
+            cwd=str(target),
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as exc:
+        source_process_state.set_error("octoprint", str(exc))
+        return {"ok": False, "app_id": "octoprint", "error": f"Failed to launch OctoPrint: {exc}"}
+
+    url = "http://127.0.0.1:5000"
+    source_process_state.register_process("octoprint", proc, command, url)
+    ready = _wait_for_source_service(
+        f"{url}/api/version",
+        timeout=45,
+        headers={"X-Api-Key": OCTOPRINT_SMOKE_API_KEY},
+    )
+    state = _source_app_process_state("octoprint")
+    return {"ok": ready, "app_id": "octoprint", "state": state, "url": state["url"], "status": state.get("status")}
+
+
+def _wait_for_source_service(url: str, timeout: float, headers: dict[str, str] | None = None) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            response = httpx.get(url, headers=headers, timeout=2)
+            if response.status_code == 200:
+                return True
+        except httpx.HTTPError:
+            pass
+        time.sleep(1)
+    return False
+
+
+def _ensure_octoprint_smoke_config(target: Path) -> None:
+    config_path = target / "config.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "accessControl:",
+                "  enabled: false",
+                "api:",
+                "  allowCrossOrigin: true",
+                f"  key: {OCTOPRINT_SMOKE_API_KEY}",
+                "server:",
+                "  firstRun: false",
+                "  onlineCheck:",
+                "    enabled: false",
+                "  pluginBlacklist:",
+                "    enabled: false",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 @app.post("/api/jobs/{job_id}/generate-3d-from-image")
@@ -1606,6 +1718,26 @@ def _source_app_process_state(app_id: str) -> dict[str, Any]:
             "pid": None,
             "detail": "Fluidd is served from built static assets.",
             "static_root": str(root) if root else "",
+        }
+    if app_id == "octoprint":
+        payload = source_process_state.payload(app_id)
+        entry = source_install.find_app(settings.repo_root, "octoprint") or {}
+        ready = False
+        try:
+            ready = source_install.app_venv_script(settings.repo_root, entry, "octoprint").exists()
+        except ValueError:
+            ready = False
+        return {
+            "ready": ready,
+            "running": payload.get("status") == "running",
+            "kind": "managed-process",
+            "url": payload.get("url") or "http://127.0.0.1:5000",
+            "pid": payload.get("pid"),
+            "status": payload.get("status", "stopped"),
+            "detail": "OctoPrint runs from the local source app venv.",
+            "command": payload.get("command") or [],
+            "returncode": payload.get("returncode"),
+            "error": payload.get("error"),
         }
     return {
         "ready": False,

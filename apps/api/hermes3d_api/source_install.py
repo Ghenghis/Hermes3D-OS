@@ -194,6 +194,20 @@ def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None =
         import_name = install.get("import_name") or install.get("package")
         if not import_name:
             return False
+        if install.get("venv"):
+            python = app_venv_python(repo_root, entry)
+            if not python.exists():
+                return False
+            try:
+                proc = subprocess.run(
+                    [str(python), "-c", f"import {import_name.replace('-', '_')}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                return proc.returncode == 0
+            except Exception:
+                return False
         try:
             importlib.import_module(import_name.replace("-", "_"))
             return True
@@ -250,11 +264,61 @@ def find_installed_binary(entry: dict[str, Any]) -> Path | None:
     return None
 
 
-def app_target_path(repo_root: Path, entry: dict[str, Any]) -> Path:
+def app_target_path(repo_root: Path | None, entry: dict[str, Any]) -> Path:
     target_rel = entry.get("target")
     if not target_rel:
         raise ValueError("manifest target missing")
     return resolve_apps_root(repo_root) / target_rel
+
+
+def app_venv_python(repo_root: Path | None, entry: dict[str, Any]) -> Path:
+    venv = app_target_path(repo_root, entry) / (entry.get("install") or {}).get("venv_dir", ".venv")
+    return _venv_python(venv)
+
+
+def app_venv_script(repo_root: Path | None, entry: dict[str, Any], script_name: str) -> Path:
+    suffix = ".exe" if os.name == "nt" else ""
+    scripts_dir = "Scripts" if os.name == "nt" else "bin"
+    venv = app_target_path(repo_root, entry) / (entry.get("install") or {}).get("venv_dir", ".venv")
+    return venv / scripts_dir / f"{script_name}{suffix}"
+
+
+def _resolve_seed_python(requested: str) -> Path:
+    if not requested:
+        return Path(sys.executable)
+    env_key = f"HERMES3D_PYTHON_{requested.replace('.', '_')}"
+    candidates = [
+        os.environ.get(env_key, ""),
+        rf"C:\Program Files\Python{requested.replace('.', '')}\python.exe",
+        rf"C:\Python{requested.replace('.', '')}\python.exe",
+        sys.executable,
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return Path(candidate)
+    return Path(sys.executable)
+
+
+def _venv_matches_python(repo_root: Path | None, entry: dict[str, Any], requested: str) -> bool:
+    try:
+        proc = subprocess.run(
+            [str(app_venv_python(repo_root, entry)), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except Exception:
+        return False
+    version = f"{proc.stdout} {proc.stderr}"
+    return f"Python {requested}" in version
+
+
+def _remove_app_venv(target: Path, venv_dir: Path) -> None:
+    resolved_target = target.resolve()
+    resolved_venv = venv_dir.resolve()
+    if resolved_venv.name != ".venv" or resolved_target not in resolved_venv.parents:
+        raise ValueError(f"Refusing to remove unexpected venv path: {venv_dir}")
+    shutil.rmtree(resolved_venv)
 
 
 # ─── Dispatchers ───────────────────────────────────────────────────────────
@@ -264,7 +328,30 @@ def _install_pip(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
     package = install.get("package")
     if not package:
         return False, "manifest install.package missing"
-    cmd = [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", package]
+    repo_root = Path(sys.modules[__name__].__dict__.get("_CURRENT_REPO_ROOT", "."))
+    python = sys.executable
+    if install.get("venv"):
+        target = app_target_path(repo_root, entry)
+        target.mkdir(parents=True, exist_ok=True)
+        venv_dir = target / install.get("venv_dir", ".venv")
+        requested_python = install.get("python")
+        if app_venv_python(repo_root, entry).exists() and requested_python and not _venv_matches_python(repo_root, entry, requested_python):
+            _append_log(app_id, f"recreating venv for Python {requested_python}: {venv_dir}")
+            _remove_app_venv(target, venv_dir)
+        if not app_venv_python(repo_root, entry).exists():
+            seed_python = _resolve_seed_python(str(requested_python or ""))
+            _append_log(app_id, f"creating venv: {venv_dir}")
+            proc = subprocess.run(
+                [str(seed_python), "-m", "venv", str(venv_dir)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if proc.returncode != 0:
+                _append_log(app_id, (proc.stderr or proc.stdout or "")[-2000:])
+                return False, f"venv exit {proc.returncode}"
+        python = str(app_venv_python(repo_root, entry))
+    cmd = [python, "-m", "pip", "install", "--disable-pip-version-check", package]
     _append_log(app_id, f"$ {' '.join(cmd)}")
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)

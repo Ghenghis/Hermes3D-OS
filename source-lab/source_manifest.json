@@ -309,7 +309,8 @@
         "license": "AGPL-3.0",
         "priority": "secondary",
         "uxSection": "Printer Farm / Plugin Bridge",
-        "bridge": ["plugin ecosystem", "camera/control patterns", "file/job API", "legacy printer support"]
+        "bridge": ["plugin ecosystem", "camera/control patterns", "file/job API", "legacy printer support"],
+        "install": { "method": "pip", "package": "OctoPrint", "import_name": "octoprint", "venv": true, "python": "3.11" }
       },
       {
         "id": "printrun",
