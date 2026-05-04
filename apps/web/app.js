@@ -1336,4 +1336,22 @@ startPrintBtn.addEventListener("click", async () => {
   await refresh();
 });
 
+document.querySelector("#dashboardEvents").addEventListener("click", function(e) {
+  const card = e.target.closest(".event-card");
+  if (!card) return;
+  const eventType = card.querySelector("strong")?.textContent || "event";
+  const message = card.querySelector(".muted")?.textContent || "";
+  const payload = {
+    tab_id: "dashboard", kind: "event", item_id: eventType, title: eventType,
+    subtitle: "System event",
+    status_pill: "info",
+    primary_actions: [],
+    secondary_actions: [],
+    panels: [{ id: "detail", title: "Event Detail", body: message }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
 refresh();
