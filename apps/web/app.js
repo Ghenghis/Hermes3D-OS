@@ -530,8 +530,33 @@ function renderLearningTopic(topic) {
   `;
 }
 
+let jobSearchText = "";
+let jobStatusFilter = "";
+
+document.querySelector("#jobsSearch")?.addEventListener("input", (e) => {
+  jobSearchText = e.target.value.toLowerCase();
+  renderFilteredJobs();
+});
+
+document.querySelector("#page-jobs .jobs-status-chips")?.addEventListener("click", (e) => {
+  const chip = e.target.closest(".status-chip[data-status]");
+  if (!chip) return;
+  jobStatusFilter = chip.dataset.status;
+  document.querySelectorAll(".status-chip").forEach(c => c.classList.toggle("active", c === chip));
+  renderFilteredJobs();
+});
+
+function renderFilteredJobs() {
+  const filtered = state.jobs.filter(job => {
+    const matchText = !jobSearchText || (job.name || job.title || "").toLowerCase().includes(jobSearchText);
+    const matchStatus = !jobStatusFilter || job.status === jobStatusFilter || job.state === jobStatusFilter;
+    return matchText && matchStatus;
+  });
+  setHtml("#jobs", renderJobCards(filtered));
+}
+
 function renderJobs() {
-  setHtml("#jobs", renderJobCards(state.jobs));
+  renderFilteredJobs();
 }
 
 
@@ -903,7 +928,7 @@ function renderVisualEvidence(artifacts) {
 function renderArtifactCard(artifact, includeJob) {
   const evidence = artifact.metadata?.evidence || {};
   return `
-    <article class="artifact-card" data-artifact-id="${escapeAttr(artifact.id)}">
+    <article class="artifact-card">
       <div class="row">
         <strong>${escapeHtml(evidence.label || artifact.kind)}</strong>
         <span class="muted">${includeJob ? `Job #${escapeHtml(artifact.job_id)}` : `#${escapeHtml(artifact.id)}`}</span>
@@ -911,7 +936,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${renderEvidenceAttachment(artifact)}
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
-      <p class="muted path">${escapeHtml(artifact.path)}</p>
+      <p class="muted">${escapeHtml(artifact.path)}</p>
     </article>
   `;
 }
@@ -1166,11 +1191,40 @@ document.querySelector("#agentsList")?.addEventListener("click", function(e) {
 });
 
 document.addEventListener("click", async (event) => {
+  if (!event.target.closest("#page-jobs")) return;
   const jobCard = event.target.closest(".job-card");
   if (jobCard) {
     state.activeJobId = Number(jobCard.dataset.jobId);
     setActivePage("jobs");
     renderAll();
+    const jobId = jobCard.dataset.jobId;
+    const job = state.jobs.find((j) => String(j.id) === String(jobId)) || { id: jobId };
+    const awPayload = {
+      tab_id: "jobs",
+      kind: "job",
+      item_id: String(job.id),
+      title: job.title || job.name || `Job #${job.id}`,
+      subtitle: job.state || job.status || "",
+      status_pill: job.state || job.status || "queued",
+      primary_actions: [
+        { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+        { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" },
+      ],
+      secondary_actions: [],
+      panels: [
+        {
+          id: "details",
+          title: "Details",
+          body: `Status: ${job.state || job.status || "n/a"}\nNotes: ${job.notes || ""}`,
+        },
+      ],
+      stream_url: null,
+    };
+    if (window.HermesActionWindow?.dispatch) {
+      window.HermesActionWindow.dispatch(awPayload);
+    } else {
+      document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: awPayload }));
+    }
   }
 
   const printerButton = event.target.closest("[data-test-printer]");
@@ -1522,6 +1576,36 @@ document.querySelector("#dashboardJobs")?.addEventListener("click", function(e) 
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
+
+// Slot 9: voice state status pill
+async function pollVoiceState() {
+  try {
+    const state_data = await api("/api/voice/state").catch(() => null);
+    const pill = document.getElementById("voiceStatusPill");
+    if (pill && state_data) {
+      pill.textContent = `Voice: ${state_data.status || "idle"}`;
+      pill.dataset.voiceStatus = state_data.status || "idle";
+    }
+  } catch (e) { /* silent */ }
+}
+
+document.getElementById("voiceStatusPill")?.addEventListener("click", async () => {
+  const voiceState = await api("/api/voice/state").catch(() => ({ status: "unknown" }));
+  const payload = {
+    tab_id: "voice", kind: "voice", item_id: "voice-state",
+    title: "Voice System", subtitle: voiceState.status || "idle",
+    status_pill: voiceState.status || "idle",
+    primary_actions: [{ id: "mute", label: "Mute", endpoint: "/api/voice/mute", method: "POST" }],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Status", body: JSON.stringify(voiceState, null, 2) }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+setInterval(pollVoiceState, 5000);
+pollVoiceState();
 
 // Slot 12: artifact row click → Action Window
 document.querySelector("#artifactPageList")?.addEventListener("click", function(e) {
