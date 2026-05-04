@@ -30,6 +30,7 @@ async function loadUiSettings() {
     console.error("Failed to load UI settings:", error);
   }
   applyUiSettings();
+  renderSettingsPanel();
 }
 
 async function saveUiSettings(updates) {
