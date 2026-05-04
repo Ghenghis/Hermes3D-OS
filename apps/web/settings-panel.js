@@ -65,7 +65,7 @@ function resetUiSettings() {
 }
 
 function renderSettingsPanel() {
-  const panel = document.getElementById("settingsPage");
+  const panel = document.getElementById("uiSettingsContainer");
   if (!panel) return;
 
   panel.innerHTML = `
