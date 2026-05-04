@@ -1247,7 +1247,21 @@ document.addEventListener("submit", async (event) => {
 
 });
 
-document.querySelector("#refreshBtn").addEventListener("click", refresh);
+document.querySelector("#refreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#refreshBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+  try {
+    await refresh();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+  }
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#dashboardRefreshBtn");
+  if (btn) { btn.disabled = true; }
+  try { await refresh(); } finally { if (btn) btn.disabled = false; }
+});
 
 themeSelect?.addEventListener("change", () => {
   applyTheme(themeSelect.value);
