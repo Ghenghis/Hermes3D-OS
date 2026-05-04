@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('observe toggle stream button toggles telemetry', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   
   // Navigate to observe page
