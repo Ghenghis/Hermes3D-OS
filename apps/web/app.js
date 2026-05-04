@@ -613,6 +613,10 @@ function renderApprovalsPage() {
             ${stateBadge(job.state)}
           </div>
           <p class="muted">Job #${job.id}</p>
+          <div class="printer-actions">
+            <button type="button" data-approve-job="${escapeAttr(String(job.id))}">Approve</button>
+            <button type="button" data-reject-job="${escapeAttr(String(job.id))}">Reject</button>
+          </div>
         </article>
       `,
     )
@@ -939,6 +943,9 @@ function renderArtifactCard(artifact, includeJob) {
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
       <p class="muted">${escapeHtml(artifact.path)}</p>
+      <div class="printer-actions">
+        <button type="button" data-download-artifact="${escapeAttr(String(artifact.id))}">Download</button>
+      </div>
     </article>
   `;
 }
