@@ -1677,3 +1677,18 @@ document.querySelector("#approvalsPageList")?.addEventListener("click", function
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
+
+// Dev-only: log every actionwindow:render event when ?debug=1 is in URL
+if (new URLSearchParams(window.location.search).get("debug") === "1") {
+  document.addEventListener("actionwindow:render", (event) => {
+    const payload = event.detail;
+    console.group(`[ActionWindow] ${payload?.kind || "?"}: ${payload?.title || "?"}`);
+    console.log("tab_id:", payload?.tab_id);
+    console.log("item_id:", payload?.item_id);
+    console.log("status_pill:", payload?.status_pill);
+    console.log("primary_actions:", payload?.primary_actions);
+    console.log("payload:", payload);
+    console.groupEnd();
+  });
+  console.log("[Hermes3D] ActionWindow debug logger active (remove ?debug=1 to disable)");
+}
