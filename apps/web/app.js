@@ -1629,3 +1629,25 @@ document.querySelector('#learningTopics')?.addEventListener('click', function (e
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
 });
+
+// Slot 8: observe tab — click camera card → Action Window (kind=printer, live SSE log panel)
+document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
+  const card = e.target.closest('.camera-card');
+  if (!card) return;
+  const name = card.querySelector('h3')?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || 'Printer' };
+  const payload = {
+    tab_id: 'observe', kind: 'printer', item_id: printer.id || name,
+    title: printer.name || name, subtitle: 'Live camera feed',
+    status_pill: printer.connector || 'observe',
+    primary_actions: [{ id: 'mute', label: 'Mute Camera', endpoint: `/api/observe/mute/${printer.id}`, method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'camera', title: 'Camera', body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0;height:300px"></iframe>` : 'No camera configured.' },
+      { id: 'log', title: 'Live Log', body: `<pre id="cameraLog-${printer.id}">Loading...</pre>` }
+    ],
+    stream_url: `/api/observe/stream/${printer.id}`
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
