@@ -28,6 +28,28 @@
   const HOST_ID = "actionWindow";
   const KIND_TONES = { ok: "ok", warn: "warn", err: "err", info: "info" };
 
+  // ── History ring buffer ────────────────────────────────────────────────────
+  const history = [];
+  let historyIndex = -1;
+  const HISTORY_MAX = 20;
+
+  function pushHistory(payload) {
+    if (historyIndex < history.length - 1) {
+      history.splice(historyIndex + 1);
+    }
+    history.push(payload);
+    if (history.length > HISTORY_MAX) history.shift();
+    historyIndex = history.length - 1;
+  }
+
+  function navigateHistory(delta) {
+    const next = historyIndex + delta;
+    if (next < 0 || next >= history.length) return;
+    historyIndex = next;
+    renderActionWindowPayload(history[historyIndex], false); // false = don't push to history again
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   function escapeHtml(value) {
     if (value == null) return "";
     return String(value)
@@ -74,10 +96,12 @@
   }
 
   /**
-   * Render the universal payload into #actionWindow.
+   * Core render — writes payload HTML into #actionWindow.
+   * @param {object} payload
+   * @param {boolean} [addToHistory=true]  pass false when navigating history so we don't re-push.
    * Returns the host element for testability.
    */
-  function renderActionWindow(payload) {
+  function renderActionWindowPayload(payload, addToHistory) {
     const root = host();
     if (!root) return null;
     if (!payload || typeof payload !== "object") {
@@ -85,6 +109,13 @@
       root.innerHTML = "";
       return root;
     }
+
+    if (addToHistory !== false) {
+      pushHistory(payload);
+    }
+
+    const canBack = historyIndex > 0;
+    const canFwd  = historyIndex < history.length - 1;
 
     const primary = (payload.primary_actions || []).map((a) => renderActionButton(a, "primary")).join("");
     const secondary = (payload.secondary_actions || []).map((a) => renderActionButton(a, "secondary")).join("");
@@ -94,6 +125,10 @@
     root.dataset.itemId = payload.item_id || "";
     root.innerHTML = `
       <header class="action-window__header">
+        <div class="action-window__nav">
+          <button type="button" class="action-window__nav-btn" data-aw-back="" aria-label="Back" ${canBack ? "" : "disabled"}>&lsaquo;</button>
+          <button type="button" class="action-window__nav-btn" data-aw-forward="" aria-label="Forward" ${canFwd ? "" : "disabled"}>&rsaquo;</button>
+        </div>
         <div class="action-window__title-block">
           <h2 class="action-window__title">${escapeHtml(payload.title || "")}</h2>
           ${payload.subtitle ? `<p class="action-window__subtitle">${escapeHtml(payload.subtitle)}</p>` : ""}
@@ -113,6 +148,11 @@
     return root;
   }
 
+  /** Public entry-point — always pushes to history. */
+  function renderActionWindow(payload) {
+    return renderActionWindowPayload(payload, true);
+  }
+
   function closeActionWindow() {
     const root = host();
     if (!root) return;
@@ -130,10 +170,20 @@
     if (btn) closeActionWindow();
   });
 
+  // Back / forward navigation delegation.
+  document.addEventListener("click", (event) => {
+    const backBtn = event.target && event.target.closest && event.target.closest("[data-aw-back]");
+    if (backBtn) { navigateHistory(-1); return; }
+    const fwdBtn = event.target && event.target.closest && event.target.closest("[data-aw-forward]");
+    if (fwdBtn) { navigateHistory(1); }
+  });
+
   // Public API on window for non-module callers.
   window.HermesActionWindow = {
     render: renderActionWindow,
     close: closeActionWindow,
+    back()    { navigateHistory(-1); },
+    forward() { navigateHistory(1); },
     dispatch(payload) {
       document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
     },
