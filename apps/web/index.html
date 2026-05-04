@@ -76,12 +76,23 @@
                 <strong id="sourceModuleName">Loading source manifest</strong>
                 <span id="sourceModuleRole">standalone modules</span>
               </div>
-              <div class="source-actions">
-                <div id="sourceLayoutControls" class="source-layout-controls" aria-label="Source workbench size"></div>
-                <button id="sourceOpenRepo" type="button">Repo</button>
-                <button id="sourceInstallApp" type="button">Install</button>
-                <button id="sourceBridgePlan" type="button">Bridge</button>
-                <button id="sourceSetupPlan" type="button">Setup</button>
+              <div id="sourceModuleList" class="source-module-buttons"></div>
+            </aside>
+
+            <section class="source-workbench">
+              <div class="source-panel-head">
+                <div>
+                  <strong id="sourceModuleName">Loading source manifest</strong>
+                  <span id="sourceModuleRole">standalone modules</span>
+                </div>
+                <div class="source-actions">
+                  <div id="sourceLayoutControls" class="source-layout-controls" aria-label="Source workbench size"></div>
+                  <button id="sourceOpenRepo" type="button">Repo</button>
+                  <button id="sourceInstallApp" type="button">Install</button>
+                  <button id="sourceLaunchApp" type="button">Launch</button>
+                  <button id="sourceBridgePlan" type="button">Bridge</button>
+                  <button id="sourceSetupPlan" type="button">Setup</button>
+                </div>
               </div>
             </div>
 
@@ -144,12 +155,94 @@
               <ol id="sourceBridgeTasks"></ol>
             </section>
 
-            <section class="source-panel">
-              <div class="source-panel-head">
-                <strong>Included Projects</strong>
-                <span id="sourceInventoryCount">loading</span>
-              </div>
-              <div class="source-mix" id="sourceMix"></div>
+            <aside class="source-right">
+              <section class="source-panel">
+                <div class="source-panel-head">
+                  <strong>Bridge Tasks</strong>
+                  <span id="sourceTaskCount"></span>
+                </div>
+                <ol id="sourceBridgeTasks"></ol>
+              </section>
+
+              <section class="source-panel">
+                <div class="source-panel-head">
+                  <strong>Included Projects</strong>
+                  <span id="sourceInventoryCount">loading</span>
+                </div>
+                <div class="source-mix" id="sourceMix"></div>
+              </section>
+
+              <section class="source-panel">
+                <div class="source-panel-head">
+                  <strong>Next Patch</strong>
+                  <span>section by section</span>
+                </div>
+                <div class="source-patch-list">
+                  <div><b>1</b><span>Prusa/Orca/FLSUN slicer adapters</span></div>
+                  <div><b>2</b><span>Moonraker/Klipper/FDM farm panel</span></div>
+                  <div><b>3</b><span>Blender/CadQuery/OpenSCAD workers</span></div>
+                  <div><b>4</b><span>LangGraph/Hermes agent gates</span></div>
+                </div>
+              </section>
+            </aside>
+
+            <footer class="source-status">
+              <span id="sourceDownloadState">Loading source software manifest...</span>
+              <span>ports editable in Settings</span>
+              <span>camera slots: USB + Moonraker</span>
+              <span>S1 movement disabled</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-dashboard" class="page">
+        <div class="dashboard-toolbar">
+          <button id="dashboardRefreshBtn" type="button">Refresh</button>
+        </div>
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Fleet</h2>
+              <span class="muted">Safe printer status</span>
+            </div>
+            <div id="dashboardFleet" class="printers"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Queue</h2>
+              <span class="muted">Current jobs</span>
+            </div>
+            <div id="dashboardJobs" class="jobs"></div>
+          </section>
+          <section class="panel wide-panel">
+            <div class="panel-header">
+              <h2>Evidence Feed</h2>
+              <span class="muted">Latest system events</span>
+            </div>
+            <div id="dashboardEvents" class="event-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-setup" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Autopilot Readiness</h2>
+              <span id="autopilotScore" class="muted">Checking setup</span>
+            </div>
+            <div id="setupChecks" class="setup-list"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Safe Actions</h2>
+              <span class="muted">No printer movement</span>
+            </div>
+            <div id="setupActions" class="setup-list"></div>
+            <section class="section">
+              <h2>Guardrails</h2>
+              <div id="setupGuardrails" class="settings-list"></div>
             </section>
 
             <section class="source-panel">
@@ -157,11 +250,52 @@
                 <strong>Next Patch</strong>
                 <span>section by section</span>
               </div>
-              <div class="source-patch-list">
-                <div><b>1</b><span>Prusa/Orca/FLSUN slicer adapters</span></div>
-                <div><b>2</b><span>Moonraker/Klipper/FDM farm panel</span></div>
-                <div><b>3</b><span>Blender/CadQuery/OpenSCAD workers</span></div>
-                <div><b>4</b><span>LangGraph/Hermes agent gates</span></div>
+              <button type="submit">Create Generation Evidence</button>
+            </form>
+          </section>
+          <section class="panel wide-panel">
+            <div class="panel-header">
+              <h2>Printability Truth Gate</h2>
+              <span class="muted">Required before slicing</span>
+            </div>
+            <div id="generationTruthGate" class="roadmap-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-jobs" class="page">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Job Queue</h2>
+              <span class="muted">Select a job</span>
+            </div>
+            <div class="jobs-toolbar">
+              <button id="jobsClearCompletedBtn" type="button">Clear Completed</button>
+              <button id="jobsExportCsvBtn" type="button">Export CSV</button>
+            </div>
+            <div class="jobs-filter-bar">
+              <input id="jobsSearch" type="search" placeholder="Search jobs..." autocomplete="off" />
+              <div class="jobs-status-chips" role="group" aria-label="Filter by status">
+                <button type="button" class="status-chip" data-status="queued" aria-pressed="false">Queued</button>
+                <button type="button" class="status-chip" data-status="running" aria-pressed="false">Running</button>
+                <button type="button" class="status-chip" data-status="done" aria-pressed="false">Done</button>
+                <button type="button" class="status-chip" data-status="failed" aria-pressed="false">Failed</button>
+                <button type="button" class="status-chip" data-status="canceled" aria-pressed="false">Canceled</button>
+              </div>
+            </div>
+            <div id="jobs" class="jobs"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Active Job</h2>
+              <div class="actions">
+                <button id="advanceBtn" type="button" disabled>Advance</button>
+                <button id="approveModelBtn" type="button" disabled>Approve Model</button>
+                <button id="approvePrintBtn" type="button" disabled>Approve Print</button>
+                <button id="uploadOnlyBtn" type="button" disabled>Upload Only</button>
+                <button id="userPrinterCheckBtn" type="button" disabled>User Checked Printer UI</button>
+                <button id="startPrintBtn" type="button" disabled>Start Print</button>
               </div>
             </section>
           </aside>
@@ -183,7 +317,10 @@
             <h2>Fleet</h2>
             <span class="muted">Safe printer status</span>
           </div>
-          <div id="dashboardFleet" class="printers"></div>
+          <div class="page-toolbar">
+            <button id="printersDiscover" type="button">Discover Printers</button>
+          </div>
+          <div id="printers" class="printers printer-grid"></div>
         </section>
         <section class="panel">
           <div class="panel-header">
@@ -519,15 +656,8 @@
       </section>
     </section>
 
-    <section id="page-plugins" class="page">
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Plugins</h2>
-          <span class="muted">Factory capabilities and integrations</span>
-        </div>
-        <div id="pluginsPage" class="plugin-grid"></div>
-      </section>
-    </section>
+    <aside id="actionWindow" class="action-window" hidden aria-label="Action Window"></aside>
+    <div id="hermes-toast" role="status" aria-live="polite" style="position:fixed;bottom:1rem;right:1rem;background:#222;color:#fff;padding:.5rem 1rem;border-radius:6px;display:none;z-index:9999"></div>
 
     <section id="page-settings" class="page">
       <section class="panel">
