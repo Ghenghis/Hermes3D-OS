@@ -125,3 +125,30 @@ class GenerationStackRequest(BaseModel):
     scale_estimate_mm: str | None = Field(default=None, max_length=200)
     target_printer_id: str | None = Field(default=None, max_length=120)
 
+
+class UiSettingsUpdate(BaseModel):
+    font_scale: float | None = Field(default=None, ge=0.5, le=2.0)
+    font_family: str | None = Field(default=None, max_length=80)
+    theme: str | None = Field(default=None, max_length=40)
+    telemetry_enabled: bool | None = None
+
+    @field_validator("font_family")
+    @classmethod
+    def validate_font_family(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        allowed = ["system-ui", "sans-serif", "monospace", "serif"]
+        if value not in allowed:
+            raise ValueError(f"font_family must be one of {allowed}")
+        return value
+
+    @field_validator("theme")
+    @classmethod
+    def validate_theme(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        allowed = ["midnight", "alloy", "ember", "forest"]
+        if value not in allowed:
+            raise ValueError(f"theme must be one of {allowed}")
+        return value
+
