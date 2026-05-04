@@ -28,6 +28,10 @@
   const HOST_ID = "actionWindow";
   const KIND_TONES = { ok: "ok", warn: "warn", err: "err", info: "info" };
 
+  // ── Pin state ──────────────────────────────────────────────────────────────
+  let pinned = false;
+  // ──────────────────────────────────────────────────────────────────────────
+
   function escapeHtml(value) {
     if (value == null) return "";
     return String(value)
@@ -78,6 +82,7 @@
    * Returns the host element for testability.
    */
   function renderActionWindow(payload) {
+    if (pinned) return host(); // Pinned — ignore incoming dispatch
     const root = host();
     if (!root) return null;
     if (!payload || typeof payload !== "object") {
@@ -99,6 +104,7 @@
           ${payload.subtitle ? `<p class="action-window__subtitle">${escapeHtml(payload.subtitle)}</p>` : ""}
           ${renderStatusPill(payload.status_pill)}
         </div>
+        <button type="button" data-aw-pin aria-label="Pin" title="Pin this panel">📌</button>
         <button type="button" class="action-window__close" aria-label="Close" data-action-window-close="">&times;</button>
       </header>
       <div class="action-window__actions">
@@ -116,6 +122,7 @@
   function closeActionWindow() {
     const root = host();
     if (!root) return;
+    pinned = false; // Reset pin state on close
     root.hidden = true;
   }
 
@@ -128,6 +135,16 @@
   document.addEventListener("click", (event) => {
     const btn = event.target && event.target.closest && event.target.closest("[data-action-window-close]");
     if (btn) closeActionWindow();
+  });
+
+  // Pin button delegation.
+  document.addEventListener("click", (event) => {
+    const pinBtn = event.target && event.target.closest && event.target.closest("[data-aw-pin]");
+    if (pinBtn) {
+      pinned = !pinned;
+      pinBtn.classList.toggle("active", pinned);
+      pinBtn.title = pinned ? "Unpin" : "Pin this panel";
+    }
   });
 
   // Public API on window for non-module callers.
