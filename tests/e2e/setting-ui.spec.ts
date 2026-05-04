@@ -44,14 +44,14 @@ test.describe("UI Settings", () => {
     const select = page.locator("#uiPanelThemeSelect");
     await select.selectOption("alloy");
     
-    await expect(page.body).toHaveAttribute("data-theme", "alloy");
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "alloy");
     
     await page.reload();
     await page.click('button[data-page="settings"]');
     await page.waitForSelector("#uiPanelThemeSelect");
     
     await expect(select).toHaveValue("alloy");
-    await expect(page.body).toHaveAttribute("data-theme", "alloy");
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "alloy");
   });
 
   test("telemetry toggle persists across reloads", async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe("UI Settings", () => {
     await page.click('button[data-reset="theme"]');
     
     await expect(select).toHaveValue("midnight");
-    await expect(page.body).toHaveAttribute("data-theme", "midnight");
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "midnight");
   });
 
   test("reset button restores default telemetry", async ({ page }) => {

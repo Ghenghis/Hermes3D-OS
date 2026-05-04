@@ -74,8 +74,8 @@ function renderSettingsPanel() {
       <article class="setting-row">
         <label>
           <strong>Font Scale</strong>
-          <input type="range" id="fontScaleSlider" min="0.5" max="2.0" step="0.1" value="${uiSettings.font_scale}" />
-          <span id="fontScaleValue">${uiSettings.font_scale}x</span>
+          <input type="range" id="fontScaleSlider" min="0.5" max="2.0" step="0.1" value="${parseFloat(uiSettings.font_scale).toFixed(1)}" />
+          <span id="fontScaleValue">${parseFloat(uiSettings.font_scale).toFixed(1)}x</span>
         </label>
         <button type="button" data-reset="font_scale">Reset</button>
       </article>
@@ -120,13 +120,10 @@ function renderSettingsPanel() {
 
   panel.querySelector("#fontScaleSlider")?.addEventListener("input", (e) => {
     const value = parseFloat(e.target.value);
-    document.getElementById("fontScaleValue").textContent = value + "x";
+    document.getElementById("fontScaleValue").textContent = value.toFixed(1) + "x";
     uiSettings.font_scale = value;
     applyUiSettings();
-  });
-
-  panel.querySelector("#fontScaleSlider")?.addEventListener("change", (e) => {
-    saveUiSettings({ font_scale: parseFloat(e.target.value) });
+    saveUiSettings({ font_scale: value });
   });
 
   panel.querySelector("#fontFamilySelect")?.addEventListener("change", (e) => {
