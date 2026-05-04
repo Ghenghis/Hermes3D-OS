@@ -1,4 +1,4 @@
-const THEME_OPTIONS = [
+﻿const THEME_OPTIONS = [
   ["midnight", "Midnight", "Deep command-center dark with blue and teal accents"],
   ["alloy", "Alloy", "Neutral graphite workshop theme"],
   ["ember", "Ember", "Warm dark theme for long shop sessions"],
@@ -484,7 +484,7 @@ function renderLearningMode() {
     reports
       .map(
         (report) => `
-          <article class="artifact-card">
+          <article class="artifact-card" data-artifact-id="${escapeAttr(artifact.id)}">
             <div class="row">
               <strong>${escapeHtml(report.name || "learning report")}</strong>
               ${stateBadge("MD")}
@@ -891,7 +891,7 @@ function renderArtifactCard(artifact, includeJob) {
       ${renderEvidenceAttachment(artifact)}
       ${includeJob ? `<p>${escapeHtml(artifact.job_title || "Untitled job")}</p>` : ""}
       <p class="muted">${escapeHtml(evidence.role || artifact.kind)}${evidence.agent_id ? ` · ${escapeHtml(evidence.agent_id)}` : ""}</p>
-      <p class="muted">${escapeHtml(artifact.path)}</p>
+      <p class="muted path">${escapeHtml(artifact.path)}</p>
     </article>
   `;
 }
@@ -1126,6 +1126,34 @@ document.addEventListener("click", async (event) => {
     state.activeJobId = Number(jobCard.dataset.jobId);
     setActivePage("jobs");
     renderAll();
+    const jobId = jobCard.dataset.jobId;
+    const job = state.jobs.find((j) => String(j.id) === String(jobId)) || { id: jobId };
+    const awPayload = {
+      tab_id: "jobs",
+      kind: "job",
+      item_id: String(job.id),
+      title: job.title || job.name || `Job #${job.id}`,
+      subtitle: job.state || job.status || "",
+      status_pill: job.state || job.status || "queued",
+      primary_actions: [
+        { id: "cancel", label: "Cancel", endpoint: `/api/jobs/${job.id}/cancel`, method: "POST" },
+        { id: "retry", label: "Retry", endpoint: `/api/jobs/${job.id}/retry`, method: "POST" },
+      ],
+      secondary_actions: [],
+      panels: [
+        {
+          id: "details",
+          title: "Details",
+          body: `Status: ${job.state || job.status || "n/a"}\nNotes: ${job.notes || ""}`,
+        },
+      ],
+      stream_url: null,
+    };
+    if (window.HermesActionWindow?.dispatch) {
+      window.HermesActionWindow.dispatch(awPayload);
+    } else {
+      document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: awPayload }));
+    }
   }
 
   const printerButton = event.target.closest("[data-test-printer]");
@@ -1247,7 +1275,21 @@ document.addEventListener("submit", async (event) => {
 
 });
 
-document.querySelector("#refreshBtn").addEventListener("click", refresh);
+document.querySelector("#refreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#refreshBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+  try {
+    await refresh();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+  }
+});
+
+document.querySelector("#dashboardRefreshBtn")?.addEventListener("click", async () => {
+  const btn = document.querySelector("#dashboardRefreshBtn");
+  if (btn) { btn.disabled = true; }
+  try { await refresh(); } finally { if (btn) btn.disabled = false; }
+});
 
 themeSelect?.addEventListener("change", () => {
   applyTheme(themeSelect.value);
@@ -1334,6 +1376,94 @@ startPrintBtn.addEventListener("click", async () => {
     body: "{}",
   });
   await refresh();
+});
+
+// Slot 8: observe tab — click camera card → Action Window (kind=printer, live SSE log panel)
+document.querySelector('#observeGrid')?.addEventListener('click', function(e) {
+  const card = e.target.closest('.camera-card');
+  if (!card) return;
+  const name = card.querySelector('h3')?.textContent;
+  const printer = state.printers.find(p => p.name === name) || { id: name, name: name || 'Printer' };
+  const payload = {
+    tab_id: 'observe', kind: 'printer', item_id: printer.id || name,
+    title: printer.name || name, subtitle: 'Live camera feed',
+    status_pill: printer.connector || 'observe',
+    primary_actions: [{ id: 'mute', label: 'Mute Camera', endpoint: `/api/observe/mute/${printer.id}`, method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'camera', title: 'Camera', body: printer.capabilities?.camera_url ? `<iframe src="${printer.capabilities.camera_url}" style="width:100%;border:0;height:300px"></iframe>` : 'No camera configured.' },
+      { id: 'log', title: 'Live Log', body: `<pre id="cameraLog-${printer.id}">Loading...</pre>` }
+    ],
+    stream_url: `/api/observe/stream/${printer.id}`
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
+});
+
+
+// Dev-only: log every actionwindow:render event when ?debug=1 is in URL
+if (new URLSearchParams(window.location.search).get("debug") === "1") {
+  document.addEventListener("actionwindow:render", (event) => {
+    const payload = event.detail;
+    console.group(`[ActionWindow] ${payload?.kind || "?"}: ${payload?.title || "?"}`);
+    console.log("tab_id:", payload?.tab_id);
+    console.log("item_id:", payload?.item_id);
+    console.log("status_pill:", payload?.status_pill);
+    console.log("primary_actions:", payload?.primary_actions);
+    console.log("payload:", payload);
+    console.groupEnd();
+  });
+  console.log("[Hermes3D] ActionWindow debug logger active (remove ?debug=1 to disable)");
+}
+
+// Slot 13: approvals pending card → Action Window
+document.querySelector("#approvalsPageList")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".approval-card, article[data-approval-id]");
+  if (!card) return;
+  // Skip if clicking approve/reject buttons directly
+  if (e.target.closest("button[data-approve], button[data-reject]")) return;
+  const approvalId = card.dataset.approvalId;
+  const title = card.querySelector("h3, strong")?.textContent || `Approval ${approvalId}`;
+  const note = card.querySelector("p, .muted")?.textContent || "";
+  const payload = {
+    tab_id: "approvals", kind: "approval", item_id: String(approvalId || title),
+    title: title, subtitle: note.substring(0, 80),
+    status_pill: "pending",
+    primary_actions: [
+      { id: "approve", label: "Approve", endpoint: `/api/approvals/${approvalId}/approve`, method: "POST" },
+      { id: "reject", label: "Reject", endpoint: `/api/approvals/${approvalId}/reject`, method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Approval Details", body: note }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 11: learning topic cards -> Action Window
+document.querySelector('#learningTopics')?.addEventListener('click', function (e) {
+  const card = e.target.closest('.setup-card, .topic-card, .learning-card, article');
+  if (!card) return;
+  const title = card.querySelector('h3, strong, .title')?.textContent || 'Topic';
+  const body = card.querySelector('p, .muted, .body')?.textContent || '';
+  const payload = {
+    tab_id: 'learning',
+    kind: 'topic',
+    item_id: title.toLowerCase().replace(/s+/g, '-'),
+    title: title,
+    subtitle: body.substring(0, 80),
+    status_pill: 'learn',
+    primary_actions: [{ id: 'bookmark', label: 'Bookmark', endpoint: '/api/learning/bookmark', method: 'POST' }],
+    secondary_actions: [],
+    panels: [
+      { id: 'details', title: 'Topic Details', body: body },
+      { id: 'papers', title: 'Linked Papers', body: 'No papers linked yet.' },
+    ],
+    stream_url: null,
+  };
+  if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent('actionwindow:render', { detail: payload }));
 });
 
 refresh();
