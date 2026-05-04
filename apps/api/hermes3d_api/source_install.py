@@ -9,6 +9,10 @@ gets an optional `install` block:
       "package": "<pypi-name>",          # for pip
       "import_name": "<python module>",  # optional pip probe
       "repo": "<git url>",               # for clone-*
+      "system_command": "blender",       # optional clone-* CLI probe/link
+      "system_env": "HERMES3D_BLENDER_PATH",
+      "link_name": "blender",
+      "smoke_args": ["--background", "--version"],
       "build_cmd": ["npm", "ci"],        # for npm-build
       "binary_url": "...",               # for binary-download
       "binary_target": "<vendor path>"   # for binary-download
@@ -120,6 +124,68 @@ def _venv_python(venv: Path) -> Path:
     return venv / "bin" / "python"
 
 
+def _candidate_tool_paths(command: str, env_name: str | None) -> list[Path]:
+    candidates: list[Path] = []
+    if env_name:
+        env_path = os.environ.get(env_name)
+        if env_path:
+            candidates.append(Path(env_path))
+    found = shutil.which(command)
+    if found:
+        candidates.append(Path(found))
+    if command == "blender":
+        candidates.extend(
+            [
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe"),
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.3\blender.exe"),
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.2\blender.exe"),
+                Path(r"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe"),
+            ]
+        )
+    return candidates
+
+
+def _install_system_command_link(app_id: str, entry: dict[str, Any], target: Path) -> tuple[bool, str]:
+    install = entry["install"]
+    command = install.get("system_command")
+    if not command:
+        return True, "no system command link requested"
+
+    executable = next(
+        (candidate for candidate in _candidate_tool_paths(command, install.get("system_env")) if candidate.exists()),
+        None,
+    )
+    if executable is None:
+        return False, f"system command '{command}' not found; set {install.get('system_env') or 'PATH'}"
+
+    smoke_args = install.get("smoke_args") or []
+    smoke_cmd = [str(executable), *smoke_args]
+    _append_log(app_id, f"$ {' '.join(smoke_cmd)}")
+    try:
+        proc = subprocess.run(smoke_cmd, capture_output=True, text=True, timeout=60)
+    except Exception as exc:  # pragma: no cover
+        return False, f"{command} smoke subprocess error: {exc}"
+    _append_log(app_id, (proc.stdout or "")[-2000:])
+    if proc.returncode != 0:
+        _append_log(app_id, (proc.stderr or "")[-2000:])
+        return False, f"{command} smoke exit {proc.returncode}"
+
+    bin_dir = target / "hermes-bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    link_name = install.get("link_name") or command
+    if os.name == "nt":
+        shim = bin_dir / f"{link_name}.cmd"
+        shim.write_text(f'@echo off\r\n"{executable}" %*\r\n', encoding="utf-8")
+        _append_log(app_id, f"linked {command} shim: {shim}")
+    else:
+        link = bin_dir / link_name
+        if link.exists() or link.is_symlink():
+            link.unlink()
+        link.symlink_to(executable)
+        _append_log(app_id, f"linked {command} symlink: {link}")
+    return True, f"{command} smoke ok"
+
+
 def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None = None) -> bool:
     """Best-effort detection — used by status endpoint."""
     install = entry.get("install") or {}
@@ -210,20 +276,23 @@ def _install_clone(app_id: str, entry: dict[str, Any], depth: int | None) -> tup
     target.parent.mkdir(parents=True, exist_ok=True)
     if (target / ".git").exists():
         _append_log(app_id, f"already cloned: {target}")
-        return True, "already cloned"
-    cmd = ["git", "clone"]
-    if depth:
-        cmd.extend(["--depth", str(depth)])
-    cmd.extend([repo, str(target)])
-    _append_log(app_id, f"$ {' '.join(cmd)}")
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
-    except Exception as exc:  # pragma: no cover
-        return False, f"git subprocess error: {exc}"
-    _append_log(app_id, (proc.stdout or "")[-2000:])
-    if proc.returncode != 0:
-        _append_log(app_id, (proc.stderr or "")[-2000:])
-        return False, f"git exit {proc.returncode}"
+    else:
+        cmd = ["git", "clone"]
+        if depth:
+            cmd.extend(["--depth", str(depth)])
+        cmd.extend([repo, str(target)])
+        _append_log(app_id, f"$ {' '.join(cmd)}")
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        except Exception as exc:  # pragma: no cover
+            return False, f"git subprocess error: {exc}"
+        _append_log(app_id, (proc.stdout or "")[-2000:])
+        if proc.returncode != 0:
+            _append_log(app_id, (proc.stderr or "")[-2000:])
+            return False, f"git exit {proc.returncode}"
+    ok, message = _install_system_command_link(app_id, entry, target)
+    if not ok:
+        return False, message
     return True, "clone ok"
 
 

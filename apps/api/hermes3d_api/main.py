@@ -97,6 +97,17 @@ VISUAL_FILE_SUFFIXES = {".gif", ".jpg", ".jpeg", ".png", ".svg", ".webp"}
 
 SOURCE_APP_REGISTRY = [
     {
+        "id": "blender",
+        "name": "Blender",
+        "target": Path("modelers") / "Blender",
+        "tool_key": "blender",
+        "gui_tool_key": "blender",
+        "cli_commands": ["blender"],
+        "gui_commands": ["blender"],
+        "launch_args": ["--background", "--version"],
+        "launch_kind": "cli-smoke",
+    },
+    {
         "id": "prusaslicer",
         "name": "PrusaSlicer",
         "target": Path("slicers") / "PrusaSlicer",
@@ -706,7 +717,8 @@ def source_apps_status() -> dict[str, Any]:
                 "install_method": (manifest_entry.get("install") or {}).get("method"),
                 "install_status": install_state["status"],
                 "install_state": install_state,
-                "launch_supported": item["id"] == "prusaslicer",
+                "launch_supported": item["id"] == "prusaslicer" or bool(item.get("launch_args")),
+                "launch_kind": item.get("launch_kind") or "",
                 "launch_status": "running" if launch_running else "stopped",
                 "launch_pid": launched.pid if launch_running and launched else None,
                 "embed_mode": "native-window-bridge-required",
@@ -742,6 +754,29 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
     manifest_entry = source_install.find_app(settings.repo_root, app_id)
     if registry_item is None or manifest_entry is None:
         return {"ok": False, "app_id": app_id, "error": f"unknown app id: {app_id}"}
+    launch_args = registry_item.get("launch_args") or []
+    if launch_args:
+        executable = _tool_path(registry_item["tool_key"], registry_item["cli_commands"])
+        if not executable:
+            return {
+                "app_id": app_id,
+                "ok": False,
+                "error": f"{registry_item['name']} executable not found; configure HERMES3D_BLENDER_PATH or PATH",
+            }
+        cmd = [executable, *launch_args]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except Exception as exc:  # pragma: no cover
+            return {"app_id": app_id, "ok": False, "error": str(exc), "command": cmd}
+        return {
+            "app_id": app_id,
+            "ok": proc.returncode == 0,
+            "launch_status": "ok" if proc.returncode == 0 else "failed",
+            "command": cmd,
+            "stdout": (proc.stdout or "")[-2000:],
+            "stderr": (proc.stderr or "")[-2000:],
+            "returncode": proc.returncode,
+        }
     if app_id != "prusaslicer":
         return {"ok": False, "app_id": app_id, "error": "launch is not configured for this app"}
 
@@ -1449,6 +1484,7 @@ def _tool_path(key: str, commands: list[str]) -> str | None:
             return found
     known_paths = {
         "blender": [
+            r"C:\Program Files\Blender Foundation\Blender 4.4\blender.exe",
             r"C:\Program Files\Blender Foundation\Blender 4.3\blender.exe",
             r"C:\Program Files\Blender Foundation\Blender 4.2\blender.exe",
             r"C:\Program Files\Blender Foundation\Blender 4.1\blender.exe",
