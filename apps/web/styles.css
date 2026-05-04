@@ -788,6 +788,38 @@ textarea {
   font-style: normal;
 }
 
+.status-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.pill-green {
+  background: rgba(40, 168, 96, 0.18);
+  color: #6be091;
+}
+
+.pill-blue {
+  background: rgba(80, 130, 220, 0.18);
+  color: #9ec0f0;
+}
+
+.pill-yellow {
+  background: rgba(220, 158, 30, 0.18);
+  color: #f0c46a;
+}
+
+.pill-gray {
+  background: rgba(140, 140, 160, 0.15);
+  color: #aaaacc;
+}
+
 .source-bench-grid {
   display: grid;
   grid-template-columns: minmax(560px, 1fr) 300px;

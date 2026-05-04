@@ -48,7 +48,7 @@ const SOURCE_PREFERRED_ORDER = {
 const sourceState = {
   manifest: null,
   sourceAppsStatus: null,
-  groupKey: "slicers",
+  groupKey: localStorage.getItem("hermes3d.sourceGroupFilter") || "slicers",
   selectedIndex: 0,
   layout: localStorage.getItem("hermes3d.sourceLayout") || "wide",
 };
@@ -62,7 +62,8 @@ async function loadSourceManifest() {
       throw new Error(response.statusText);
     }
     sourceState.manifest = await response.json();
-    sourceState.groupKey = firstSourceGroup();
+    const _savedGroup = localStorage.getItem("hermes3d.sourceGroupFilter");
+    sourceState.groupKey = (_savedGroup && sourceGroups().includes(_savedGroup)) ? _savedGroup : firstSourceGroup();
     renderSourceOs();
     loadSourceAppsStatus();
   } catch (error) {
@@ -171,6 +172,23 @@ function renderSourceMix() {
   setSourceHtml("#sourceDownloadState", `${total} source modules / ${unique} local source checkouts`);
 }
 
+function renderModuleStatusPill(module) {
+  const appStatus = sourceAppStatus(module);
+  const status = appStatus.install_status
+    || (appStatus.installed_executable ? "installed" : null)
+    || module.install_status
+    || module.status
+    || "unknown";
+  const cls = status === "installed"
+    ? "pill-green"
+    : status === "installing"
+      ? "pill-yellow"
+      : status === "available" || status === "source ready"
+        ? "pill-blue"
+        : "pill-gray";
+  return `<span class="status-pill ${sourceEscapeAttr(cls)}" data-module-status="${sourceEscapeAttr(status)}">${sourceEscape(status)}</span>`;
+}
+
 function renderSourceModuleList() {
   const modules = currentSourceGroup();
   const countLabel = `${modules.length} ${modules.length === 1 ? "module" : "modules"}`;
@@ -184,6 +202,7 @@ function renderSourceModuleList() {
           <button class="source-module-card ${index === sourceState.selectedIndex ? "active" : ""} ${sourceEscapeAttr(module.priority || "")}" type="button" data-source-index="${index}">
             <b>${sourceEscape(module.name)}</b><i>${sourceEscape(module.priority || "candidate")}</i>
             <span>${sourceEscape(module.uxSection || "Hermes3D module")}</span><span>${sourceEscape(module.license || "unknown")}</span>
+            ${renderModuleStatusPill(module)}
           </button>
         `,
       )
@@ -578,6 +597,7 @@ function setSourceGroup(group) {
   }
   sourceState.groupKey = group;
   sourceState.selectedIndex = 0;
+  localStorage.setItem("hermes3d.sourceGroupFilter", group);
   renderSourceOs();
 }
 
@@ -802,3 +822,11 @@ async function runSourceProcessAction(module, action) {
     setSourceHtml("#sourceDownloadState", `${module.name}: ${action} error - ${sourceEscape(err)}`);
   }
 }
+
+document.getElementById("sourceSearch")?.addEventListener("input", (e) => {
+  const query = e.target.value.toLowerCase();
+  document.querySelectorAll("#sourceModuleList .source-module-btn, #sourceModuleList button").forEach(btn => {
+    const text = btn.textContent.toLowerCase();
+    btn.style.display = text.includes(query) ? "" : "none";
+  });
+});
