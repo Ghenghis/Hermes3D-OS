@@ -670,7 +670,7 @@ def generation_stack_status() -> dict[str, Any]:
 
 @app.get("/api/source-apps/status")
 def source_apps_status() -> dict[str, Any]:
-    source_root = settings.repo_root / "source-lab" / "sources"
+    source_root = source_install.resolve_apps_root(settings.repo_root)
     apps = []
     for item in SOURCE_APP_REGISTRY:
         source_path = source_root / item["target"]
@@ -698,6 +698,7 @@ def source_apps_status() -> dict[str, Any]:
                 "install_method": (manifest_entry.get("install") or {}).get("method"),
                 "install_status": install_state["status"],
                 "install_state": install_state,
+                "launch_supported": item["id"] == "prusaslicer",
                 "launch_status": "running" if launch_running else "stopped",
                 "launch_pid": launched.pid if launch_running and launched else None,
                 "embed_mode": "native-window-bridge-required",
@@ -732,7 +733,9 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
     registry_item = next((item for item in SOURCE_APP_REGISTRY if item["id"] == app_id), None)
     manifest_entry = source_install.find_app(settings.repo_root, app_id)
     if registry_item is None or manifest_entry is None:
-        raise HTTPException(status_code=404, detail=f"unknown app id: {app_id}")
+        return {"ok": False, "app_id": app_id, "error": f"unknown app id: {app_id}"}
+    if app_id != "prusaslicer":
+        return {"ok": False, "app_id": app_id, "error": "launch is not configured for this app"}
 
     running = source_app_processes.get(app_id)
     if running and running.poll() is None:
@@ -745,7 +748,7 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
     ) or _tool_path(registry_item["tool_key"], registry_item["cli_commands"])
     executable = installed or (Path(fallback) if fallback else None)
     if executable is None or not executable.exists():
-        raise HTTPException(status_code=409, detail="PrusaSlicer is not installed yet")
+        return {"ok": False, "app_id": app_id, "error": "PrusaSlicer is not installed yet"}
 
     try:
         proc = subprocess.Popen(
@@ -756,7 +759,7 @@ def source_app_launch(app_id: str) -> dict[str, Any]:
             stderr=subprocess.DEVNULL,
         )
     except Exception as exc:  # pragma: no cover - platform launch failure
-        raise HTTPException(status_code=500, detail=f"launch failed: {exc}") from exc
+        return {"ok": False, "app_id": app_id, "error": f"launch failed: {exc}"}
 
     source_app_processes[app_id] = proc
     return {
