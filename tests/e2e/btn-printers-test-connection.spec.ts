@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('printer test connection button tests printer connectivity', async ({ page }) => {
-  await page.goto('http://localhost:8000/');
+  await page.goto('/');
   await page.waitForLoadState('networkidle');
   
   // Navigate to printers page
