@@ -132,6 +132,14 @@ SOURCE_APP_REGISTRY = [
         "cli_commands": ["cura"],
         "gui_commands": ["cura"],
     },
+    {
+        "id": "triposr",
+        "name": "TripoSR",
+        "target": Path("generation") / "TripoSR",
+        "tool_key": "triposr",
+        "cli_commands": [],
+        "gui_commands": [],
+    },
 ]
 
 app.add_middleware(
