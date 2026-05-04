@@ -562,7 +562,7 @@ function renderApprovalsPage() {
   const pendingRows = pending
     .map(
       (job) => `
-        <article class="approval-card">
+        <article class="approval-card" data-approval-id="${escapeAttr(String(job.id))}">
           <div class="row">
             <strong>${escapeHtml(job.title)}</strong>
             ${stateBadge(job.state)}
@@ -1353,6 +1353,30 @@ document.querySelector("#dashboardFleet").addEventListener("click", function(e) 
     stream_url: null
   };
   if (window.HermesActionWindow?.dispatch) window.HermesActionWindow.dispatch(payload);
+  else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
+});
+
+// Slot 13: approvals pending card > Action Window
+document.querySelector("#approvalsPageList")?.addEventListener("click", function(e) {
+  const card = e.target.closest(".approval-card, article[data-approval-id]");
+  if (!card) return;
+  if (e.target.closest("button[data-approve], button[data-reject]")) return;
+  const approvalId = card.dataset.approvalId;
+  const title = card.querySelector("h3, strong")?.textContent || ("Approval " + approvalId);
+  const note = card.querySelector("p, .muted")?.textContent || "";
+  const payload = {
+    tab_id: "approvals", kind: "approval", item_id: String(approvalId || title),
+    title: title, subtitle: note.substring(0, 80),
+    status_pill: "pending",
+    primary_actions: [
+      { id: "approve", label: "Approve", endpoint: "/api/approvals/" + approvalId + "/approve", method: "POST" },
+      { id: "reject", label: "Reject", endpoint: "/api/approvals/" + approvalId + "/reject", method: "POST" }
+    ],
+    secondary_actions: [],
+    panels: [{ id: "details", title: "Approval Details", body: note }],
+    stream_url: null
+  };
+  if (window.HermesActionWindow && window.HermesActionWindow.dispatch) window.HermesActionWindow.dispatch(payload);
   else document.dispatchEvent(new CustomEvent("actionwindow:render", { detail: payload }));
 });
 
