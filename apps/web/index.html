@@ -318,6 +318,9 @@
             <h2>Printers</h2>
             <span class="muted">Moonraker fleet inventory</span>
           </div>
+          <div class="page-toolbar">
+            <button id="printersDiscover" type="button">Discover Printers</button>
+          </div>
           <div id="printers" class="printers printer-grid"></div>
         </section>
       </section>
@@ -520,6 +523,7 @@
     </main>
 
     <aside id="actionWindow" class="action-window" hidden aria-label="Action Window"></aside>
+    <div id="hermes-toast" role="status" aria-live="polite" style="position:fixed;bottom:1rem;right:1rem;background:#222;color:#fff;padding:.5rem 1rem;border-radius:6px;display:none;z-index:9999"></div>
 
     <script src="/static/action-window.js?v=20260503-fnd"></script>
     <script src="/static/source-os.js?v=20260428-source"></script>
