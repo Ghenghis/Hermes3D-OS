@@ -156,6 +156,11 @@ class Database:
                 (job_id, event_type, message, json.dumps(payload or {}, sort_keys=True), utc_now()),
             )
 
+    def clear_completed_jobs(self) -> int:
+        with self.connect() as conn:
+            cursor = conn.execute("DELETE FROM jobs WHERE state = 'COMPLETE'")
+            return cursor.rowcount
+
 
 def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     item = dict(row)
