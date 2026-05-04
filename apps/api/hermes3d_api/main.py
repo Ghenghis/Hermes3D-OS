@@ -1135,6 +1135,72 @@ def list_jobs() -> list[dict[str, Any]]:
     return _list_jobs()
 
 
+@app.post("/api/printers/{printer_id}/test-connection", response_model=ApiMessage)
+def test_printer_connection(printer_id: str) -> ApiMessage:
+    printer = _get_printer(printer_id)
+    if not printer:
+        raise HTTPException(status_code=404, detail="Printer not found")
+    
+    moonraker = MoonrakerClient(dry_run=settings.dry_run_printers)
+    base_url = printer.get("moonraker", {}).get("base_url") or printer.get("base_url")
+    if not base_url:
+        return ApiMessage(message=f"{printer.get('name', printer_id)} has no base URL configured.")
+    
+    try:
+        result = moonraker.test_connection(base_url)
+        db.add_event(
+            None,
+            "PRINTER_CONNECTION_TEST",
+            f"{printer.get('name', printer_id)} connection test: {'success' if result else 'failed'}",
+            {"printer_id": printer_id, "success": result}
+        )
+        return ApiMessage(message=f"{printer.get('name', printer_id)} connection test: {'success' if result else 'failed'}")
+    except Exception as exc:
+        db.add_event(
+            None,
+            "PRINTER_CONNECTION_TEST",
+            f"{printer.get('name', printer_id)} connection test failed: {str(exc)}",
+            {"printer_id": printer_id, "error": str(exc)}
+        )
+        return ApiMessage(message=f"{printer.get('name', printer_id)} connection test failed: {str(exc)}")
+
+
+@app.post("/api/telemetry/toggle", response_model=ApiMessage)
+def toggle_telemetry_stream() -> ApiMessage:
+    runtime = load_runtime_config(settings)
+    telemetry_enabled = runtime.get("extras", {}).get("telemetry_enabled", True)
+    telemetry_enabled = not telemetry_enabled
+    if not runtime.get("extras"):
+        runtime["extras"] = {}
+    runtime["extras"]["telemetry_enabled"] = telemetry_enabled
+    save_runtime_config(settings, runtime)
+    db.add_event(
+        None,
+        "TELEMETRY_TOGGLED",
+        f"Telemetry stream {'enabled' if telemetry_enabled else 'disabled'}",
+        {"telemetry_enabled": telemetry_enabled}
+    )
+    return ApiMessage(message=f"Telemetry stream {'enabled' if telemetry_enabled else 'disabled'}")
+
+
+@app.post("/api/voice/mute", response_model=ApiMessage)
+def toggle_voice_mute() -> ApiMessage:
+    runtime = load_runtime_config(settings)
+    voice_muted = runtime.get("extras", {}).get("voice_muted", False)
+    voice_muted = not voice_muted
+    if not runtime.get("extras"):
+        runtime["extras"] = {}
+    runtime["extras"]["voice_muted"] = voice_muted
+    save_runtime_config(settings, runtime)
+    db.add_event(
+        None,
+        "VOICE_MUTE_TOGGLED",
+        f"Voice {'muted' if voice_muted else 'unmuted'}",
+        {"voice_muted": voice_muted}
+    )
+    return ApiMessage(message=f"Voice {'muted' if voice_muted else 'unmuted'}")
+
+
 @app.post("/api/jobs")
 def create_job(payload: JobCreate) -> dict[str, Any]:
     now = utc_now()
