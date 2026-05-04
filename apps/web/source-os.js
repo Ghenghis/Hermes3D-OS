@@ -802,3 +802,11 @@ async function runSourceProcessAction(module, action) {
     setSourceHtml("#sourceDownloadState", `${module.name}: ${action} error - ${sourceEscape(err)}`);
   }
 }
+
+document.getElementById("sourceSearch")?.addEventListener("input", (e) => {
+  const query = e.target.value.toLowerCase();
+  document.querySelectorAll("#sourceModuleList .source-module-btn, #sourceModuleList button").forEach(btn => {
+    const text = btn.textContent.toLowerCase();
+    btn.style.display = text.includes(query) ? "" : "none";
+  });
+});
