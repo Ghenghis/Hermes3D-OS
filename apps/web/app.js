@@ -1121,6 +1121,7 @@ window.addEventListener("hashchange", () => {
 });
 
 document.addEventListener("click", async (event) => {
+  if (!event.target.closest("#page-jobs")) return;
   const jobCard = event.target.closest(".job-card");
   if (jobCard) {
     state.activeJobId = Number(jobCard.dataset.jobId);
