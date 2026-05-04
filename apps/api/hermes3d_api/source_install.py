@@ -23,9 +23,13 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
+import urllib.request
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -141,7 +145,36 @@ def probe_installed(app_id: str, entry: dict[str, Any], repo_root: Path | None =
             return False
         marker = target / install.get("setup_marker", ".hermes3d-venv-ready")
         return marker.exists()
+    if method == "binary-download":
+        return find_installed_binary(entry) is not None
     return False
+
+
+def install_target_path(entry: dict[str, Any]) -> Path | None:
+    install = entry.get("install") or {}
+    target_rel = install.get("binary_target") or entry.get("target")
+    if not target_rel:
+        return None
+    return resolve_apps_root() / target_rel
+
+
+def find_installed_binary(entry: dict[str, Any]) -> Path | None:
+    target = install_target_path(entry)
+    if target is None or not target.exists():
+        return None
+    install = entry.get("install") or {}
+    names = install.get("binary_names") or install.get("launch_candidates") or []
+    if isinstance(names, str):
+        names = [names]
+    for name in names:
+        candidate = target / str(name)
+        if candidate.exists():
+            return candidate
+    for pattern in ("prusa-slicer.exe", "prusa-slicer-console.exe", "*.exe"):
+        found = next(target.rglob(pattern), None)
+        if found:
+            return found
+    return None
 
 
 # ─── Dispatchers ───────────────────────────────────────────────────────────
@@ -261,6 +294,61 @@ def _install_clone_full_venv(app_id: str, entry: dict[str, Any]) -> tuple[bool, 
     return True, "clone + venv requirements ok"
 
 
+def _install_binary_download(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
+    install = entry["install"]
+    url = install.get("binary_url")
+    if not url:
+        return False, "manifest install.binary_url missing"
+    target = install_target_path(entry)
+    if target is None:
+        return False, "manifest install.binary_target missing"
+    existing = find_installed_binary(entry)
+    if existing:
+        _append_log(app_id, f"already installed: {existing}")
+        return True, "already installed"
+
+    target.mkdir(parents=True, exist_ok=True)
+    _append_log(app_id, f"download: {url}")
+    _append_log(app_id, f"target: {target}")
+    try:
+        with tempfile.TemporaryDirectory(prefix=f"{app_id}-") as tmp:
+            tmp_path = Path(tmp)
+            archive = tmp_path / "download.zip"
+            with urllib.request.urlopen(url, timeout=120) as response:
+                with archive.open("wb") as handle:
+                    shutil.copyfileobj(response, handle)
+            extract_root = tmp_path / "extract"
+            extract_root.mkdir()
+            with zipfile.ZipFile(archive) as zip_ref:
+                _safe_extract(zip_ref, extract_root)
+            payload_root = _single_payload_root(extract_root)
+            shutil.copytree(payload_root, target, dirs_exist_ok=True)
+    except Exception as exc:  # pragma: no cover - network/filesystem failure
+        return False, f"binary download error: {exc}"
+
+    installed = find_installed_binary(entry)
+    if not installed:
+        return False, f"download extracted but no executable was found in {target}"
+    _append_log(app_id, f"installed executable: {installed}")
+    return True, "binary download ok"
+
+
+def _single_payload_root(extract_root: Path) -> Path:
+    children = [path for path in extract_root.iterdir() if path.name != "__MACOSX"]
+    if len(children) == 1 and children[0].is_dir():
+        return children[0]
+    return extract_root
+
+
+def _safe_extract(zip_ref: zipfile.ZipFile, destination: Path) -> None:
+    root = destination.resolve()
+    for member in zip_ref.infolist():
+        resolved = (destination / member.filename).resolve()
+        if root != resolved and root not in resolved.parents:
+            raise ValueError(f"refusing unsafe archive path: {member.filename}")
+    zip_ref.extractall(destination)
+
+
 def _install_noop(app_id: str, entry: dict[str, Any]) -> tuple[bool, str]:
     _append_log(app_id, "noop: install method is intentionally a no-op (used for tests / reference cards)")
     return True, "noop"
@@ -271,8 +359,9 @@ _DISPATCH = {
     "clone-shallow": lambda aid, e: _install_clone(aid, e, depth=1),
     "clone-full": lambda aid, e: _install_clone(aid, e, depth=None),
     "clone-full-venv": lambda aid, e: _install_clone_full_venv(aid, e),
+    "binary-download": lambda aid, e: _install_binary_download(aid, e),
     "noop": lambda aid, e: _install_noop(aid, e),
-    # binary-download and npm-build land in their own per-app branches.
+    # npm-build lands in its own per-app branch.
 }
 
 

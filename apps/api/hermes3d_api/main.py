@@ -6,6 +6,7 @@ import random
 import re
 import shutil
 import socket
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -81,6 +82,7 @@ db = Database(settings.database_path)
 app = FastAPI(title="Hermes3D OS", version="0.1.0")
 slicer = SlicerWorker(settings.storage_dir)
 moonraker = MoonrakerClient(dry_run=settings.dry_run_printers)
+source_app_processes: dict[str, subprocess.Popen[bytes]] = {}
 
 VISUAL_EVIDENCE_KINDS = {
     "source_image",
@@ -683,22 +685,30 @@ def source_apps_status() -> dict[str, Any]:
         cli_path = _tool_path(item["tool_key"], item["cli_commands"])
         gui_path = _tool_path(item.get("gui_tool_key", item["tool_key"]), item["gui_commands"])
         manifest_entry = source_install.find_app(settings.repo_root, item["id"]) or {}
+        installed_binary = source_install.find_installed_binary(manifest_entry) if manifest_entry else None
+        install_target = source_install.install_target_path(manifest_entry) if manifest_entry else None
         install_state = source_install.install_state_payload(item["id"])
         if manifest_entry.get("install") and install_state["status"] == "not_installed":
-            if source_install.probe_installed(item["id"], manifest_entry, settings.repo_root):
-                install_state = {**install_state, "status": "installed", "log_tail": ["probed installation target"]}
+            if source_install.probe_installed(item["id"], manifest_entry):
+                install_state = {**install_state, "status": "installed", "log_tail": ["probed via install target"]}
+        launched = source_app_processes.get(item["id"])
+        launch_running = bool(launched and launched.poll() is None)
         apps.append(
             {
                 "id": item["id"],
                 "name": item["name"],
                 "source_path": str(source_path),
-                "source_exists": source_path.exists(),
+                "install_target": str(install_target) if install_target else "",
+                "source_exists": source_path.exists() or bool(install_target and install_target.exists()),
                 "source_has_git": (source_path / ".git").exists(),
-                "cli_executable": cli_path or "",
-                "installed_executable": gui_path or cli_path or "",
+                "cli_executable": cli_path or str(installed_binary or ""),
+                "installed_executable": str(installed_binary or gui_path or cli_path or ""),
                 "install_method": (manifest_entry.get("install") or {}).get("method"),
                 "install_status": install_state["status"],
                 "install_state": install_state,
+                "launch_supported": item["id"] == "prusaslicer",
+                "launch_status": "running" if launch_running else "stopped",
+                "launch_pid": launched.pid if launch_running and launched else None,
                 "embed_mode": "native-window-bridge-required",
                 "ui_host": "Hermes3D resizable Source OS workbench",
                 "safe_actions": ["inspect source", "configure executable path", "run CLI dry-run after approval"],
@@ -724,6 +734,49 @@ def source_app_install(app_id: str) -> dict[str, Any]:
 @app.get("/api/source-apps/{app_id}/install")
 def source_app_install_state(app_id: str) -> dict[str, Any]:
     return {"app_id": app_id, "state": source_install.install_state_payload(app_id)}
+
+
+@app.post("/api/source-apps/{app_id}/launch")
+def source_app_launch(app_id: str) -> dict[str, Any]:
+    registry_item = next((item for item in SOURCE_APP_REGISTRY if item["id"] == app_id), None)
+    manifest_entry = source_install.find_app(settings.repo_root, app_id)
+    if registry_item is None or manifest_entry is None:
+        return {"ok": False, "app_id": app_id, "error": f"unknown app id: {app_id}"}
+    if app_id != "prusaslicer":
+        return {"ok": False, "app_id": app_id, "error": "launch is not configured for this app"}
+
+    running = source_app_processes.get(app_id)
+    if running and running.poll() is None:
+        return {"ok": True, "app_id": app_id, "status": "running", "pid": running.pid}
+
+    installed = source_install.find_installed_binary(manifest_entry)
+    fallback = _tool_path(
+        registry_item.get("gui_tool_key", registry_item["tool_key"]),
+        registry_item["gui_commands"],
+    ) or _tool_path(registry_item["tool_key"], registry_item["cli_commands"])
+    executable = installed or (Path(fallback) if fallback else None)
+    if executable is None or not executable.exists():
+        return {"ok": False, "app_id": app_id, "error": "PrusaSlicer is not installed yet"}
+
+    try:
+        proc = subprocess.Popen(
+            [str(executable)],
+            cwd=str(executable.parent),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as exc:  # pragma: no cover - platform launch failure
+        return {"ok": False, "app_id": app_id, "error": f"launch failed: {exc}"}
+
+    source_app_processes[app_id] = proc
+    return {
+        "ok": True,
+        "app_id": app_id,
+        "status": "running" if proc.poll() is None else "exited",
+        "pid": proc.pid,
+        "executable": str(executable),
+    }
 
 
 @app.post("/api/jobs/{job_id}/generate-3d-from-image")

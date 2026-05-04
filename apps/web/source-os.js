@@ -484,12 +484,17 @@ function dispatchSourceModuleToActionWindow() {
   if (installMethod) {
     primary.push({ id: "install-app", label: installStatus === "installing" ? "Installing…" : "Install", endpoint: `/api/source-apps/${module.id}/install`, method: "POST" });
   }
+  if (status.launch_supported) {
+    primary.push({ id: "launch-app", label: "Launch", endpoint: `/api/source-apps/${module.id}/launch`, method: "POST" });
+  }
   primary.push({ id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" });
   const logTail = status.install_state?.log_tail || [];
   const installNote = module.install?.note || "Local open-source install; no cloud service required.";
   const launcherText = module.id === "triposr"
     ? "N/A; TripoSR is prepared as a local research module and probed through its Python setup."
-    : "Native or service launch wiring depends on this app's adapter.";
+    : status.launch_supported
+      ? `${status.launch_status || "stopped"}${status.launch_pid ? ` pid ${status.launch_pid}` : ""}`
+      : "Native or service launch wiring depends on this app's adapter.";
   const triposrPanels = module.id === "triposr"
     ? [
         {
@@ -646,11 +651,28 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const launchButton = event.target.closest("#sourceLaunchApp");
+  if (launchButton) {
+    const module = currentSourceModule();
+    if (module) {
+      launchSourceModule(module);
+    }
+    return;
+  }
+
   const awInstallButton = event.target.closest("#actionWindow [data-action-id='install-app']");
   if (awInstallButton) {
     const moduleId = awInstallButton.closest("#actionWindow")?.dataset?.itemId;
     const module = allSourceModules().find((m) => m.id === moduleId);
     if (module) installSourceModule(module);
+    return;
+  }
+
+  const awLaunchButton = event.target.closest("#actionWindow [data-action-id='launch-app']");
+  if (awLaunchButton) {
+    const moduleId = awLaunchButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) launchSourceModule(module);
     return;
   }
 });
@@ -690,5 +712,30 @@ async function pollSourceInstall(module) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
+async function launchSourceModule(module) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: launch requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/launch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.detail || payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: launch failed - ${sourceEscape(reason)}`);
+      return;
+    }
+    setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.status || "running"} pid ${payload.pid || ""}`);
+    await loadSourceAppsStatus();
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: launch error - ${sourceEscape(err)}`);
   }
 }
