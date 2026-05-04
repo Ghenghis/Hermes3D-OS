@@ -471,9 +471,13 @@ function dispatchSourceModuleToActionWindow() {
   const installStatus = status.install_status || "not_installed";
   const installMethod = status.install_method || null;
   const installToneMap = { installed: "ok", installing: "info", failed: "err" };
-  const tone = installToneMap[installStatus]
+  const processStatus = status.process_state?.status || (status.process_state?.running ? "running" : "stopped");
+  const serviceUrl = status.service_url || "";
+  const tone = processStatus === "running" ? "ok" : installToneMap[installStatus]
     || (status.installed_executable ? "ok" : (status.source_exists ? "info" : "warn"));
-  const pillText = installStatus !== "not_installed"
+  const pillText = processStatus === "running"
+    ? "running"
+    : installStatus !== "not_installed"
     ? installStatus
     : status.installed_executable
       ? "installed"
@@ -481,15 +485,29 @@ function dispatchSourceModuleToActionWindow() {
         ? "source ready"
         : "not installed";
   const primary = [];
+  const launchUrl = status.launch_url || status.process_state?.url || module.install?.static_url || "";
   if (installMethod) {
     primary.push({ id: "install-app", label: installStatus === "installing" ? "Installing…" : "Install", endpoint: `/api/source-apps/${module.id}/install`, method: "POST" });
   }
+  if (status.launch_supported) {
+    primary.push({ id: "launch-app", label: launchUrl && status.process_state?.running ? "Open" : "Launch", endpoint: `/api/source-apps/${module.id}/launch`, method: "POST" });
+  }
+  if (status.process_state?.kind === "managed-process") {
+    primary.push({ id: "stop-app", label: "Stop", endpoint: `/api/source-apps/${module.id}/stop`, method: "POST" });
+  }
   primary.push({ id: "open-repo", label: "Open Repo", endpoint: module.repo, method: "GET" });
+  if (serviceUrl) {
+    primary.push({ id: "open-browser", label: "Open Browser", endpoint: serviceUrl, method: "GET" });
+  }
   const logTail = status.install_state?.log_tail || [];
   const installNote = module.install?.note || "Local open-source install; no cloud service required.";
   const launcherText = module.id === "triposr"
     ? "N/A; TripoSR is prepared as a local research module and probed through its Python setup."
-    : "Native or service launch wiring depends on this app's adapter.";
+    : status.launch_supported
+      ? launchUrl
+        ? `${status.process_state?.running ? "running" : "ready"} at ${launchUrl}`
+        : `${status.launch_status || "stopped"}${status.launch_pid ? ` pid ${status.launch_pid}` : ""}`
+      : "Native or service launch wiring depends on this app's adapter.";
   const triposrPanels = module.id === "triposr"
     ? [
         {
@@ -540,6 +558,8 @@ function dispatchSourceModuleToActionWindow() {
             <li><b>Section:</b> ${module.uxSection || "Hermes3D module"}</li>
             <li><b>Install:</b> ${installMethod ? `${installMethod} → ${installStatus}` : "no install block"}</li>
             <li><b>Launcher:</b> ${sourceEscape(launcherText)}</li>
+            <li><b>Process:</b> ${sourceEscape(processStatus)}</li>
+            <li><b>URL:</b> ${sourceEscape(serviceUrl || launchUrl || "not launched")}</li>
           </ul>`,
       },
       ...triposrPanels,
@@ -646,11 +666,45 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const launchButton = event.target.closest("#sourceLaunchApp");
+  if (launchButton) {
+    const module = currentSourceModule();
+    if (module) {
+      launchSourceModule(module);
+    }
+    return;
+  }
+
   const awInstallButton = event.target.closest("#actionWindow [data-action-id='install-app']");
   if (awInstallButton) {
     const moduleId = awInstallButton.closest("#actionWindow")?.dataset?.itemId;
     const module = allSourceModules().find((m) => m.id === moduleId);
     if (module) installSourceModule(module);
+    return;
+  }
+
+  const awLaunchButton = event.target.closest("#actionWindow [data-action-id='launch-app']");
+  if (awLaunchButton) {
+    const moduleId = awLaunchButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) launchSourceModule(module);
+    return;
+  }
+
+  const awStopButton = event.target.closest("#actionWindow [data-action-id='stop-app']");
+  if (awStopButton) {
+    const moduleId = awStopButton.closest("#actionWindow")?.dataset?.itemId;
+    const module = allSourceModules().find((m) => m.id === moduleId);
+    if (module) runSourceProcessAction(module, "stop");
+    return;
+  }
+
+  const awOpenBrowserButton = event.target.closest("#actionWindow [data-action-id='open-browser']");
+  if (awOpenBrowserButton) {
+    const url = awOpenBrowserButton.dataset.endpoint;
+    if (url) {
+      window.open(url, "_blank", "noopener");
+    }
     return;
   }
 });
@@ -690,5 +744,61 @@ async function pollSourceInstall(module) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
+async function launchSourceModule(module) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: launch requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/launch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.detail || payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: launch failed - ${sourceEscape(reason)}`);
+      return;
+    }
+    const launchUrl = payload.url || payload.state?.url || "";
+    if (launchUrl) {
+      setSourceHtml("#sourceDownloadState", `${module.name}: running at ${launchUrl}`);
+    } else {
+      setSourceHtml("#sourceDownloadState", `${module.name}: launch ${payload.launch_status || payload.status || "running"}${payload.pid ? ` pid ${payload.pid}` : ""}`);
+    }
+    await loadSourceAppsStatus();
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: launch error - ${sourceEscape(err)}`);
+  }
+}
+
+async function runSourceProcessAction(module, action) {
+  if (!module || !module.id) return;
+  setSourceHtml("#sourceDownloadState", `${module.name}: ${action} requested`);
+  try {
+    const response = await fetch(`/api/source-apps/${encodeURIComponent(module.id)}/${action}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const reason = payload.detail || payload.error || `HTTP ${response.status}`;
+      setSourceHtml("#sourceDownloadState", `${module.name}: ${action} failed - ${sourceEscape(reason)}`);
+      return;
+    }
+    const status = payload.state?.status || payload.status || action;
+    setSourceHtml("#sourceDownloadState", `${module.name}: ${status}`);
+    await loadSourceAppsStatus();
+    const aw = document.getElementById("actionWindow");
+    if (aw && aw.dataset.itemId === module.id) {
+      dispatchSourceModuleToActionWindow();
+    }
+  } catch (err) {
+    setSourceHtml("#sourceDownloadState", `${module.name}: ${action} error - ${sourceEscape(err)}`);
   }
 }
